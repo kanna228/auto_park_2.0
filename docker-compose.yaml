@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: auto-park-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: auto_park
+      POSTGRES_USER: autopark_user
+      POSTGRES_PASSWORD: autopark_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U autopark_user -d auto_park"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    image: migrate/migrate:4
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./database/migrations:/migrations
+    command: [
+      "-path=/migrations",
+      "-database=postgres://autopark_user:autopark_password@postgres:5432/auto_park?sslmode=disable",
+      "up"
+    ]
+    restart: "no"
+
+  auto_park:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auto-park-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    env_file:
+      - ./.env
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

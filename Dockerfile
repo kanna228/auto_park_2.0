@@ -1,0 +1,12 @@
+FROM golang:1.25-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /auto_park ./cmd/auto_park
+
+FROM alpine:3.20
+WORKDIR /app
+COPY --from=builder /auto_park /usr/local/bin/auto_park
+EXPOSE 8080
+CMD ["/usr/local/bin/auto_park"]

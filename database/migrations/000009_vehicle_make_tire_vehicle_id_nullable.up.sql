@@ -1,0 +1,2 @@
+ALTER TABLE tires
+ALTER COLUMN vehicle_id DROP NOT NULL;

@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS tires;
+DROP TABLE IF EXISTS tire_places;

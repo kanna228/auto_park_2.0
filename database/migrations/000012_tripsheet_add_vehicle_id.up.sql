@@ -1,0 +1,2 @@
+ALTER TABLE tripsheets
+ADD COLUMN IF NOT EXISTS vehicle_id BIGINT;

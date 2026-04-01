@@ -1,0 +1,46 @@
+package auto_park
+
+import (
+	"database/sql"
+	"net/http"
+
+	"auto_park/internal/config"
+	"auto_park/tripsheet_module"
+	"auto_park/user_module"
+	"auto_park/vehicle_module"
+
+	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+)
+
+func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
+
+	r := gin.New()
+	r.Use(gin.Logger(), gin.Recovery())
+
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	r.GET("/healthz", func(c *gin.Context) {
+		if err := db.PingContext(c.Request.Context()); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{
+				"ok": false,
+				"db": "not ok",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"ok":      true,
+			"service": cfg.Service.Name,
+			"port":    cfg.Service.Port,
+		})
+	})
+
+	user_module.RegisterRoutes(r, cfg, db)
+	vehicle_module.RegisterRoutes(r, cfg, db)
+	tripsheet_module.RegisterRoutes(r, cfg, db)
+
+	return r
+}
