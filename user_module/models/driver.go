@@ -10,6 +10,7 @@ type Driver struct {
 	Middlename string    `json:"middlename,omitempty" example:"Diasovich"`
 	Phone      string    `json:"phone,omitempty" example:"+77001234567"`
 	Mail       string    `json:"mail,omitempty" example:"dias@mail.com"`
+	PhotoPath  string    `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
 	CreatedAt  time.Time `json:"created_at" example:"2026-02-18T12:00:00Z"`
 	UpdatedAt  time.Time `json:"updated_at" example:"2026-02-18T12:10:00Z"`
 }

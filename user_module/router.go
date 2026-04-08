@@ -17,13 +17,14 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	driverRepo := repository.NewDriverRepo(db, cfg.Schemas.User)
 
 	mailer := service.NewSMTPMailer(cfg)
+	driverPhotoStorage := service.NewDriverPhotoStorage(cfg.Uploads.RootDir)
 
 	authSvc := service.NewAuthService(cfg, userRepo)
 	userSvc := service.NewUserService(cfg, userRepo, mailer)
 	usersReadSvc := service.NewUsersReadService(userRepo)
 	updSvc := service.NewUsersUpdateService(userRepo)
 	delSvc := service.NewUsersDeleteService(userRepo)
-	driversSvc := service.NewDriversService(driverRepo)
+	driversSvc := service.NewDriversService(driverRepo, driverPhotoStorage)
 
 	authH := handlers.NewAuthHandler(cfg, authSvc)
 	usersH := handlers.NewUsersHandler(cfg, userSvc)
@@ -59,6 +60,10 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			adminOnly.POST("", driversH.Create)
 			adminOnly.PUT("/:id", driversH.Update)
 			adminOnly.DELETE("/:id", driversH.Delete)
+
+			adminOnly.POST("/:id/photo", driversH.UploadPhoto)
+			adminOnly.PUT("/:id/photo", driversH.UploadPhoto)
+			adminOnly.DELETE("/:id/photo", driversH.DeletePhoto)
 		}
 	}
 }

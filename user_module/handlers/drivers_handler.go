@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"net/http"
+	"path"
 	"strconv"
+	"strings"
 
 	"auto_park/user_module/dto"
 	"auto_park/user_module/repository"
@@ -15,7 +17,6 @@ import (
 // SWAGGER RESPONSE MODELS
 // =======================
 
-// DriverDTO — модель водителя для Swagger (чтобы нормально отрисовалось в UI)
 type DriverDTO struct {
 	ID         int64  `json:"id" example:"1"`
 	IIN        string `json:"iin" example:"001122334455"`
@@ -24,23 +25,22 @@ type DriverDTO struct {
 	Middlename string `json:"middlename,omitempty" example:"A."`
 	Phone      string `json:"phone,omitempty" example:"+77001234567"`
 	Mail       string `json:"mail,omitempty" example:"dias@example.com"`
+	PhotoPath  string `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
+	PhotoURL   string `json:"photo_url,omitempty" example:"http://localhost:8080/static/drivers/driver_1_1710000000.jpg"`
 	CreatedAt  string `json:"created_at" example:"2026-02-18T12:34:56Z"`
 	UpdatedAt  string `json:"updated_at" example:"2026-02-18T12:34:56Z"`
 }
 
-// DriverResponse — ответ с одним водителем
 type DriverResponse struct {
 	Success bool      `json:"success" example:"true"`
 	Data    DriverDTO `json:"data"`
 }
 
-// DriversListResponse — ответ со списком водителей
 type DriversListResponse struct {
 	Success bool        `json:"success" example:"true"`
 	Data    []DriverDTO `json:"data"`
 }
 
-// DeleteDriverResponse — ответ при удалении
 type DeleteDriverResponse struct {
 	Success bool `json:"success" example:"true"`
 	Data    struct {
@@ -48,7 +48,6 @@ type DeleteDriverResponse struct {
 	} `json:"data"`
 }
 
-// ErrorResponse — единый формат ошибки
 type ErrorResponse struct {
 	Success bool   `json:"success" example:"false"`
 	Error   string `json:"error" example:"invalid id"`
@@ -64,40 +63,13 @@ func NewDriversHandler(svc *service.DriversService) *DriversHandler {
 	return &DriversHandler{svc: svc}
 }
 
-// helper: доменную модель -> swagger dto
-func toDriverDTO(d any) DriverDTO {
-	// d здесь будет *models.Driver (из сервиса), но чтобы не импортить models
-	// и не ломать swag — аккуратно преобразуем через поля.
-	// Проще всего: сделаем локальный тип с нужными полями и type assert.
-	type driverLike struct {
-		ID         int64
-		IIN        string
-		Name       string
-		Surname    string
-		Middlename string
-		Phone      string
-		Mail       string
-		CreatedAt  interface{ Format(string) string }
-		UpdatedAt  interface{ Format(string) string }
+func driverPhotoURL(c *gin.Context, rel string) string {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return ""
 	}
-
-	drv, ok := d.(*driverLike)
-	if ok && drv != nil {
-		return DriverDTO{
-			ID:         drv.ID,
-			IIN:        drv.IIN,
-			Name:       drv.Name,
-			Surname:    drv.Surname,
-			Middlename: drv.Middlename,
-			Phone:      drv.Phone,
-			Mail:       drv.Mail,
-			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-		}
-	}
-
-	// fallback (на случай если type assert не сработал — swagger всё равно ок)
-	return DriverDTO{}
+	rel = strings.TrimLeft(rel, "/")
+	return "http://" + c.Request.Host + path.Join("/static", rel)
 }
 
 // Create godoc
@@ -127,23 +99,22 @@ func (h *DriversHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// если хочешь чтобы реально ответ совпадал с swagger-DTO — возвращай DTO:
-	// (ниже будет работать даже если ты оставишь доменную модель, но лучше так)
-	dtoResp := DriverResponse{Success: true}
-	// ручное заполнение без хитрых кастов (самый простой вариант):
-	dtoResp.Data = DriverDTO{
-		ID:         drv.ID,
-		IIN:        drv.IIN,
-		Name:       drv.Name,
-		Surname:    drv.Surname,
-		Middlename: drv.Middlename,
-		Phone:      drv.Phone,
-		Mail:       drv.Mail,
-		CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-	}
-
-	c.JSON(http.StatusCreated, dtoResp)
+	c.JSON(http.StatusCreated, DriverResponse{
+		Success: true,
+		Data: DriverDTO{
+			ID:         drv.ID,
+			IIN:        drv.IIN,
+			Name:       drv.Name,
+			Surname:    drv.Surname,
+			Middlename: drv.Middlename,
+			Phone:      drv.Phone,
+			Mail:       drv.Mail,
+			PhotoPath:  drv.PhotoPath,
+			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
+			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		},
+	})
 }
 
 // List godoc
@@ -179,6 +150,8 @@ func (h *DriversHandler) List(c *gin.Context) {
 			Middlename: d.Middlename,
 			Phone:      d.Phone,
 			Mail:       d.Mail,
+			PhotoPath:  d.PhotoPath,
+			PhotoURL:   driverPhotoURL(c, d.PhotoPath),
 			CreatedAt:  d.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			UpdatedAt:  d.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		})
@@ -217,7 +190,7 @@ func (h *DriversHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	resp := DriverResponse{
+	c.JSON(http.StatusOK, DriverResponse{
 		Success: true,
 		Data: DriverDTO{
 			ID:         drv.ID,
@@ -227,12 +200,12 @@ func (h *DriversHandler) GetByID(c *gin.Context) {
 			Middlename: drv.Middlename,
 			Phone:      drv.Phone,
 			Mail:       drv.Mail,
+			PhotoPath:  drv.PhotoPath,
+			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
 			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		},
-	}
-
-	c.JSON(http.StatusOK, resp)
+	})
 }
 
 // Update godoc
@@ -242,7 +215,7 @@ func (h *DriversHandler) GetByID(c *gin.Context) {
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        id     path int                    true "Driver ID"
+// @Param        id     path int                     true "Driver ID"
 // @Param        driver body dto.UpdateDriverRequest true "Fields to update"
 // @Success      200 {object} DriverResponse
 // @Failure      400 {object} ErrorResponse
@@ -274,7 +247,7 @@ func (h *DriversHandler) Update(c *gin.Context) {
 		return
 	}
 
-	resp := DriverResponse{
+	c.JSON(http.StatusOK, DriverResponse{
 		Success: true,
 		Data: DriverDTO{
 			ID:         drv.ID,
@@ -284,12 +257,118 @@ func (h *DriversHandler) Update(c *gin.Context) {
 			Middlename: drv.Middlename,
 			Phone:      drv.Phone,
 			Mail:       drv.Mail,
+			PhotoPath:  drv.PhotoPath,
+			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
 			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
 			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 		},
+	})
+}
+
+// UploadPhoto godoc
+// @Summary      Upload or replace driver photo
+// @Description  Uploads one photo for a driver and replaces the previous one if it exists (roles: 1,2,3 only). JWT required.
+// @Tags         Drivers
+// @Accept       mpfd
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Driver ID"
+// @Param        photo formData file true "Driver photo"
+// @Success      200 {object} DriverResponse
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      404 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /api/users/drivers/{id}/photo [post]
+func (h *DriversHandler) UploadPhoto(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid id"})
+		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	file, err := c.FormFile("photo")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "photo file is required"})
+		return
+	}
+
+	drv, err := h.svc.UploadPhoto(c.Request.Context(), id, file)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, DriverResponse{
+		Success: true,
+		Data: DriverDTO{
+			ID:         drv.ID,
+			IIN:        drv.IIN,
+			Name:       drv.Name,
+			Surname:    drv.Surname,
+			Middlename: drv.Middlename,
+			Phone:      drv.Phone,
+			Mail:       drv.Mail,
+			PhotoPath:  drv.PhotoPath,
+			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
+			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		},
+	})
+}
+
+// DeletePhoto godoc
+// @Summary      Delete driver photo
+// @Description  Deletes driver photo and clears photo_path (roles: 1,2,3 only). JWT required.
+// @Tags         Drivers
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Driver ID"
+// @Success      200 {object} DriverResponse
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      404 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /api/users/drivers/{id}/photo [delete]
+func (h *DriversHandler) DeletePhoto(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid id"})
+		return
+	}
+
+	drv, err := h.svc.DeletePhoto(c.Request.Context(), id)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, DriverResponse{
+		Success: true,
+		Data: DriverDTO{
+			ID:         drv.ID,
+			IIN:        drv.IIN,
+			Name:       drv.Name,
+			Surname:    drv.Surname,
+			Middlename: drv.Middlename,
+			Phone:      drv.Phone,
+			Mail:       drv.Mail,
+			PhotoPath:  drv.PhotoPath,
+			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
+			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		},
+	})
 }
 
 // Delete godoc

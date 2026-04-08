@@ -28,20 +28,26 @@ func (r *DriverRepo) table() string {
 
 func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driver, error) {
 	q := fmt.Sprintf(`
-		INSERT INTO %s (iin, name, surname, middlename, phone, mail)
-		VALUES ($1,$2,$3,$4,$5,$6)
-		RETURNING id, iin, name, surname, middlename, phone, mail, created_at, updated_at
+		INSERT INTO %s (iin, name, surname, middlename, phone, mail, photo_path)
+		VALUES ($1,$2,$3,$4,$5,$6,$7)
+		RETURNING id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
 	`, r.table())
 
 	row := r.db.QueryRowContext(ctx, q,
-		d.IIN, d.Name, d.Surname, nullIfEmpty(d.Middlename), nullIfEmpty(d.Phone), nullIfEmpty(d.Mail),
+		d.IIN,
+		d.Name,
+		d.Surname,
+		nullIfEmpty(d.Middlename),
+		nullIfEmpty(d.Phone),
+		nullIfEmpty(d.Mail),
+		nullIfEmpty(d.PhotoPath),
 	)
 
 	out := &models.Driver{}
-	var middlename, phone, mail sql.NullString
+	var middlename, phone, mail, photoPath sql.NullString
 	if err := row.Scan(
 		&out.ID, &out.IIN, &out.Name, &out.Surname,
-		&middlename, &phone, &mail,
+		&middlename, &phone, &mail, &photoPath,
 		&out.CreatedAt, &out.UpdatedAt,
 	); err != nil {
 		return nil, err
@@ -49,21 +55,22 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 	out.Middlename = middlename.String
 	out.Phone = phone.String
 	out.Mail = mail.String
+	out.PhotoPath = photoPath.String
 	return out, nil
 }
 
 func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, error) {
 	q := fmt.Sprintf(`
-		SELECT id, iin, name, surname, middlename, phone, mail, created_at, updated_at
+		SELECT id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
 		FROM %s
 		WHERE id=$1
 	`, r.table())
 
 	out := &models.Driver{}
-	var middlename, phone, mail sql.NullString
+	var middlename, phone, mail, photoPath sql.NullString
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&out.ID, &out.IIN, &out.Name, &out.Surname,
-		&middlename, &phone, &mail,
+		&middlename, &phone, &mail, &photoPath,
 		&out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
@@ -75,6 +82,7 @@ func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, err
 	out.Middlename = middlename.String
 	out.Phone = phone.String
 	out.Mail = mail.String
+	out.PhotoPath = photoPath.String
 	return out, nil
 }
 
@@ -87,7 +95,7 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 	}
 
 	q := fmt.Sprintf(`
-		SELECT id, iin, name, surname, middlename, phone, mail, created_at, updated_at
+		SELECT id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
 		FROM %s
 		ORDER BY surname ASC, name ASC, id ASC
 		LIMIT $1 OFFSET $2
@@ -102,10 +110,10 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 	var res []models.Driver
 	for rows.Next() {
 		var d models.Driver
-		var middlename, phone, mail sql.NullString
+		var middlename, phone, mail, photoPath sql.NullString
 		if err := rows.Scan(
 			&d.ID, &d.IIN, &d.Name, &d.Surname,
-			&middlename, &phone, &mail,
+			&middlename, &phone, &mail, &photoPath,
 			&d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -113,20 +121,25 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 		d.Middlename = middlename.String
 		d.Phone = phone.String
 		d.Mail = mail.String
+		d.PhotoPath = photoPath.String
 		res = append(res, d)
 	}
 	return res, rows.Err()
 }
 
 func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (*models.Driver, error) {
-	// Собираем динамический UPDATE
 	if len(upd) == 0 {
 		return r.GetByID(ctx, id)
 	}
 
 	allowed := map[string]bool{
-		"iin": true, "name": true, "surname": true,
-		"middlename": true, "phone": true, "mail": true,
+		"iin":        true,
+		"name":       true,
+		"surname":    true,
+		"middlename": true,
+		"phone":      true,
+		"mail":       true,
+		"photo_path": true,
 	}
 
 	setParts := make([]string, 0, len(upd)+1)
@@ -142,12 +155,11 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		i++
 	}
 
-	// updated_at
 	setParts = append(setParts, fmt.Sprintf("updated_at=$%d", i))
-	args = append(args, time.Now())
+	args = append(args, time.Now().UTC())
 	i++
 
-	if len(setParts) == 1 { // только updated_at
+	if len(setParts) == 1 {
 		return r.GetByID(ctx, id)
 	}
 
@@ -157,16 +169,16 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		UPDATE %s
 		SET %s
 		WHERE id=$%d
-		RETURNING id, iin, name, surname, middlename, phone, mail, created_at, updated_at
+		RETURNING id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
 	`, r.table(), strings.Join(setParts, ", "), i)
 
 	row := r.db.QueryRowContext(ctx, q, args...)
 
 	out := &models.Driver{}
-	var middlename, phone, mail sql.NullString
+	var middlename, phone, mail, photoPath sql.NullString
 	if err := row.Scan(
 		&out.ID, &out.IIN, &out.Name, &out.Surname,
-		&middlename, &phone, &mail,
+		&middlename, &phone, &mail, &photoPath,
 		&out.CreatedAt, &out.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -177,7 +189,14 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 	out.Middlename = middlename.String
 	out.Phone = phone.String
 	out.Mail = mail.String
+	out.PhotoPath = photoPath.String
 	return out, nil
+}
+
+func (r *DriverRepo) UpdatePhotoPath(ctx context.Context, id int64, photoPath string) (*models.Driver, error) {
+	return r.Update(ctx, id, map[string]any{
+		"photo_path": nullIfEmpty(photoPath),
+	})
 }
 
 func (r *DriverRepo) Delete(ctx context.Context, id int64) error {
@@ -192,8 +211,6 @@ func (r *DriverRepo) Delete(ctx context.Context, id int64) error {
 	}
 	return nil
 }
-
-// helpers
 
 func nullIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {

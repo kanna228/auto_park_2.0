@@ -17,3 +17,7 @@ type UpdateDriverRequest struct {
 	Phone      *string `json:"phone"`
 	Mail       *string `json:"mail"`
 }
+
+type UploadDriverPhotoRequest struct {
+	Photo string `form:"photo" swaggerignore:"true"`
+}

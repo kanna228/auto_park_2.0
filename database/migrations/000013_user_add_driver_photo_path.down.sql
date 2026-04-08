@@ -1,0 +1,2 @@
+ALTER TABLE drivers
+DROP COLUMN IF EXISTS photo_path;

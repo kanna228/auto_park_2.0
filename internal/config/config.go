@@ -15,6 +15,7 @@ type Config struct {
 	Schemas SchemaConfig
 	Auth    AuthConfig
 	Email   EmailConfig
+	Uploads UploadsConfig
 }
 
 type ServiceConfig struct {
@@ -46,6 +47,10 @@ type EmailConfig struct {
 
 	FromName string
 	FromAddr string
+}
+
+type UploadsConfig struct {
+	RootDir string
 }
 
 func Load() (*Config, error) {
@@ -80,6 +85,9 @@ func Load() (*Config, error) {
 			SMTPPassword: getenv("SMTP_PASSWORD", ""),
 			FromName:     getenv("SMTP_FROM_NAME", "Autopark"),
 			FromAddr:     getenv("SMTP_FROM_ADDR", ""),
+		},
+		Uploads: UploadsConfig{
+			RootDir: getenv("UPLOADS_ROOT_DIR", "storage"),
 		},
 	}
 

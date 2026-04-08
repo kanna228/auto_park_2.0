@@ -32,6 +32,8 @@ services:
     restart: "no"
 
   auto_park:
+    volumes:
+      - ./storage:/app/storage
     build:
       context: .
       dockerfile: Dockerfile

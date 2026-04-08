@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"mime/multipart"
 
 	"auto_park/user_module/dto"
 	"auto_park/user_module/models"
@@ -9,11 +10,15 @@ import (
 )
 
 type DriversService struct {
-	repo *repository.DriverRepo
+	repo    *repository.DriverRepo
+	storage *DriverPhotoStorage
 }
 
-func NewDriversService(repo *repository.DriverRepo) *DriversService {
-	return &DriversService{repo: repo}
+func NewDriversService(repo *repository.DriverRepo, storage *DriverPhotoStorage) *DriversService {
+	return &DriversService{
+		repo:    repo,
+		storage: storage,
+	}
 }
 
 func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest) (*models.Driver, error) {
@@ -58,6 +63,48 @@ func (s *DriversService) Update(ctx context.Context, id int64, req dto.UpdateDri
 	return s.repo.Update(ctx, id, upd)
 }
 
+func (s *DriversService) UploadPhoto(ctx context.Context, id int64, file *multipart.FileHeader) (*models.Driver, error) {
+	driver, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	relativePath, err := s.storage.Save(id, file, driver.PhotoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.UpdatePhotoPath(ctx, id, relativePath)
+}
+
+func (s *DriversService) DeletePhoto(ctx context.Context, id int64) (*models.Driver, error) {
+	driver, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if driver.PhotoPath != "" {
+		if err := s.storage.Delete(driver.PhotoPath); err != nil {
+			return nil, err
+		}
+	}
+
+	return s.repo.UpdatePhotoPath(ctx, id, "")
+}
+
 func (s *DriversService) Delete(ctx context.Context, id int64) error {
-	return s.repo.Delete(ctx, id)
+	driver, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+
+	if driver.PhotoPath != "" {
+		_ = s.storage.Delete(driver.PhotoPath)
+	}
+
+	return nil
 }

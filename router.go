@@ -3,6 +3,7 @@ package auto_park
 import (
 	"database/sql"
 	"net/http"
+	"os"
 
 	"auto_park/internal/config"
 	"auto_park/tripsheet_module"
@@ -19,6 +20,10 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 
 	r := gin.New()
 	r.Use(gin.Logger(), gin.Recovery())
+
+	_ = os.MkdirAll(cfg.Uploads.RootDir, 0o755)
+
+	r.Static("/static", cfg.Uploads.RootDir)
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
