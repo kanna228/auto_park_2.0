@@ -10,7 +10,7 @@ import (
 
 // Delete godoc
 // @Summary      Delete tripsheet
-// @Description  Deletes a tripsheet by ID.
+// @Description  Deletes a tripsheet by ID together with all related tripsheet trips.
 // @Tags         Tripsheets
 // @Produce      json
 // @Security     BearerAuth
@@ -58,6 +58,6 @@ func (h *TripsheetHandler) Delete(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"message": "tripsheet deleted successfully",
+		"message": "tripsheet and related trips deleted successfully",
 	})
 }

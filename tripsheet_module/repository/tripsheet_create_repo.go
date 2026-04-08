@@ -16,6 +16,7 @@ type TripsheetRepo interface {
 	GetByID(ctx context.Context, id int64) (*dto.TripsheetResponse, error)
 	Update(ctx context.Context, input models.UpdateTripsheetInput) (*models.Tripsheet, error)
 	Delete(ctx context.Context, id int64) error
+	DeleteTripsWithTripsheet(ctx context.Context, id int64) error
 }
 
 type tripsheetRepo struct {
@@ -27,8 +28,9 @@ func NewTripsheetRepo(db *sql.DB, schema string) TripsheetRepo {
 	return &tripsheetRepo{db: db, schema: schema}
 }
 
-func (r *tripsheetRepo) tripsheetsTable() string { return "tripsheets" }
-func (r *tripsheetRepo) statusesTable() string   { return "tripsheet_statuses" }
+func (r *tripsheetRepo) tripsheetsTable() string     { return "tripsheets" }
+func (r *tripsheetRepo) statusesTable() string       { return "tripsheet_statuses" }
+func (r *tripsheetRepo) tripsheetTripsTable() string { return "tripsheet_trips" }
 
 func (r *tripsheetRepo) GetStatusIDByName(ctx context.Context, name string) (int64, error) {
 	query := fmt.Sprintf(`

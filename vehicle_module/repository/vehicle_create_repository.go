@@ -16,6 +16,7 @@ type VehicleRepository interface {
 	UpdateByID(ctx context.Context, id int64, p UpdateVehicleParams) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
 	UpdatePhotoPath(ctx context.Context, id int64, photoPath string) (bool, error)
+	UnassignTiresByVehicleID(ctx context.Context, vehicleID int64) error
 }
 
 type vehicleRepo struct {

@@ -10,5 +10,5 @@ func (s *tripsheetService) Delete(ctx context.Context, id int64) error {
 		return fmt.Errorf("invalid id")
 	}
 
-	return s.repo.Delete(ctx, id)
+	return s.repo.DeleteTripsWithTripsheet(ctx, id)
 }
