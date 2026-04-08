@@ -15,6 +15,7 @@ type VehicleRepository interface {
 	List(ctx context.Context, q ListVehiclesParams) ([]models.Vehicle, int64, error)
 	UpdateByID(ctx context.Context, id int64, p UpdateVehicleParams) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
+	UpdatePhotoPath(ctx context.Context, id int64, photoPath string) (bool, error)
 }
 
 type vehicleRepo struct {
@@ -33,14 +34,14 @@ type CreateVehicleParams struct {
 
 	BrandModel      string
 	ManufactureYear int
-	ReceivedDate    string // "YYYY-MM-DD" (чтобы не зависеть от TZ в sql)
+	ReceivedDate    string
 
 	EmptyWeightKG  *float64
 	MaxWeightKG    *float64
 	EngineVolumeCC *int
 
 	InsurancePolicyNumber *string
-	InsuranceExpiryDate   *string // "YYYY-MM-DD"
+	InsuranceExpiryDate   *string
 
 	Mileage     int64
 	CurrentFuel float64
@@ -82,12 +83,12 @@ func (r *vehicleRepo) Create(ctx context.Context, v CreateVehicleParams) (int64,
 		v.VIN,
 		v.BrandModel,
 		v.ManufactureYear,
-		v.ReceivedDate, // DATE
+		v.ReceivedDate,
 		v.EmptyWeightKG,
 		v.MaxWeightKG,
 		v.EngineVolumeCC,
 		v.InsurancePolicyNumber,
-		v.InsuranceExpiryDate, // DATE
+		v.InsuranceExpiryDate,
 		v.Mileage,
 		v.CurrentFuel,
 		pq.Int64Array(v.DriversIDs),

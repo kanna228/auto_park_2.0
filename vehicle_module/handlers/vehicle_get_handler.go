@@ -3,13 +3,27 @@ package handlers
 import (
 	"auto_park/vehicle_module/dto"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-// GET /api/vehicles/:id
+func vehiclePhotoURL(c *gin.Context, rel string) string {
+	rel = strings.TrimSpace(rel)
+	if rel == "" {
+		return ""
+	}
+	rel = strings.TrimLeft(rel, "/")
+
+	scheme := "http"
+	if c.Request.TLS != nil {
+		scheme = "https"
+	}
+
+	return scheme + "://" + c.Request.Host + path.Join("/static", rel)
+}
 
 // GetVehicleByID godoc
 // @Summary      Get vehicle by ID
@@ -52,13 +66,13 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 		return
 	}
 
+	v.PhotoURL = vehiclePhotoURL(c, v.PhotoPath)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    v,
 	})
 }
-
-// GET /api/vehicles (list + filters)
 
 // ListVehicles godoc
 // @Summary      List vehicles
@@ -72,7 +86,7 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 // @Param        brand_model  query string false "Filter by brand/model"
 // @Param        year_from    query int    false "Manufacture year from"
 // @Param        year_to      query int    false "Manufacture year to"
-// @Param        driver_id    query int    false "Filter by driver id (WHERE driver_id = ANY(drivers_ids))"
+// @Param        driver_id    query int    false "Filter by driver id"
 // @Param        limit        query int    false "Limit"  default(50)
 // @Param        offset       query int    false "Offset" default(0)
 // @Param        sort_by      query string false "Sort by: id, board_number, state_number, manufacture_year, mileage, created_at"
@@ -89,12 +103,10 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 		StateNumber: c.Query("state_number"),
 		VIN:         c.Query("vin"),
 		BrandModel:  c.Query("brand_model"),
-
-		SortBy: c.Query("sort_by"),
-		Order:  c.Query("order"),
+		SortBy:      c.Query("sort_by"),
+		Order:       c.Query("order"),
 	}
 
-	// year_from, year_to
 	if s := strings.TrimSpace(c.Query("year_from")); s != "" {
 		if n, err := strconv.Atoi(s); err == nil {
 			q.ManufactureYearFrom = &n
@@ -112,7 +124,6 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 		}
 	}
 
-	// driver_id
 	if s := strings.TrimSpace(c.Query("driver_id")); s != "" {
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
 			q.DriverID = &n
@@ -122,7 +133,6 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 		}
 	}
 
-	// limit / offset
 	if s := strings.TrimSpace(c.Query("limit")); s != "" {
 		n, err := strconv.Atoi(s)
 		if err != nil || n < 0 {
@@ -152,6 +162,10 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 			"error":   err.Error(),
 		})
 		return
+	}
+
+	for i := range resp.Items {
+		resp.Items[i].PhotoURL = vehiclePhotoURL(c, resp.Items[i].PhotoPath)
 	}
 
 	c.JSON(http.StatusOK, gin.H{

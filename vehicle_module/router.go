@@ -14,7 +14,8 @@ import (
 
 func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	vehicleRepo := repository.NewVehicleRepository(db)
-	vehicleSvc := service.NewVehicleService(vehicleRepo)
+	vehiclePhotoStorage := service.NewVehiclePhotoStorage(cfg.Uploads.RootDir)
+	vehicleSvc := service.NewVehicleService(vehicleRepo, vehiclePhotoStorage)
 	vehicleHandler := handlers.NewVehicleHandler(vehicleSvc)
 
 	tireRepo := repository.NewTireRepository(db)
@@ -34,6 +35,10 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		protected.GET("", vehicleHandler.ListVehicles)
 		protected.PUT("/:id", vehicleHandler.UpdateVehicle)
 		protected.DELETE("/:id", vehicleHandler.DeleteVehicle)
+
+		protected.POST("/:id/photo", vehicleHandler.UploadVehiclePhoto)
+		protected.PUT("/:id/photo", vehicleHandler.UpdateVehiclePhoto)
+		protected.DELETE("/:id/photo", vehicleHandler.DeleteVehiclePhoto)
 
 		protected.POST("/tires", tireHandler.CreateTire)
 		protected.GET("/tires/:id", tireHandler.GetTireByID)

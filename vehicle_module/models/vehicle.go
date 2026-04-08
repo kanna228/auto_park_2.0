@@ -26,6 +26,8 @@ type Vehicle struct {
 
 	DriversIDs []int64 `json:"drivers_ids"`
 
+	PhotoPath string `json:"photo_path,omitempty"`
+
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }

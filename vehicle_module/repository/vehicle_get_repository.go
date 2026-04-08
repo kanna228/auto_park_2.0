@@ -29,6 +29,7 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 			mileage,
 			current_fuel,
 			drivers_ids,
+			photo_path,
 			created_at,
 			updated_at
 		FROM vehicles
@@ -37,6 +38,7 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 
 	var v models.Vehicle
 	var drivers pq.Int64Array
+	var photoPath sql.NullString
 
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&v.ID,
@@ -55,6 +57,7 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 		&v.Mileage,
 		&v.CurrentFuel,
 		&drivers,
+		&photoPath,
 		&v.CreatedAt,
 		&v.UpdatedAt,
 	)
@@ -67,6 +70,7 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 	}
 
 	v.DriversIDs = []int64(drivers)
+	v.PhotoPath = photoPath.String
 	return &v, nil
 }
 
@@ -84,21 +88,19 @@ type ListVehiclesParams struct {
 	Limit  int
 	Offset int
 
-	SortBy string // allowed in code
-	Order  string // asc/desc
+	SortBy string
+	Order  string
 }
 
 func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.Vehicle, int64, error) {
 	where := make([]string, 0, 8)
 	args := make([]any, 0, 12)
 
-	// helper add
 	add := func(cond string, val any) {
 		args = append(args, val)
 		where = append(where, fmt.Sprintf(cond, len(args)))
 	}
 
-	// filters (ILIKE — по подстроке)
 	if strings.TrimSpace(q.BoardNumber) != "" {
 		add("board_number ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.BoardNumber))
 	}
@@ -128,7 +130,6 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 		whereSQL = strings.Join(where, " AND ")
 	}
 
-	// безопасная сортировка (white-list)
 	sortCol := "id"
 	switch q.SortBy {
 	case "id", "board_number", "state_number", "manufacture_year", "mileage", "created_at":
@@ -149,19 +150,14 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 		offset = 0
 	}
 
-	// total
 	countSQL := `SELECT COUNT(*) FROM vehicles WHERE ` + whereSQL + `;`
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("list vehicles count: %w", err)
 	}
 
-	// data
-	// добавим limit/offset в конец args
 	argsData := append([]any{}, args...)
 	argsData = append(argsData, limit, offset)
-	limitIdx := len(argsData) - 1 // не то
-	_ = limitIdx
 
 	dataSQL := fmt.Sprintf(`
 		SELECT
@@ -181,6 +177,7 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 			mileage,
 			current_fuel,
 			drivers_ids,
+			photo_path,
 			created_at,
 			updated_at
 		FROM vehicles
@@ -199,6 +196,7 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 	for rows.Next() {
 		var v models.Vehicle
 		var drivers pq.Int64Array
+		var photoPath sql.NullString
 
 		if err := rows.Scan(
 			&v.ID,
@@ -217,6 +215,7 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 			&v.Mileage,
 			&v.CurrentFuel,
 			&drivers,
+			&photoPath,
 			&v.CreatedAt,
 			&v.UpdatedAt,
 		); err != nil {
@@ -224,6 +223,7 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 		}
 
 		v.DriversIDs = []int64(drivers)
+		v.PhotoPath = photoPath.String
 		items = append(items, v)
 	}
 

@@ -16,25 +16,29 @@ type VehicleService interface {
 	List(ctx context.Context, q dto.VehicleListQuery) (*dto.VehicleListResponse, error)
 	UpdateByID(ctx context.Context, id int64, req dto.VehicleUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
+	UploadPhoto(ctx context.Context, id int64, fileHeader any) (*dto.VehicleResponse, error)
+	DeletePhoto(ctx context.Context, id int64) (*dto.VehicleResponse, error)
 }
 
 type vehicleService struct {
-	repo repository.VehicleRepository
+	repo    repository.VehicleRepository
+	storage *VehiclePhotoStorage
 }
 
-func NewVehicleService(repo repository.VehicleRepository) VehicleService {
-	return &vehicleService{repo: repo}
+func NewVehicleService(repo repository.VehicleRepository, storage *VehiclePhotoStorage) VehicleService {
+	return &vehicleService{
+		repo:    repo,
+		storage: storage,
+	}
 }
 
 func (s *vehicleService) Create(ctx context.Context, req dto.VehicleCreateRequest) (int64, error) {
-	// Мини-санитайзинг строк
 	req.BoardNumber = strings.TrimSpace(req.BoardNumber)
 	req.TechnicalPassportNumber = strings.TrimSpace(req.TechnicalPassportNumber)
 	req.StateNumber = strings.TrimSpace(req.StateNumber)
 	req.VIN = strings.TrimSpace(req.VIN)
 	req.BrandModel = strings.TrimSpace(req.BrandModel)
 
-	// Даты в "YYYY-MM-DD" чтобы не поймать смещение по времени
 	received := req.ReceivedDate.Format("2006-01-02")
 
 	var expiry *string
@@ -43,7 +47,6 @@ func (s *vehicleService) Create(ctx context.Context, req dto.VehicleCreateReques
 		expiry = &s
 	}
 
-	// если кто-то не передал mileage/current_fuel — оставим как есть (у тебя default в БД тоже есть, но мы принимаем всё)
 	if req.Mileage < 0 {
 		return 0, fmt.Errorf("mileage must be >= 0")
 	}
@@ -59,21 +62,16 @@ func (s *vehicleService) Create(ctx context.Context, req dto.VehicleCreateReques
 		BrandModel:              req.BrandModel,
 		ManufactureYear:         req.ManufactureYear,
 		ReceivedDate:            received,
-
-		EmptyWeightKG:  req.EmptyWeightKG,
-		MaxWeightKG:    req.MaxWeightKG,
-		EngineVolumeCC: req.EngineVolumeCC,
-
-		InsurancePolicyNumber: req.InsurancePolicyNumber,
-		InsuranceExpiryDate:   expiry,
-
-		Mileage:     req.Mileage,
-		CurrentFuel: req.CurrentFuel,
-
-		DriversIDs: req.DriversIDs,
+		EmptyWeightKG:           req.EmptyWeightKG,
+		MaxWeightKG:             req.MaxWeightKG,
+		EngineVolumeCC:          req.EngineVolumeCC,
+		InsurancePolicyNumber:   req.InsurancePolicyNumber,
+		InsuranceExpiryDate:     expiry,
+		Mileage:                 req.Mileage,
+		CurrentFuel:             req.CurrentFuel,
+		DriversIDs:              req.DriversIDs,
 	}
 
-	// На всякий случай: если в запросе date-time — отрежем время
 	_ = time.Now()
 
 	return s.repo.Create(ctx, params)

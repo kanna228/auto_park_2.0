@@ -90,6 +90,9 @@ func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
 
 		DriversIDs: v.DriversIDs,
 
+		PhotoPath: v.PhotoPath,
+		PhotoURL:  "",
+
 		CreatedAt: v.CreatedAt,
 		UpdatedAt: v.UpdatedAt,
 	}
