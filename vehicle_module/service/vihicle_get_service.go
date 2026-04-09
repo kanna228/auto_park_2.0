@@ -15,7 +15,12 @@ func (s *vehicleService) GetByID(ctx context.Context, id int64) (*dto.VehicleRes
 	if v == nil {
 		return nil, nil
 	}
-	resp := mapVehicleToDTO(*v)
+
+	resp, err := s.buildVehicleResponse(ctx, *v)
+	if err != nil {
+		return nil, err
+	}
+
 	return &resp, nil
 }
 
@@ -45,7 +50,11 @@ func (s *vehicleService) List(ctx context.Context, q dto.VehicleListQuery) (*dto
 
 	out := make([]dto.VehicleResponse, 0, len(items))
 	for _, v := range items {
-		out = append(out, mapVehicleToDTO(v))
+		resp, err := s.buildVehicleResponse(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, resp)
 	}
 
 	limit := q.Limit
@@ -63,6 +72,66 @@ func (s *vehicleService) List(ctx context.Context, q dto.VehicleListQuery) (*dto
 		Limit:  limit,
 		Offset: offset,
 	}, nil
+}
+
+func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehicle) (dto.VehicleResponse, error) {
+	resp := mapVehicleToDTO(v)
+
+	insurances, _, err := s.insuranceRepo.List(ctx, repository.ListInsuranceParams{
+		VehicleID: &v.ID,
+		Limit:     1000,
+		Offset:    0,
+		SortBy:    "start_date",
+		Order:     "desc",
+	})
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
+	technicalInspections, _, err := s.technicalInspectionRepo.List(ctx, repository.ListTechnicalInspectionParams{
+		VehicleID: &v.ID,
+		Limit:     1000,
+		Offset:    0,
+		SortBy:    "start_date",
+		Order:     "desc",
+	})
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
+	resp.Insurances = make([]dto.VehicleInsuranceHistoryItem, 0, len(insurances))
+	for _, item := range insurances {
+		resp.Insurances = append(resp.Insurances, dto.VehicleInsuranceHistoryItem{
+			ID:        item.ID,
+			VehicleID: item.VehicleID,
+			Name:      item.Name,
+			StartDate: item.StartDate,
+			EndDate:   item.EndDate,
+			FilePath:  item.FilePath,
+			FileURL:   "",
+			IsActive:  item.IsActive,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		})
+	}
+
+	resp.TechnicalInspections = make([]dto.VehicleTechnicalInspectionHistoryItem, 0, len(technicalInspections))
+	for _, item := range technicalInspections {
+		resp.TechnicalInspections = append(resp.TechnicalInspections, dto.VehicleTechnicalInspectionHistoryItem{
+			ID:        item.ID,
+			VehicleID: item.VehicleID,
+			Name:      item.Name,
+			StartDate: item.StartDate,
+			EndDate:   item.EndDate,
+			FilePath:  item.FilePath,
+			FileURL:   "",
+			IsActive:  item.IsActive,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		})
+	}
+
+	return resp, nil
 }
 
 func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
@@ -92,6 +161,9 @@ func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
 
 		PhotoPath: v.PhotoPath,
 		PhotoURL:  "",
+
+		Insurances:           []dto.VehicleInsuranceHistoryItem{},
+		TechnicalInspections: []dto.VehicleTechnicalInspectionHistoryItem{},
 
 		CreatedAt: v.CreatedAt,
 		UpdatedAt: v.UpdatedAt,

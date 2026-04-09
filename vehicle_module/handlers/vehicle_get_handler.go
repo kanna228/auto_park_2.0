@@ -68,6 +68,14 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 
 	v.PhotoURL = vehiclePhotoURL(c, v.PhotoPath)
 
+	for i := range v.Insurances {
+		v.Insurances[i].FileURL = vehiclePhotoURL(c, v.Insurances[i].FilePath)
+	}
+
+	for i := range v.TechnicalInspections {
+		v.TechnicalInspections[i].FileURL = vehiclePhotoURL(c, v.TechnicalInspections[i].FilePath)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    v,
@@ -166,6 +174,14 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 
 	for i := range resp.Items {
 		resp.Items[i].PhotoURL = vehiclePhotoURL(c, resp.Items[i].PhotoPath)
+
+		for j := range resp.Items[i].Insurances {
+			resp.Items[i].Insurances[j].FileURL = vehiclePhotoURL(c, resp.Items[i].Insurances[j].FilePath)
+		}
+
+		for j := range resp.Items[i].TechnicalInspections {
+			resp.Items[i].TechnicalInspections[j].FileURL = vehiclePhotoURL(c, resp.Items[i].TechnicalInspections[j].FilePath)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{

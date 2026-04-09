@@ -1,7 +1,6 @@
 package dto
 
 type VehicleListQuery struct {
-	// фильтры
 	BoardNumber string
 	StateNumber string
 	VIN         string
@@ -10,15 +9,13 @@ type VehicleListQuery struct {
 	ManufactureYearFrom *int
 	ManufactureYearTo   *int
 
-	DriverID *int64 // искать WHERE $x = ANY(drivers_ids)
+	DriverID *int64
 
-	// пагинация
 	Limit  int
 	Offset int
 
-	// сортировка (простая/безопасная)
-	SortBy string // "id", "board_number", "state_number", "manufacture_year", "mileage", "created_at"
-	Order  string // "asc" | "desc"
+	SortBy string
+	Order  string
 }
 
 type VehicleListResponse struct {

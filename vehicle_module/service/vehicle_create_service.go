@@ -21,14 +21,23 @@ type VehicleService interface {
 }
 
 type vehicleService struct {
-	repo    repository.VehicleRepository
-	storage *VehiclePhotoStorage
+	repo                    repository.VehicleRepository
+	storage                 *VehiclePhotoStorage
+	insuranceRepo           repository.InsuranceRepository
+	technicalInspectionRepo repository.TechnicalInspectionRepository
 }
 
-func NewVehicleService(repo repository.VehicleRepository, storage *VehiclePhotoStorage) VehicleService {
+func NewVehicleService(
+	repo repository.VehicleRepository,
+	storage *VehiclePhotoStorage,
+	insuranceRepo repository.InsuranceRepository,
+	technicalInspectionRepo repository.TechnicalInspectionRepository,
+) VehicleService {
 	return &vehicleService{
-		repo:    repo,
-		storage: storage,
+		repo:                    repo,
+		storage:                 storage,
+		insuranceRepo:           insuranceRepo,
+		technicalInspectionRepo: technicalInspectionRepo,
 	}
 }
 
@@ -43,8 +52,8 @@ func (s *vehicleService) Create(ctx context.Context, req dto.VehicleCreateReques
 
 	var expiry *string
 	if req.InsuranceExpiryDate != nil {
-		s := req.InsuranceExpiryDate.Format("2006-01-02")
-		expiry = &s
+		val := req.InsuranceExpiryDate.Format("2006-01-02")
+		expiry = &val
 	}
 
 	if req.Mileage < 0 {

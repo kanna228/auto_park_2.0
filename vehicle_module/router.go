@@ -15,7 +15,16 @@ import (
 func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	vehicleRepo := repository.NewVehicleRepository(db)
 	vehiclePhotoStorage := service.NewVehiclePhotoStorage(cfg.Uploads.RootDir)
-	vehicleSvc := service.NewVehicleService(vehicleRepo, vehiclePhotoStorage)
+
+	insuranceRepo := repository.NewInsuranceRepository(db)
+	technicalInspectionRepo := repository.NewTechnicalInspectionRepository(db)
+
+	vehicleSvc := service.NewVehicleService(
+		vehicleRepo,
+		vehiclePhotoStorage,
+		insuranceRepo,
+		technicalInspectionRepo,
+	)
 	vehicleHandler := handlers.NewVehicleHandler(vehicleSvc)
 
 	tireRepo := repository.NewTireRepository(db)
@@ -25,6 +34,14 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	tirePlaceRepo := repository.NewTirePlaceRepository(db)
 	tirePlaceSvc := service.NewTirePlaceService(tirePlaceRepo)
 	tirePlaceHandler := handlers.NewTirePlaceHandler(tirePlaceSvc)
+
+	documentStorage := service.NewVehicleDocumentStorage(cfg.Uploads.RootDir)
+
+	insuranceSvc := service.NewInsuranceService(insuranceRepo, documentStorage)
+	insuranceHandler := handlers.NewInsuranceHandler(insuranceSvc)
+
+	technicalInspectionSvc := service.NewTechnicalInspectionService(technicalInspectionRepo, documentStorage)
+	technicalInspectionHandler := handlers.NewTechnicalInspectionHandler(technicalInspectionSvc)
 
 	api := r.Group("/api/vehicles")
 	protected := api.Group("")
@@ -52,5 +69,21 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		protected.PUT("/tire-places/:id", tirePlaceHandler.UpdateTirePlace)
 		protected.DELETE("/tire-places/:id", tirePlaceHandler.DeleteTirePlace)
 		protected.GET("/vehicle-tires/:vehicle_id", tireHandler.GetTiresByVehicleID)
+
+		protected.POST("/insurance", insuranceHandler.CreateInsurance)
+		protected.GET("/insurance/:id", insuranceHandler.GetInsuranceByID)
+		protected.GET("/insurance", insuranceHandler.ListInsurance)
+		protected.PUT("/insurance/:id", insuranceHandler.UpdateInsurance)
+		protected.DELETE("/insurance/:id", insuranceHandler.DeleteInsurance)
+		protected.POST("/insurance/:id/file", insuranceHandler.UploadInsuranceFile)
+		protected.DELETE("/insurance/:id/file", insuranceHandler.DeleteInsuranceFile)
+
+		protected.POST("/technical-inspections", technicalInspectionHandler.CreateTechnicalInspection)
+		protected.GET("/technical-inspections/:id", technicalInspectionHandler.GetTechnicalInspectionByID)
+		protected.GET("/technical-inspections", technicalInspectionHandler.ListTechnicalInspections)
+		protected.PUT("/technical-inspections/:id", technicalInspectionHandler.UpdateTechnicalInspection)
+		protected.DELETE("/technical-inspections/:id", technicalInspectionHandler.DeleteTechnicalInspection)
+		protected.POST("/technical-inspections/:id/file", technicalInspectionHandler.UploadTechnicalInspectionFile)
+		protected.DELETE("/technical-inspections/:id/file", technicalInspectionHandler.DeleteTechnicalInspectionFile)
 	}
 }
