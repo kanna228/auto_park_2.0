@@ -11,7 +11,7 @@ type VehicleCreateRequest struct {
 
 	BrandModel      string    `json:"brand_model" binding:"required"`
 	ManufactureYear int       `json:"manufacture_year" binding:"required"`
-	ReceivedDate    time.Time `json:"received_date" binding:"required"` // ожидаем RFC3339 или "2006-01-02" (см. handler)
+	ReceivedDate    time.Time `json:"received_date" binding:"required"`
 
 	EmptyWeightKG  *float64 `json:"empty_weight_kg,omitempty"`
 	MaxWeightKG    *float64 `json:"max_weight_kg,omitempty"`
@@ -22,6 +22,8 @@ type VehicleCreateRequest struct {
 
 	Mileage     int64   `json:"mileage"`
 	CurrentFuel float64 `json:"current_fuel"`
+
+	StatusID int64 `json:"status_id" binding:"required"`
 
 	DriversIDs []int64 `json:"drivers_ids"`
 }

@@ -10,8 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// PUT /api/vehicles/:id
-
 // UpdateVehicle godoc
 // @Summary      Update vehicle
 // @Description  Updates vehicle by id. PUT updates all fields.

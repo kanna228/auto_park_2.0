@@ -9,20 +9,17 @@ import (
 	"auto_park/vehicle_module/repository"
 )
 
-// UpdateByID — реализация метода общего VehicleService
 func (s *vehicleService) UpdateByID(ctx context.Context, id int64, req dto.VehicleUpdateRequest) (bool, error) {
 	if id <= 0 {
 		return false, fmt.Errorf("invalid id")
 	}
 
-	// trim strings
 	req.BoardNumber = strings.TrimSpace(req.BoardNumber)
 	req.TechnicalPassportNumber = strings.TrimSpace(req.TechnicalPassportNumber)
 	req.StateNumber = strings.TrimSpace(req.StateNumber)
 	req.VIN = strings.TrimSpace(req.VIN)
 	req.BrandModel = strings.TrimSpace(req.BrandModel)
 
-	// validation
 	if req.ReceivedDate.IsZero() {
 		return false, fmt.Errorf("received_date is required")
 	}
@@ -34,6 +31,9 @@ func (s *vehicleService) UpdateByID(ctx context.Context, id int64, req dto.Vehic
 	}
 	if req.CurrentFuel < 0 {
 		return false, fmt.Errorf("current_fuel must be >= 0")
+	}
+	if req.StatusID <= 0 {
+		return false, fmt.Errorf("status_id must be > 0")
 	}
 
 	received := req.ReceivedDate.Format("2006-01-02")
@@ -63,6 +63,8 @@ func (s *vehicleService) UpdateByID(ctx context.Context, id int64, req dto.Vehic
 
 		Mileage:     req.Mileage,
 		CurrentFuel: req.CurrentFuel,
+
+		StatusID: req.StatusID,
 
 		DriversIDs: req.DriversIDs,
 	}

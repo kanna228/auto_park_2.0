@@ -92,12 +92,13 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 // @Param        state_number query string false "Filter by state number"
 // @Param        vin          query string false "Filter by VIN"
 // @Param        brand_model  query string false "Filter by brand/model"
+// @Param        status_id    query int    false "Filter by vehicle status id"
 // @Param        year_from    query int    false "Manufacture year from"
 // @Param        year_to      query int    false "Manufacture year to"
 // @Param        driver_id    query int    false "Filter by driver id"
 // @Param        limit        query int    false "Limit"  default(50)
 // @Param        offset       query int    false "Offset" default(0)
-// @Param        sort_by      query string false "Sort by: id, board_number, state_number, manufacture_year, mileage, created_at"
+// @Param        sort_by      query string false "Sort by: id, board_number, state_number, manufacture_year, mileage, created_at, status_id, status_name"
 // @Param        order        query string false "Order: asc or desc"
 // @Success      200 {object} VehicleListResponseWrap
 // @Failure      400 {object} ErrorResponse
@@ -113,6 +114,15 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 		BrandModel:  c.Query("brand_model"),
 		SortBy:      c.Query("sort_by"),
 		Order:       c.Query("order"),
+	}
+
+	if s := strings.TrimSpace(c.Query("status_id")); s != "" {
+		if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
+			q.StatusID = &n
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid status_id"})
+			return
+		}
 	}
 
 	if s := strings.TrimSpace(c.Query("year_from")); s != "" {

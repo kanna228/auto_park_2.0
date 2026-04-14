@@ -31,6 +31,8 @@ func (s *vehicleService) List(ctx context.Context, q dto.VehicleListQuery) (*dto
 		VIN:         q.VIN,
 		BrandModel:  q.BrandModel,
 
+		StatusID: q.StatusID,
+
 		ManufactureYearFrom: q.ManufactureYearFrom,
 		ManufactureYearTo:   q.ManufactureYearTo,
 
@@ -156,6 +158,9 @@ func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
 
 		Mileage:     v.Mileage,
 		CurrentFuel: v.CurrentFuel,
+
+		StatusID:   v.StatusID,
+		StatusName: v.StatusName,
 
 		DriversIDs: v.DriversIDs,
 

@@ -23,5 +23,7 @@ type VehicleUpdateRequest struct {
 	Mileage     int64   `json:"mileage" binding:"required"`
 	CurrentFuel float64 `json:"current_fuel" binding:"required"`
 
+	StatusID int64 `json:"status_id" binding:"required"`
+
 	DriversIDs []int64 `json:"drivers_ids" binding:"required"`
 }

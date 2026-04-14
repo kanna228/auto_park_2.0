@@ -47,3 +47,8 @@ type UpdateVehicleResponseWrap struct {
 		ID int64 `json:"id" example:"123"`
 	} `json:"data"`
 }
+
+type VehicleStatusListResponseWrap struct {
+	Success bool                          `json:"success"`
+	Data    dto.VehicleStatusListResponse `json:"data"`
+}

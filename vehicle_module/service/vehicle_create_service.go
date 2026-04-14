@@ -14,6 +14,7 @@ type VehicleService interface {
 	Create(ctx context.Context, req dto.VehicleCreateRequest) (int64, error)
 	GetByID(ctx context.Context, id int64) (*dto.VehicleResponse, error)
 	List(ctx context.Context, q dto.VehicleListQuery) (*dto.VehicleListResponse, error)
+	ListVehicleStatuses(ctx context.Context) (*dto.VehicleStatusListResponse, error)
 	UpdateByID(ctx context.Context, id int64, req dto.VehicleUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
 	UploadPhoto(ctx context.Context, id int64, fileHeader any) (*dto.VehicleResponse, error)
@@ -56,11 +57,17 @@ func (s *vehicleService) Create(ctx context.Context, req dto.VehicleCreateReques
 		expiry = &val
 	}
 
+	if req.ManufactureYear < 1900 {
+		return 0, fmt.Errorf("manufacture_year must be >= 1900")
+	}
 	if req.Mileage < 0 {
 		return 0, fmt.Errorf("mileage must be >= 0")
 	}
 	if req.CurrentFuel < 0 {
 		return 0, fmt.Errorf("current_fuel must be >= 0")
+	}
+	if req.StatusID <= 0 {
+		return 0, fmt.Errorf("status_id must be > 0")
 	}
 
 	params := repository.CreateVehicleParams{
@@ -78,6 +85,7 @@ func (s *vehicleService) Create(ctx context.Context, req dto.VehicleCreateReques
 		InsuranceExpiryDate:     expiry,
 		Mileage:                 req.Mileage,
 		CurrentFuel:             req.CurrentFuel,
+		StatusID:                req.StatusID,
 		DriversIDs:              req.DriversIDs,
 	}
 

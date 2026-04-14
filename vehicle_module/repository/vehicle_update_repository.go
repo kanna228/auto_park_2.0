@@ -28,10 +28,11 @@ type UpdateVehicleParams struct {
 	Mileage     int64
 	CurrentFuel float64
 
+	StatusID int64
+
 	DriversIDs []int64
 }
 
-// VehicleRepoUpdateByID — реализация метода общего VehicleRepository
 func (r *vehicleRepo) UpdateByID(ctx context.Context, id int64, p UpdateVehicleParams) (bool, error) {
 	const q = `
 		UPDATE vehicles
@@ -50,9 +51,10 @@ func (r *vehicleRepo) UpdateByID(ctx context.Context, id int64, p UpdateVehicleP
 			insurance_expiry_date = $12,
 			mileage = $13,
 			current_fuel = $14,
-			drivers_ids = $15,
+			status_id = $15,
+			drivers_ids = $16,
 			updated_at = NOW()
-		WHERE id = $16;
+		WHERE id = $17;
 	`
 
 	res, err := r.db.ExecContext(
@@ -72,6 +74,7 @@ func (r *vehicleRepo) UpdateByID(ctx context.Context, id int64, p UpdateVehicleP
 		p.InsuranceExpiryDate,
 		p.Mileage,
 		p.CurrentFuel,
+		p.StatusID,
 		pq.Int64Array(p.DriversIDs),
 		id,
 	)

@@ -13,27 +13,30 @@ import (
 func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, error) {
 	const q = `
 		SELECT
-			id,
-			board_number,
-			technical_passport_number,
-			state_number,
-			vin,
-			brand_model,
-			manufacture_year,
-			received_date,
-			empty_weight_kg,
-			max_weight_kg,
-			engine_volume_cc,
-			insurance_policy_number,
-			insurance_expiry_date,
-			mileage,
-			current_fuel,
-			drivers_ids,
-			photo_path,
-			created_at,
-			updated_at
-		FROM vehicles
-		WHERE id = $1;
+			v.id,
+			v.board_number,
+			v.technical_passport_number,
+			v.state_number,
+			v.vin,
+			v.brand_model,
+			v.manufacture_year,
+			v.received_date,
+			v.empty_weight_kg,
+			v.max_weight_kg,
+			v.engine_volume_cc,
+			v.insurance_policy_number,
+			v.insurance_expiry_date,
+			v.mileage,
+			v.current_fuel,
+			v.status_id,
+			vs.name AS status_name,
+			v.drivers_ids,
+			v.photo_path,
+			v.created_at,
+			v.updated_at
+		FROM vehicles v
+		JOIN vehicle_status vs ON vs.id = v.status_id
+		WHERE v.id = $1;
 	`
 
 	var v models.Vehicle
@@ -56,6 +59,8 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 		&v.InsuranceExpiryDate,
 		&v.Mileage,
 		&v.CurrentFuel,
+		&v.StatusID,
+		&v.StatusName,
 		&drivers,
 		&photoPath,
 		&v.CreatedAt,
@@ -80,6 +85,8 @@ type ListVehiclesParams struct {
 	VIN         string
 	BrandModel  string
 
+	StatusID *int64
+
 	ManufactureYearFrom *int
 	ManufactureYearTo   *int
 
@@ -93,8 +100,8 @@ type ListVehiclesParams struct {
 }
 
 func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.Vehicle, int64, error) {
-	where := make([]string, 0, 8)
-	args := make([]any, 0, 12)
+	where := make([]string, 0, 10)
+	args := make([]any, 0, 14)
 
 	add := func(cond string, val any) {
 		args = append(args, val)
@@ -102,27 +109,31 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 	}
 
 	if strings.TrimSpace(q.BoardNumber) != "" {
-		add("board_number ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.BoardNumber))
+		add("v.board_number ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.BoardNumber))
 	}
 	if strings.TrimSpace(q.StateNumber) != "" {
-		add("state_number ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.StateNumber))
+		add("v.state_number ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.StateNumber))
 	}
 	if strings.TrimSpace(q.VIN) != "" {
-		add("vin ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.VIN))
+		add("v.vin ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.VIN))
 	}
 	if strings.TrimSpace(q.BrandModel) != "" {
-		add("brand_model ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.BrandModel))
+		add("v.brand_model ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.BrandModel))
+	}
+
+	if q.StatusID != nil {
+		add("v.status_id = $%d", *q.StatusID)
 	}
 
 	if q.ManufactureYearFrom != nil {
-		add("manufacture_year >= $%d", *q.ManufactureYearFrom)
+		add("v.manufacture_year >= $%d", *q.ManufactureYearFrom)
 	}
 	if q.ManufactureYearTo != nil {
-		add("manufacture_year <= $%d", *q.ManufactureYearTo)
+		add("v.manufacture_year <= $%d", *q.ManufactureYearTo)
 	}
 
 	if q.DriverID != nil {
-		add("$%d = ANY(drivers_ids)", *q.DriverID)
+		add("$%d = ANY(v.drivers_ids)", *q.DriverID)
 	}
 
 	whereSQL := "TRUE"
@@ -130,10 +141,24 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 		whereSQL = strings.Join(where, " AND ")
 	}
 
-	sortCol := "id"
+	sortCol := "v.id"
 	switch q.SortBy {
-	case "id", "board_number", "state_number", "manufacture_year", "mileage", "created_at":
-		sortCol = q.SortBy
+	case "id":
+		sortCol = "v.id"
+	case "board_number":
+		sortCol = "v.board_number"
+	case "state_number":
+		sortCol = "v.state_number"
+	case "manufacture_year":
+		sortCol = "v.manufacture_year"
+	case "mileage":
+		sortCol = "v.mileage"
+	case "created_at":
+		sortCol = "v.created_at"
+	case "status_id":
+		sortCol = "v.status_id"
+	case "status_name":
+		sortCol = "vs.name"
 	}
 
 	order := "DESC"
@@ -150,7 +175,12 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 		offset = 0
 	}
 
-	countSQL := `SELECT COUNT(*) FROM vehicles WHERE ` + whereSQL + `;`
+	countSQL := `
+		SELECT COUNT(*)
+		FROM vehicles v
+		JOIN vehicle_status vs ON vs.id = v.status_id
+		WHERE ` + whereSQL + `;`
+
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countSQL, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("list vehicles count: %w", err)
@@ -161,26 +191,29 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 
 	dataSQL := fmt.Sprintf(`
 		SELECT
-			id,
-			board_number,
-			technical_passport_number,
-			state_number,
-			vin,
-			brand_model,
-			manufacture_year,
-			received_date,
-			empty_weight_kg,
-			max_weight_kg,
-			engine_volume_cc,
-			insurance_policy_number,
-			insurance_expiry_date,
-			mileage,
-			current_fuel,
-			drivers_ids,
-			photo_path,
-			created_at,
-			updated_at
-		FROM vehicles
+			v.id,
+			v.board_number,
+			v.technical_passport_number,
+			v.state_number,
+			v.vin,
+			v.brand_model,
+			v.manufacture_year,
+			v.received_date,
+			v.empty_weight_kg,
+			v.max_weight_kg,
+			v.engine_volume_cc,
+			v.insurance_policy_number,
+			v.insurance_expiry_date,
+			v.mileage,
+			v.current_fuel,
+			v.status_id,
+			vs.name AS status_name,
+			v.drivers_ids,
+			v.photo_path,
+			v.created_at,
+			v.updated_at
+		FROM vehicles v
+		JOIN vehicle_status vs ON vs.id = v.status_id
 		WHERE %s
 		ORDER BY %s %s
 		LIMIT $%d OFFSET $%d;
@@ -214,6 +247,8 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 			&v.InsuranceExpiryDate,
 			&v.Mileage,
 			&v.CurrentFuel,
+			&v.StatusID,
+			&v.StatusName,
 			&drivers,
 			&photoPath,
 			&v.CreatedAt,

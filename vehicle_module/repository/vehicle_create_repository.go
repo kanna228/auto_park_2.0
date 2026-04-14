@@ -17,6 +17,7 @@ type VehicleRepository interface {
 	DeleteByID(ctx context.Context, id int64) (bool, error)
 	UpdatePhotoPath(ctx context.Context, id int64, photoPath string) (bool, error)
 	UnassignTiresByVehicleID(ctx context.Context, vehicleID int64) error
+	ListVehicleStatuses(ctx context.Context) ([]models.VehicleStatus, error)
 }
 
 type vehicleRepo struct {
@@ -35,22 +36,24 @@ type CreateVehicleParams struct {
 
 	BrandModel      string
 	ManufactureYear int
-	ReceivedDate    string
+	ReceivedDate    string // YYYY-MM-DD
 
 	EmptyWeightKG  *float64
 	MaxWeightKG    *float64
 	EngineVolumeCC *int
 
 	InsurancePolicyNumber *string
-	InsuranceExpiryDate   *string
+	InsuranceExpiryDate   *string // YYYY-MM-DD
 
 	Mileage     int64
 	CurrentFuel float64
 
+	StatusID int64
+
 	DriversIDs []int64
 }
 
-func (r *vehicleRepo) Create(ctx context.Context, v CreateVehicleParams) (int64, error) {
+func (r *vehicleRepo) Create(ctx context.Context, p CreateVehicleParams) (int64, error) {
 	const q = `
 		INSERT INTO vehicles (
 			board_number,
@@ -67,9 +70,11 @@ func (r *vehicleRepo) Create(ctx context.Context, v CreateVehicleParams) (int64,
 			insurance_expiry_date,
 			mileage,
 			current_fuel,
+			status_id,
 			drivers_ids
-		) VALUES (
-			$1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+		)
+		VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		)
 		RETURNING id;
 	`
@@ -78,23 +83,23 @@ func (r *vehicleRepo) Create(ctx context.Context, v CreateVehicleParams) (int64,
 	err := r.db.QueryRowContext(
 		ctx,
 		q,
-		v.BoardNumber,
-		v.TechnicalPassportNumber,
-		v.StateNumber,
-		v.VIN,
-		v.BrandModel,
-		v.ManufactureYear,
-		v.ReceivedDate,
-		v.EmptyWeightKG,
-		v.MaxWeightKG,
-		v.EngineVolumeCC,
-		v.InsurancePolicyNumber,
-		v.InsuranceExpiryDate,
-		v.Mileage,
-		v.CurrentFuel,
-		pq.Int64Array(v.DriversIDs),
+		p.BoardNumber,
+		p.TechnicalPassportNumber,
+		p.StateNumber,
+		p.VIN,
+		p.BrandModel,
+		p.ManufactureYear,
+		p.ReceivedDate,
+		p.EmptyWeightKG,
+		p.MaxWeightKG,
+		p.EngineVolumeCC,
+		p.InsurancePolicyNumber,
+		p.InsuranceExpiryDate,
+		p.Mileage,
+		p.CurrentFuel,
+		p.StatusID,
+		pq.Int64Array(p.DriversIDs),
 	).Scan(&id)
-
 	if err != nil {
 		return 0, fmt.Errorf("create vehicle: %w", err)
 	}

@@ -52,6 +52,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		protected.GET("", vehicleHandler.ListVehicles)
 		protected.PUT("/:id", vehicleHandler.UpdateVehicle)
 		protected.DELETE("/:id", vehicleHandler.DeleteVehicle)
+		protected.GET("/statuses", vehicleHandler.ListVehicleStatuses)
 
 		protected.POST("/:id/photo", vehicleHandler.UploadVehiclePhoto)
 		protected.PUT("/:id/photo", vehicleHandler.UpdateVehiclePhoto)

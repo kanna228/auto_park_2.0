@@ -50,6 +50,9 @@ type VehicleResponse struct {
 	Mileage     int64   `json:"mileage"`
 	CurrentFuel float64 `json:"current_fuel"`
 
+	StatusID   int64  `json:"status_id"`
+	StatusName string `json:"status_name"`
+
 	DriversIDs []int64 `json:"drivers_ids"`
 
 	PhotoPath string `json:"photo_path,omitempty"`
@@ -60,4 +63,14 @@ type VehicleResponse struct {
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type VehicleStatusResponse struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+type VehicleStatusListResponse struct {
+	Items []VehicleStatusResponse `json:"items"`
+	Total int64                   `json:"total"`
 }

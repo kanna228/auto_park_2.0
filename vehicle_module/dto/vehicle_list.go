@@ -6,6 +6,8 @@ type VehicleListQuery struct {
 	VIN         string
 	BrandModel  string
 
+	StatusID *int64
+
 	ManufactureYearFrom *int
 	ManufactureYearTo   *int
 
