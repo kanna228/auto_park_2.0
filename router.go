@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"os"
 
-	"auto_park/incident_module"
 	"auto_park/internal/config"
-	"auto_park/tripsheet_module"
-	"auto_park/user_module"
-	"auto_park/vehicle_module"
+	"auto_park/modules/incident_module"
+	"auto_park/modules/tripsheet_module"
+	"auto_park/modules/user_module"
+	"auto_park/modules/vehicle_module"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
