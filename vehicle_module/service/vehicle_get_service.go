@@ -1,10 +1,11 @@
 package service
 
 import (
+	"context"
+
 	"auto_park/vehicle_module/dto"
 	"auto_park/vehicle_module/models"
 	"auto_park/vehicle_module/repository"
-	"context"
 )
 
 func (s *vehicleService) GetByID(ctx context.Context, id int64) (*dto.VehicleResponse, error) {
@@ -79,6 +80,11 @@ func (s *vehicleService) List(ctx context.Context, q dto.VehicleListQuery) (*dto
 func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehicle) (dto.VehicleResponse, error) {
 	resp := mapVehicleToDTO(v)
 
+	vehicleDrivers, err := s.repo.ListDriversByIDs(ctx, v.DriversIDs)
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
 	insurances, _, err := s.insuranceRepo.List(ctx, repository.ListInsuranceParams{
 		VehicleID: &v.ID,
 		Limit:     1000,
@@ -99,6 +105,24 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 	})
 	if err != nil {
 		return dto.VehicleResponse{}, err
+	}
+
+	incidents, err := s.repo.ListIncidentsByVehicleID(ctx, v.ID)
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
+	resp.Drivers = make([]dto.VehicleDriverInfo, 0, len(vehicleDrivers))
+	for _, item := range vehicleDrivers {
+		resp.Drivers = append(resp.Drivers, dto.VehicleDriverInfo{
+			ID:         item.ID,
+			IIN:        item.IIN,
+			FirstName:  item.FirstName,
+			LastName:   item.LastName,
+			MiddleName: item.MiddleName,
+			Phone:      item.Phone,
+			Email:      item.Email,
+		})
 	}
 
 	resp.Insurances = make([]dto.VehicleInsuranceHistoryItem, 0, len(insurances))
@@ -128,6 +152,44 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 			FilePath:  item.FilePath,
 			FileURL:   "",
 			IsActive:  item.IsActive,
+			CreatedAt: item.CreatedAt,
+			UpdatedAt: item.UpdatedAt,
+		})
+	}
+
+	resp.Incidents = make([]dto.VehicleIncidentHistoryItem, 0, len(incidents))
+	for _, item := range incidents {
+		resp.Incidents = append(resp.Incidents, dto.VehicleIncidentHistoryItem{
+			ID:               item.ID,
+			IncidentTypeID:   item.IncidentTypeID,
+			IncidentTypeName: item.IncidentTypeName,
+			VehicleID:        item.VehicleID,
+			TripsheetID:      item.TripsheetID,
+			TripsheetNumber:  item.TripsheetNumber,
+			Date:             item.IncidentDate,
+			Time:             item.IncidentTime,
+			Location:         item.Location,
+			Text:             item.Description,
+			Driver: dto.VehicleIncidentDriverInfo{
+				ID:         item.DriverID,
+				IIN:        item.DriverIIN,
+				FirstName:  item.DriverFirstName,
+				LastName:   item.DriverLastName,
+				MiddleName: item.DriverMiddleName,
+				Phone:      item.DriverPhone,
+				Email:      item.DriverEmail,
+			},
+			Mechanic: dto.VehicleIncidentMechanicInfo{
+				ID:         item.MechanicID,
+				IIN:        item.MechanicIIN,
+				FirstName:  item.MechanicFirstName,
+				LastName:   item.MechanicLastName,
+				MiddleName: item.MechanicMiddleName,
+				Phone:      item.MechanicPhone,
+				Email:      item.MechanicEmail,
+				RoleID:     item.MechanicRoleID,
+				RoleName:   item.MechanicRoleName,
+			},
 			CreatedAt: item.CreatedAt,
 			UpdatedAt: item.UpdatedAt,
 		})
@@ -163,12 +225,14 @@ func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
 		StatusName: v.StatusName,
 
 		DriversIDs: v.DriversIDs,
+		Drivers:    []dto.VehicleDriverInfo{},
 
 		PhotoPath: v.PhotoPath,
 		PhotoURL:  "",
 
 		Insurances:           []dto.VehicleInsuranceHistoryItem{},
 		TechnicalInspections: []dto.VehicleTechnicalInspectionHistoryItem{},
+		Incidents:            []dto.VehicleIncidentHistoryItem{},
 
 		CreatedAt: v.CreatedAt,
 		UpdatedAt: v.UpdatedAt,

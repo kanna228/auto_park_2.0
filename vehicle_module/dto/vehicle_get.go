@@ -53,13 +53,15 @@ type VehicleResponse struct {
 	StatusID   int64  `json:"status_id"`
 	StatusName string `json:"status_name"`
 
-	DriversIDs []int64 `json:"drivers_ids"`
+	DriversIDs []int64             `json:"drivers_ids"`
+	Drivers    []VehicleDriverInfo `json:"drivers"`
 
 	PhotoPath string `json:"photo_path,omitempty"`
 	PhotoURL  string `json:"photo_url,omitempty"`
 
 	Insurances           []VehicleInsuranceHistoryItem           `json:"insurances"`
 	TechnicalInspections []VehicleTechnicalInspectionHistoryItem `json:"technical_inspections"`
+	Incidents            []VehicleIncidentHistoryItem            `json:"incidents"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -73,4 +75,13 @@ type VehicleStatusResponse struct {
 type VehicleStatusListResponse struct {
 	Items []VehicleStatusResponse `json:"items"`
 	Total int64                   `json:"total"`
+}
+type VehicleDriverInfo struct {
+	ID         int64   `json:"id"`
+	IIN        string  `json:"iin"`
+	FirstName  string  `json:"first_name"`
+	LastName   string  `json:"last_name"`
+	MiddleName *string `json:"middle_name,omitempty"`
+	Phone      *string `json:"phone,omitempty"`
+	Email      *string `json:"email,omitempty"`
 }

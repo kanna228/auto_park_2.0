@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -267,4 +268,259 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 	}
 
 	return items, total, nil
+}
+
+type VehicleIncidentHistoryRow struct {
+	ID               int64
+	IncidentTypeID   int64
+	IncidentTypeName string
+
+	VehicleID int64
+
+	TripsheetID     *int64
+	TripsheetNumber *string
+
+	IncidentDate time.Time
+	IncidentTime string
+	Location     string
+	Description  string
+
+	DriverID         int64
+	DriverIIN        string
+	DriverFirstName  string
+	DriverLastName   string
+	DriverMiddleName *string
+	DriverPhone      *string
+	DriverEmail      *string
+
+	MechanicID         int64
+	MechanicIIN        string
+	MechanicFirstName  string
+	MechanicLastName   string
+	MechanicMiddleName *string
+	MechanicPhone      *string
+	MechanicEmail      string
+	MechanicRoleID     int64
+	MechanicRoleName   string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (r *vehicleRepo) ListIncidentsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleIncidentHistoryRow, error) {
+	const q = `
+		SELECT
+			i.id,
+			i.incident_type_id,
+			it.name AS incident_type_name,
+			i.vehicle_id,
+			i.tripsheet_id,
+			t.tripsheet_number,
+			i.incident_date,
+			TO_CHAR(i.incident_time, 'HH24:MI:SS') AS incident_time,
+			i.location,
+			COALESCE(i.description, '') AS description,
+
+			d.id,
+			d.iin,
+			d.name,
+			d.surname,
+			d.middlename,
+			d.phone,
+			d.mail,
+
+			u.id,
+			u.iin,
+			u.first_name,
+			u.last_name,
+			u.middle_name,
+			u.phone,
+			u.email,
+			r.id,
+			r.name,
+
+			i.created_at,
+			i.updated_at
+		FROM incidents i
+		JOIN incident_types it ON it.id = i.incident_type_id
+		JOIN drivers d ON d.id = i.driver_id
+		JOIN users u ON u.id = i.mechanic_id
+		JOIN roles r ON r.id = u.role_id
+		LEFT JOIN tripsheets t ON t.id = i.tripsheet_id
+		WHERE i.vehicle_id = $1
+		ORDER BY i.incident_date DESC, i.incident_time DESC, i.id DESC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, vehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("list incidents by vehicle id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]VehicleIncidentHistoryRow, 0)
+	for rows.Next() {
+		var item VehicleIncidentHistoryRow
+
+		var tripsheetID sql.NullInt64
+		var tripsheetNumber sql.NullString
+
+		var driverMiddleName sql.NullString
+		var driverPhone sql.NullString
+		var driverEmail sql.NullString
+
+		var mechanicMiddleName sql.NullString
+		var mechanicPhone sql.NullString
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.IncidentTypeID,
+			&item.IncidentTypeName,
+			&item.VehicleID,
+			&tripsheetID,
+			&tripsheetNumber,
+			&item.IncidentDate,
+			&item.IncidentTime,
+			&item.Location,
+			&item.Description,
+
+			&item.DriverID,
+			&item.DriverIIN,
+			&item.DriverFirstName,
+			&item.DriverLastName,
+			&driverMiddleName,
+			&driverPhone,
+			&driverEmail,
+
+			&item.MechanicID,
+			&item.MechanicIIN,
+			&item.MechanicFirstName,
+			&item.MechanicLastName,
+			&mechanicMiddleName,
+			&mechanicPhone,
+			&item.MechanicEmail,
+			&item.MechanicRoleID,
+			&item.MechanicRoleName,
+
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan incident by vehicle id: %w", err)
+		}
+
+		if tripsheetID.Valid {
+			v := tripsheetID.Int64
+			item.TripsheetID = &v
+		}
+		if tripsheetNumber.Valid {
+			v := tripsheetNumber.String
+			item.TripsheetNumber = &v
+		}
+
+		if driverMiddleName.Valid {
+			v := driverMiddleName.String
+			item.DriverMiddleName = &v
+		}
+		if driverPhone.Valid {
+			v := driverPhone.String
+			item.DriverPhone = &v
+		}
+		if driverEmail.Valid {
+			v := driverEmail.String
+			item.DriverEmail = &v
+		}
+
+		if mechanicMiddleName.Valid {
+			v := mechanicMiddleName.String
+			item.MechanicMiddleName = &v
+		}
+		if mechanicPhone.Valid {
+			v := mechanicPhone.String
+			item.MechanicPhone = &v
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows incidents by vehicle id: %w", err)
+	}
+
+	return items, nil
+}
+
+type VehicleDriverRow struct {
+	ID         int64
+	IIN        string
+	FirstName  string
+	LastName   string
+	MiddleName *string
+	Phone      *string
+	Email      *string
+}
+
+func (r *vehicleRepo) ListDriversByIDs(ctx context.Context, ids []int64) ([]VehicleDriverRow, error) {
+	if len(ids) == 0 {
+		return []VehicleDriverRow{}, nil
+	}
+
+	const q = `
+		SELECT
+			id,
+			iin,
+			name,
+			surname,
+			middlename,
+			phone,
+			mail
+		FROM drivers
+		WHERE id = ANY($1)
+		ORDER BY id ASC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, pq.Int64Array(ids))
+	if err != nil {
+		return nil, fmt.Errorf("list drivers by ids: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]VehicleDriverRow, 0, len(ids))
+	for rows.Next() {
+		var item VehicleDriverRow
+		var middleName sql.NullString
+		var phone sql.NullString
+		var email sql.NullString
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.IIN,
+			&item.FirstName,
+			&item.LastName,
+			&middleName,
+			&phone,
+			&email,
+		); err != nil {
+			return nil, fmt.Errorf("scan drivers by ids: %w", err)
+		}
+
+		if middleName.Valid {
+			v := middleName.String
+			item.MiddleName = &v
+		}
+		if phone.Valid {
+			v := phone.String
+			item.Phone = &v
+		}
+		if email.Valid {
+			v := email.String
+			item.Email = &v
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows drivers by ids: %w", err)
+	}
+
+	return items, nil
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"auto_park/incident_module"
 	"auto_park/internal/config"
 	"auto_park/tripsheet_module"
 	"auto_park/user_module"
@@ -46,6 +47,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	user_module.RegisterRoutes(r, cfg, db)
 	vehicle_module.RegisterRoutes(r, cfg, db)
 	tripsheet_module.RegisterRoutes(r, cfg, db)
+	incident_module.RegisterRoutes(r, cfg, db)
 
 	return r
 }

@@ -18,6 +18,8 @@ type VehicleRepository interface {
 	UpdatePhotoPath(ctx context.Context, id int64, photoPath string) (bool, error)
 	UnassignTiresByVehicleID(ctx context.Context, vehicleID int64) error
 	ListVehicleStatuses(ctx context.Context) ([]models.VehicleStatus, error)
+	ListIncidentsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleIncidentHistoryRow, error)
+	ListDriversByIDs(ctx context.Context, ids []int64) ([]VehicleDriverRow, error)
 }
 
 type vehicleRepo struct {
