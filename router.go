@@ -11,6 +11,7 @@ import (
 	"auto_park/modules/tripsheet_module"
 	"auto_park/modules/user_module"
 	"auto_park/modules/vehicle_module"
+	"auto_park/modules/warehouse_module"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -50,6 +51,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	tripsheet_module.RegisterRoutes(r, cfg, db)
 	incident_module.RegisterRoutes(r, cfg, db)
 	fuel_module.RegisterRoutes(r, cfg, db)
+	warehouse_module.RegisterRoutes(r, cfg, db)
 
 	return r
 }

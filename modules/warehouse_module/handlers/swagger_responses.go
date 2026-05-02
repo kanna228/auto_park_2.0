@@ -37,3 +37,46 @@ type PartDeleteResponseWrap struct {
 		ID int64 `json:"id" example:"1"`
 	} `json:"data"`
 }
+
+type PartRequestResponseWrap struct {
+	Success bool                    `json:"success" example:"true"`
+	Data    dto.PartRequestResponse `json:"data"`
+}
+
+type PartRequestListResponseWrap struct {
+	Success bool                        `json:"success" example:"true"`
+	Data    dto.PartRequestListResponse `json:"data"`
+}
+
+type PartRequestStatusListResponseWrap struct {
+	Success bool                            `json:"success" example:"true"`
+	Data    []dto.PartRequestStatusResponse `json:"data"`
+}
+
+type PartRequestCreateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type PartRequestUpdateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type PartRequestStatusUpdateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type PartRequestDeleteResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}

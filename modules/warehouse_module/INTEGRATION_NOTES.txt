@@ -1,19 +1,42 @@
-1) Import the module in root router.go:
+1) Root router is already updated in this package:
    import "auto_park/modules/warehouse_module"
-
-2) Register routes in NewRouter(...):
    warehouse_module.RegisterRoutes(r, cfg, db)
 
-3) Run migrations including:
+2) Run migrations including:
    000022_warehouse_create_parts_catalog.up.sql
+   000023_warehouse_create_part_requests.up.sql
 
 Role mapping used:
 - 1 = admin
+- 4 = duty_mechanic
 - 5 = warehouse_manager
 
-Routes:
+Part catalog routes:
 - POST   /api/warehouse/parts      (warehouse_manager)
 - GET    /api/warehouse/parts      (admin, warehouse_manager)
 - GET    /api/warehouse/parts/:id  (admin, warehouse_manager)
 - PUT    /api/warehouse/parts/:id  (warehouse_manager)
 - DELETE /api/warehouse/parts/:id  (admin)
+
+Part request status seed data:
+- 1 = new      / Новая
+- 2 = rejected / Отклонена
+- 3 = approved / Утверждена
+
+Part request routes:
+- POST   /api/warehouse/part-requests             (duty_mechanic only)
+- GET    /api/warehouse/part-requests             (admin, duty_mechanic, warehouse_manager)
+- GET    /api/warehouse/part-requests/:id         (admin, duty_mechanic, warehouse_manager)
+- PUT    /api/warehouse/part-requests/:id         (admin, duty_mechanic, warehouse_manager; blocked if current status is approved/rejected)
+- PATCH  /api/warehouse/part-requests/:id/status  (admin, warehouse_manager; not blocked by current status)
+- DELETE /api/warehouse/part-requests/:id         (admin, duty_mechanic, warehouse_manager; blocked if current status is approved/rejected)
+- GET    /api/warehouse/part-request-statuses     (admin, duty_mechanic, warehouse_manager)
+
+Important business rules implemented:
+- Detail/part must exist in parts_catalog.
+- Quantity must be greater than 0.
+- One request contains one part type only.
+- Repeated requests are inserted as new rows; no uniqueness constraint blocks them.
+- author_user_id is taken from JWT context user_id.
+- Full update and delete are blocked after status becomes approved/rejected.
+- Separate status update route is intentionally allowed even after approved/rejected.
