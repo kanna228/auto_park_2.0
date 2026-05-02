@@ -1,0 +1,19 @@
+1) Import the module in root router.go:
+   import "auto_park/modules/warehouse_module"
+
+2) Register routes in NewRouter(...):
+   warehouse_module.RegisterRoutes(r, cfg, db)
+
+3) Run migrations including:
+   000022_warehouse_create_parts_catalog.up.sql
+
+Role mapping used:
+- 1 = admin
+- 5 = warehouse_manager
+
+Routes:
+- POST   /api/warehouse/parts      (warehouse_manager)
+- GET    /api/warehouse/parts      (admin, warehouse_manager)
+- GET    /api/warehouse/parts/:id  (admin, warehouse_manager)
+- PUT    /api/warehouse/parts/:id  (warehouse_manager)
+- DELETE /api/warehouse/parts/:id  (admin)
