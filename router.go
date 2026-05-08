@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"auto_park/internal/config"
+	"auto_park/middleware"
 	"auto_park/modules/fuel_module"
 	"auto_park/modules/incident_module"
 	"auto_park/modules/tripsheet_module"
@@ -22,7 +23,13 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 
 	r := gin.New()
-	r.Use(gin.Logger(), gin.Recovery())
+
+	r.Use(gin.Logger())
+	r.Use(gin.Recovery())
+
+	// Важно: CORS должен быть ДО всех модулей и ДО JWT middleware.
+	// Иначе preflight OPTIONS запросы от фронта будут падать на авторизации.
+	r.Use(middleware.CORSMiddleware())
 
 	_ = os.MkdirAll(cfg.Uploads.RootDir, 0o755)
 
