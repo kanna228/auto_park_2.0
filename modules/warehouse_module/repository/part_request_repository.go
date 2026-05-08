@@ -13,6 +13,7 @@ import (
 var ErrPartRequestLocked = errors.New("part request cannot be changed after approval or rejection")
 var ErrPartRequestPartNotFound = errors.New("part not found")
 var ErrPartRequestStatusNotFound = errors.New("part request status not found")
+var ErrPartRequestUserNotFound = errors.New("user not found")
 
 type CreatePartRequestParams struct {
 	PartID          int64
@@ -20,6 +21,7 @@ type CreatePartRequestParams struct {
 	MechanicComment string
 	StatusID        int64
 	AuthorUserID    int64
+	HistoryComment  string
 }
 
 type UpdatePartRequestParams struct {
@@ -27,6 +29,19 @@ type UpdatePartRequestParams struct {
 	Quantity        int64
 	MechanicComment string
 	StatusID        int64
+	ChangedByUserID int64
+	HistoryComment  string
+}
+
+type UpdatePartRequestStatusParams struct {
+	StatusID        int64
+	ChangedByUserID int64
+	HistoryComment  string
+}
+
+type DeletePartRequestParams struct {
+	ChangedByUserID int64
+	HistoryComment  string
 }
 
 type ListPartRequestsParams struct {
@@ -40,16 +55,31 @@ type ListPartRequestsParams struct {
 	Order        string
 }
 
+type ListPartRequestHistoryParams struct {
+	PartRequestID   int64
+	StatusID        int64
+	StatusCode      string
+	ChangedByUserID int64
+	DateFrom        string
+	DateTo          string
+	Limit           int
+	Offset          int
+	SortBy          string
+	Order           string
+}
+
 type PartRequestRepository interface {
 	Create(ctx context.Context, p CreatePartRequestParams) (int64, error)
 	GetByID(ctx context.Context, id int64) (*models.PartRequest, error)
 	List(ctx context.Context, p ListPartRequestsParams) ([]models.PartRequest, int64, error)
 	UpdateByID(ctx context.Context, id int64, p UpdatePartRequestParams) (bool, error)
-	UpdateStatusByID(ctx context.Context, id int64, statusID int64) (bool, error)
-	DeleteByID(ctx context.Context, id int64) (bool, error)
+	UpdateStatusByID(ctx context.Context, id int64, p UpdatePartRequestStatusParams) (bool, error)
+	DeleteByID(ctx context.Context, id int64, p DeletePartRequestParams) (bool, error)
 	PartExists(ctx context.Context, partID int64) (bool, error)
 	StatusExists(ctx context.Context, statusID int64) (bool, error)
 	ListStatuses(ctx context.Context) ([]models.PartRequestStatus, error)
+	ListHistoryByRequestID(ctx context.Context, partRequestID int64) ([]models.PartRequestHistory, error)
+	ListHistory(ctx context.Context, p ListPartRequestHistoryParams) ([]models.PartRequestHistory, int64, error)
 }
 
 type partRequestRepo struct {
@@ -66,16 +96,31 @@ func (r *partRequestRepo) Create(ctx context.Context, p CreatePartRequestParams)
 		statusID = 1
 	}
 
-	const q = `
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("begin create part request tx: %w", err)
+	}
+	defer rollbackPartRequestTx(tx)
+
+	const insertRequestQ = `
 		INSERT INTO part_requests (part_id, quantity, mechanic_comment, status_id, author_user_id, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		RETURNING id;
 	`
 
 	var id int64
-	if err := r.db.QueryRowContext(ctx, q, p.PartID, p.Quantity, p.MechanicComment, statusID, p.AuthorUserID).Scan(&id); err != nil {
+	if err := tx.QueryRowContext(ctx, insertRequestQ, p.PartID, p.Quantity, p.MechanicComment, statusID, p.AuthorUserID).Scan(&id); err != nil {
 		return 0, mapPartRequestError(err)
 	}
+
+	if err := insertPartRequestHistory(ctx, tx, id, statusID, p.AuthorUserID, p.HistoryComment); err != nil {
+		return 0, mapPartRequestError(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit create part request tx: %w", err)
+	}
+
 	return id, nil
 }
 
@@ -101,7 +146,8 @@ func (r *partRequestRepo) GetByID(ctx context.Context, id int64) (*models.PartRe
 		INNER JOIN parts_catalog p ON p.id = pr.part_id
 		INNER JOIN part_request_statuses s ON s.id = pr.status_id
 		LEFT JOIN users u ON u.id = pr.author_user_id
-		WHERE pr.id = $1;
+		WHERE pr.id = $1
+		  AND pr.is_deleted = FALSE;
 	`
 
 	item, err := scanPartRequest(r.db.QueryRowContext(ctx, q, id))
@@ -127,7 +173,7 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 	sortBy := normalizePartRequestSortBy(p.SortBy)
 	order := normalizeOrder(p.Order)
 
-	conds := make([]string, 0, 4)
+	conds := []string{"pr.is_deleted = FALSE"}
 	args := make([]any, 0, 8)
 	argPos := 1
 
@@ -152,10 +198,7 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 		argPos++
 	}
 
-	whereSQL := ""
-	if len(conds) > 0 {
-		whereSQL = " WHERE " + strings.Join(conds, " AND ")
-	}
+	whereSQL := " WHERE " + strings.Join(conds, " AND ")
 
 	countQ := `
 		SELECT COUNT(*)
@@ -217,6 +260,12 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 }
 
 func (r *partRequestRepo) UpdateByID(ctx context.Context, id int64, p UpdatePartRequestParams) (bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin update part request tx: %w", err)
+	}
+	defer rollbackPartRequestTx(tx)
+
 	const q = `
 		UPDATE part_requests
 		SET part_id = $1,
@@ -224,9 +273,10 @@ func (r *partRequestRepo) UpdateByID(ctx context.Context, id int64, p UpdatePart
 			mechanic_comment = $3,
 			status_id = $4,
 			updated_at = NOW()
-		WHERE id = $5;
+		WHERE id = $5
+		  AND is_deleted = FALSE;
 	`
-	res, err := r.db.ExecContext(ctx, q, p.PartID, p.Quantity, p.MechanicComment, p.StatusID, id)
+	res, err := tx.ExecContext(ctx, q, p.PartID, p.Quantity, p.MechanicComment, p.StatusID, id)
 	if err != nil {
 		return false, mapPartRequestError(err)
 	}
@@ -234,17 +284,36 @@ func (r *partRequestRepo) UpdateByID(ctx context.Context, id int64, p UpdatePart
 	if err != nil {
 		return false, fmt.Errorf("update part request rows affected: %w", err)
 	}
-	return aff > 0, nil
+	if aff == 0 {
+		return false, nil
+	}
+
+	if err := insertPartRequestHistory(ctx, tx, id, p.StatusID, p.ChangedByUserID, p.HistoryComment); err != nil {
+		return false, mapPartRequestError(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit update part request tx: %w", err)
+	}
+
+	return true, nil
 }
 
-func (r *partRequestRepo) UpdateStatusByID(ctx context.Context, id int64, statusID int64) (bool, error) {
+func (r *partRequestRepo) UpdateStatusByID(ctx context.Context, id int64, p UpdatePartRequestStatusParams) (bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin update part request status tx: %w", err)
+	}
+	defer rollbackPartRequestTx(tx)
+
 	const q = `
 		UPDATE part_requests
 		SET status_id = $1,
 			updated_at = NOW()
-		WHERE id = $2;
+		WHERE id = $2
+		  AND is_deleted = FALSE;
 	`
-	res, err := r.db.ExecContext(ctx, q, statusID, id)
+	res, err := tx.ExecContext(ctx, q, p.StatusID, id)
 	if err != nil {
 		return false, mapPartRequestError(err)
 	}
@@ -252,20 +321,73 @@ func (r *partRequestRepo) UpdateStatusByID(ctx context.Context, id int64, status
 	if err != nil {
 		return false, fmt.Errorf("update part request status rows affected: %w", err)
 	}
-	return aff > 0, nil
+	if aff == 0 {
+		return false, nil
+	}
+
+	if err := insertPartRequestHistory(ctx, tx, id, p.StatusID, p.ChangedByUserID, p.HistoryComment); err != nil {
+		return false, mapPartRequestError(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit update part request status tx: %w", err)
+	}
+
+	return true, nil
 }
 
-func (r *partRequestRepo) DeleteByID(ctx context.Context, id int64) (bool, error) {
-	const q = `DELETE FROM part_requests WHERE id = $1;`
-	res, err := r.db.ExecContext(ctx, q, id)
+func (r *partRequestRepo) DeleteByID(ctx context.Context, id int64, p DeletePartRequestParams) (bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return false, fmt.Errorf("delete part request by id: %w", err)
+		return false, fmt.Errorf("begin delete part request tx: %w", err)
+	}
+	defer rollbackPartRequestTx(tx)
+
+	var statusID int64
+	const getStatusQ = `
+		SELECT status_id
+		FROM part_requests
+		WHERE id = $1
+		  AND is_deleted = FALSE
+		FOR UPDATE;
+	`
+	if err := tx.QueryRowContext(ctx, getStatusQ, id).Scan(&statusID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("get part request status before delete: %w", err)
+	}
+
+	const q = `
+		UPDATE part_requests
+		SET is_deleted = TRUE,
+			deleted_at = NOW(),
+			deleted_by_user_id = $1,
+			updated_at = NOW()
+		WHERE id = $2
+		  AND is_deleted = FALSE;
+	`
+	res, err := tx.ExecContext(ctx, q, p.ChangedByUserID, id)
+	if err != nil {
+		return false, mapPartRequestError(err)
 	}
 	aff, err := res.RowsAffected()
 	if err != nil {
 		return false, fmt.Errorf("delete part request rows affected: %w", err)
 	}
-	return aff > 0, nil
+	if aff == 0 {
+		return false, nil
+	}
+
+	if err := insertPartRequestHistory(ctx, tx, id, statusID, p.ChangedByUserID, p.HistoryComment); err != nil {
+		return false, mapPartRequestError(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit delete part request tx: %w", err)
+	}
+
+	return true, nil
 }
 
 func (r *partRequestRepo) PartExists(ctx context.Context, partID int64) (bool, error) {
@@ -312,6 +434,60 @@ func (r *partRequestRepo) ListStatuses(ctx context.Context) ([]models.PartReques
 	return items, nil
 }
 
+func (r *partRequestRepo) ListHistoryByRequestID(ctx context.Context, partRequestID int64) ([]models.PartRequestHistory, error) {
+	const q = `
+		SELECT
+			h.id,
+			h.part_request_id,
+			h.status_id,
+			s.code AS status_code,
+			s.name AS status_name,
+			h.changed_by_user_id,
+			u.email AS changed_by_email,
+			NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS changed_by_full_name,
+			h.comment,
+			h.changed_at
+		FROM part_request_history h
+		INNER JOIN part_request_statuses s ON s.id = h.status_id
+		LEFT JOIN users u ON u.id = h.changed_by_user_id
+		WHERE h.part_request_id = $1
+		ORDER BY h.changed_at ASC, h.id ASC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, partRequestID)
+	if err != nil {
+		return nil, fmt.Errorf("list part request history: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.PartRequestHistory, 0)
+	for rows.Next() {
+		item, err := scanPartRequestHistoryRows(rows)
+		if err != nil {
+			return nil, fmt.Errorf("list part request history scan: %w", err)
+		}
+		items = append(items, *item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list part request history rows: %w", err)
+	}
+
+	return items, nil
+}
+
+func insertPartRequestHistory(ctx context.Context, tx *sql.Tx, partRequestID int64, statusID int64, changedByUserID int64, comment string) error {
+	const q = `
+		INSERT INTO part_request_history (part_request_id, status_id, changed_by_user_id, comment, changed_at)
+		VALUES ($1, $2, $3, $4, NOW());
+	`
+	_, err := tx.ExecContext(ctx, q, partRequestID, statusID, changedByUserID, comment)
+	return err
+}
+
+func rollbackPartRequestTx(tx *sql.Tx) {
+	_ = tx.Rollback()
+}
+
 type partRequestScanner interface {
 	Scan(dest ...any) error
 }
@@ -350,6 +526,35 @@ func scanPartRequestRows(rows *sql.Rows) (*models.PartRequest, error) {
 	return scanPartRequest(rows)
 }
 
+func scanPartRequestHistory(scanner partRequestScanner) (*models.PartRequestHistory, error) {
+	var item models.PartRequestHistory
+	var changedByEmail sql.NullString
+	var changedByFullName sql.NullString
+
+	if err := scanner.Scan(
+		&item.ID,
+		&item.PartRequestID,
+		&item.StatusID,
+		&item.StatusCode,
+		&item.StatusName,
+		&item.ChangedByUserID,
+		&changedByEmail,
+		&changedByFullName,
+		&item.Comment,
+		&item.ChangedAt,
+	); err != nil {
+		return nil, err
+	}
+
+	item.ChangedByEmail = nullableStringPtr(changedByEmail)
+	item.ChangedByFullName = nullableStringPtr(changedByFullName)
+	return &item, nil
+}
+
+func scanPartRequestHistoryRows(rows *sql.Rows) (*models.PartRequestHistory, error) {
+	return scanPartRequestHistory(rows)
+}
+
 func nullableStringPtr(v sql.NullString) *string {
 	if !v.Valid {
 		return nil
@@ -383,7 +588,142 @@ func mapPartRequestError(err error) error {
 		return ErrPartRequestPartNotFound
 	case strings.Contains(msg, "part_requests_status_id_fkey"):
 		return ErrPartRequestStatusNotFound
+	case strings.Contains(msg, "part_requests_author_user_id_fkey"):
+		return ErrPartRequestUserNotFound
+	case strings.Contains(msg, "part_request_history_status_id_fkey"):
+		return ErrPartRequestStatusNotFound
+	case strings.Contains(msg, "part_request_history_changed_by_user_id_fkey"):
+		return ErrPartRequestUserNotFound
 	default:
 		return err
+	}
+}
+
+func (r *partRequestRepo) ListHistory(ctx context.Context, p ListPartRequestHistoryParams) ([]models.PartRequestHistory, int64, error) {
+	limit := p.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+
+	offset := p.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	sortBy := normalizePartRequestHistorySortBy(p.SortBy)
+	order := normalizeOrder(p.Order)
+
+	conds := []string{"1=1"}
+	args := make([]any, 0, 10)
+	argPos := 1
+
+	if p.PartRequestID > 0 {
+		conds = append(conds, fmt.Sprintf("h.part_request_id = $%d", argPos))
+		args = append(args, p.PartRequestID)
+		argPos++
+	}
+
+	if p.StatusID > 0 {
+		conds = append(conds, fmt.Sprintf("h.status_id = $%d", argPos))
+		args = append(args, p.StatusID)
+		argPos++
+	}
+
+	if v := strings.TrimSpace(p.StatusCode); v != "" {
+		conds = append(conds, fmt.Sprintf("s.code = $%d", argPos))
+		args = append(args, strings.ToLower(v))
+		argPos++
+	}
+
+	if p.ChangedByUserID > 0 {
+		conds = append(conds, fmt.Sprintf("h.changed_by_user_id = $%d", argPos))
+		args = append(args, p.ChangedByUserID)
+		argPos++
+	}
+
+	if v := strings.TrimSpace(p.DateFrom); v != "" {
+		conds = append(conds, fmt.Sprintf("h.changed_at::date >= $%d", argPos))
+		args = append(args, v)
+		argPos++
+	}
+
+	if v := strings.TrimSpace(p.DateTo); v != "" {
+		conds = append(conds, fmt.Sprintf("h.changed_at::date <= $%d", argPos))
+		args = append(args, v)
+		argPos++
+	}
+
+	whereSQL := " WHERE " + strings.Join(conds, " AND ")
+
+	countQ := `
+		SELECT COUNT(*)
+		FROM part_request_history h
+		INNER JOIN part_request_statuses s ON s.id = h.status_id
+	` + whereSQL
+
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("list part request history count: %w", err)
+	}
+
+	listQ := fmt.Sprintf(`
+		SELECT
+			h.id,
+			h.part_request_id,
+			h.status_id,
+			s.code AS status_code,
+			s.name AS status_name,
+			h.changed_by_user_id,
+			u.email AS changed_by_email,
+			NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS changed_by_full_name,
+			h.comment,
+			h.changed_at
+		FROM part_request_history h
+		INNER JOIN part_request_statuses s ON s.id = h.status_id
+		LEFT JOIN users u ON u.id = h.changed_by_user_id
+		%s
+		ORDER BY %s %s, h.id DESC
+		LIMIT $%d OFFSET $%d;
+	`, whereSQL, sortBy, order, argPos, argPos+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, listQ, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list part request history: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.PartRequestHistory, 0)
+
+	for rows.Next() {
+		item, err := scanPartRequestHistoryRows(rows)
+		if err != nil {
+			return nil, 0, fmt.Errorf("list part request history scan: %w", err)
+		}
+
+		items = append(items, *item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("list part request history rows: %w", err)
+	}
+
+	return items, total, nil
+}
+func normalizePartRequestHistorySortBy(v string) string {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "part_request_id":
+		return "h.part_request_id"
+	case "status_id":
+		return "h.status_id"
+	case "status_code":
+		return "s.code"
+	case "changed_by_user_id":
+		return "h.changed_by_user_id"
+	case "changed_at":
+		return "h.changed_at"
+	default:
+		return "h.changed_at"
 	}
 }

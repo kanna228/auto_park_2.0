@@ -59,8 +59,12 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		partRequestReadGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
 		{
 			partRequestReadGroup.GET("/part-request-statuses", partRequestHandler.ListPartRequestStatuses)
+
+			partRequestReadGroup.GET("/part-request-history", partRequestHandler.ListAllPartRequestHistory)
+
 			partRequestReadGroup.GET("/part-requests", partRequestHandler.ListPartRequests)
 			partRequestReadGroup.GET("/part-requests/:id", partRequestHandler.GetPartRequestByID)
+			partRequestReadGroup.GET("/part-requests/:id/history", partRequestHandler.ListPartRequestHistory)
 		}
 
 		partRequestCreateGroup := protected.Group("/part-requests")

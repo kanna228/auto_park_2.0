@@ -25,3 +25,16 @@ type PartRequest struct {
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 }
+
+type PartRequestHistory struct {
+	ID                int64
+	PartRequestID     int64
+	StatusID          int64
+	StatusCode        string
+	StatusName        string
+	ChangedByUserID   int64
+	ChangedByEmail    *string
+	ChangedByFullName *string
+	Comment           string
+	ChangedAt         time.Time
+}
