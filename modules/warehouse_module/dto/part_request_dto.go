@@ -9,16 +9,18 @@ type PartRequestCreateRequest struct {
 }
 
 type PartRequestUpdateRequest struct {
-	PartID          int64  `json:"part_id" binding:"required" example:"1"`
-	Quantity        int64  `json:"quantity" binding:"required" example:"7"`
-	MechanicComment string `json:"mechanic_comment" binding:"required" example:"Updated quantity after inspection"`
-	StatusID        int64  `json:"status_id" binding:"required" example:"1"`
-	HistoryComment  string `json:"history_comment,omitempty" example:"Updated request after additional vehicle inspection"`
+	PartID           int64  `json:"part_id" binding:"required" example:"1"`
+	Quantity         int64  `json:"quantity" binding:"required" example:"7"`
+	MechanicComment  string `json:"mechanic_comment" binding:"required" example:"Updated quantity after inspection"`
+	StatusID         int64  `json:"status_id" binding:"required" example:"1"`
+	RejectionComment string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
+	HistoryComment   string `json:"history_comment,omitempty" example:"Updated request after additional vehicle inspection"`
 }
 
 type PartRequestStatusUpdateRequest struct {
-	StatusID int64  `json:"status_id" binding:"required" example:"3"`
-	Comment  string `json:"comment,omitempty" example:"Approved by warehouse manager"`
+	StatusID         int64  `json:"status_id" binding:"required" example:"3"`
+	Comment          string `json:"comment,omitempty" example:"Approved by warehouse manager"`
+	RejectionComment string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
 }
 
 type PartRequestListQuery struct {
@@ -26,11 +28,14 @@ type PartRequestListQuery struct {
 	StatusID     int64
 	StatusCode   string
 	AuthorUserID int64
+	DateFrom     string
+	DateTo       string
 	Limit        int
 	Offset       int
 	SortBy       string
 	Order        string
 }
+
 type PartRequestHistoryListQuery struct {
 	PartRequestID   int64
 	StatusID        int64
@@ -70,19 +75,20 @@ type PartRequestHistoryResponse struct {
 }
 
 type PartRequestResponse struct {
-	ID              int64                        `json:"id" example:"1"`
-	PartID          int64                        `json:"part_id" example:"1"`
-	Part            PartRequestPartBriefResponse `json:"part"`
-	Quantity        int64                        `json:"quantity" example:"5"`
-	MechanicComment string                       `json:"mechanic_comment" example:"Need new brake pads for scheduled maintenance"`
-	StatusID        int64                        `json:"status_id" example:"1"`
-	Status          PartRequestStatusResponse    `json:"status"`
-	AuthorUserID    int64                        `json:"author_user_id" example:"10"`
-	AuthorEmail     *string                      `json:"author_email,omitempty" example:"mechanic@example.com"`
-	AuthorFullName  *string                      `json:"author_full_name,omitempty" example:"Ivan Ivanov"`
-	History         []PartRequestHistoryResponse `json:"history"`
-	CreatedAt       time.Time                    `json:"created_at"`
-	UpdatedAt       time.Time                    `json:"updated_at"`
+	ID               int64                        `json:"id" example:"1"`
+	PartID           int64                        `json:"part_id" example:"1"`
+	Part             PartRequestPartBriefResponse `json:"part"`
+	Quantity         int64                        `json:"quantity" example:"5"`
+	MechanicComment  string                       `json:"mechanic_comment" example:"Need new brake pads for scheduled maintenance"`
+	RejectionComment *string                      `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
+	StatusID         int64                        `json:"status_id" example:"1"`
+	Status           PartRequestStatusResponse    `json:"status"`
+	AuthorUserID     int64                        `json:"author_user_id" example:"10"`
+	AuthorEmail      *string                      `json:"author_email,omitempty" example:"mechanic@example.com"`
+	AuthorFullName   *string                      `json:"author_full_name,omitempty" example:"Ivan Ivanov"`
+	History          []PartRequestHistoryResponse `json:"history"`
+	CreatedAt        time.Time                    `json:"created_at"`
+	UpdatedAt        time.Time                    `json:"updated_at"`
 }
 
 type PartRequestListResponse struct {

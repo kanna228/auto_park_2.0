@@ -25,18 +25,20 @@ type CreatePartRequestParams struct {
 }
 
 type UpdatePartRequestParams struct {
-	PartID          int64
-	Quantity        int64
-	MechanicComment string
-	StatusID        int64
-	ChangedByUserID int64
-	HistoryComment  string
+	PartID           int64
+	Quantity         int64
+	MechanicComment  string
+	StatusID         int64
+	RejectionComment string
+	ChangedByUserID  int64
+	HistoryComment   string
 }
 
 type UpdatePartRequestStatusParams struct {
-	StatusID        int64
-	ChangedByUserID int64
-	HistoryComment  string
+	StatusID         int64
+	RejectionComment string
+	ChangedByUserID  int64
+	HistoryComment   string
 }
 
 type DeletePartRequestParams struct {
@@ -49,6 +51,8 @@ type ListPartRequestsParams struct {
 	StatusID     int64
 	StatusCode   string
 	AuthorUserID int64
+	DateFrom     string
+	DateTo       string
 	Limit        int
 	Offset       int
 	SortBy       string
@@ -77,6 +81,7 @@ type PartRequestRepository interface {
 	DeleteByID(ctx context.Context, id int64, p DeletePartRequestParams) (bool, error)
 	PartExists(ctx context.Context, partID int64) (bool, error)
 	StatusExists(ctx context.Context, statusID int64) (bool, error)
+	GetStatusByID(ctx context.Context, statusID int64) (*models.PartRequestStatus, error)
 	ListStatuses(ctx context.Context) ([]models.PartRequestStatus, error)
 	ListHistoryByRequestID(ctx context.Context, partRequestID int64) ([]models.PartRequestHistory, error)
 	ListHistory(ctx context.Context, p ListPartRequestHistoryParams) ([]models.PartRequestHistory, int64, error)
@@ -134,6 +139,7 @@ func (r *partRequestRepo) GetByID(ctx context.Context, id int64) (*models.PartRe
 			p.category AS part_category,
 			pr.quantity,
 			pr.mechanic_comment,
+			pr.rejection_comment,
 			pr.status_id,
 			s.code AS status_code,
 			s.name AS status_name,
@@ -198,6 +204,18 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 		argPos++
 	}
 
+	if v := strings.TrimSpace(p.DateFrom); v != "" {
+		conds = append(conds, fmt.Sprintf("pr.created_at::date >= $%d", argPos))
+		args = append(args, v)
+		argPos++
+	}
+
+	if v := strings.TrimSpace(p.DateTo); v != "" {
+		conds = append(conds, fmt.Sprintf("pr.created_at::date <= $%d", argPos))
+		args = append(args, v)
+		argPos++
+	}
+
 	whereSQL := " WHERE " + strings.Join(conds, " AND ")
 
 	countQ := `
@@ -220,6 +238,7 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 			p.category AS part_category,
 			pr.quantity,
 			pr.mechanic_comment,
+			pr.rejection_comment,
 			pr.status_id,
 			s.code AS status_code,
 			s.name AS status_name,
@@ -272,11 +291,12 @@ func (r *partRequestRepo) UpdateByID(ctx context.Context, id int64, p UpdatePart
 			quantity = $2,
 			mechanic_comment = $3,
 			status_id = $4,
+			rejection_comment = $5,
 			updated_at = NOW()
-		WHERE id = $5
+		WHERE id = $6
 		  AND is_deleted = FALSE;
 	`
-	res, err := tx.ExecContext(ctx, q, p.PartID, p.Quantity, p.MechanicComment, p.StatusID, id)
+	res, err := tx.ExecContext(ctx, q, p.PartID, p.Quantity, p.MechanicComment, p.StatusID, nullableTextParam(p.RejectionComment), id)
 	if err != nil {
 		return false, mapPartRequestError(err)
 	}
@@ -309,11 +329,12 @@ func (r *partRequestRepo) UpdateStatusByID(ctx context.Context, id int64, p Upda
 	const q = `
 		UPDATE part_requests
 		SET status_id = $1,
+			rejection_comment = $2,
 			updated_at = NOW()
-		WHERE id = $2
+		WHERE id = $3
 		  AND is_deleted = FALSE;
 	`
-	res, err := tx.ExecContext(ctx, q, p.StatusID, id)
+	res, err := tx.ExecContext(ctx, q, p.StatusID, nullableTextParam(p.RejectionComment), id)
 	if err != nil {
 		return false, mapPartRequestError(err)
 	}
@@ -408,6 +429,24 @@ func (r *partRequestRepo) StatusExists(ctx context.Context, statusID int64) (boo
 	return exists, nil
 }
 
+func (r *partRequestRepo) GetStatusByID(ctx context.Context, statusID int64) (*models.PartRequestStatus, error) {
+	const q = `
+		SELECT id, code, name
+		FROM part_request_statuses
+		WHERE id = $1;
+	`
+
+	var item models.PartRequestStatus
+	if err := r.db.QueryRowContext(ctx, q, statusID).Scan(&item.ID, &item.Code, &item.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get part request status by id: %w", err)
+	}
+
+	return &item, nil
+}
+
 func (r *partRequestRepo) ListStatuses(ctx context.Context) ([]models.PartRequestStatus, error) {
 	const q = `
 		SELECT id, code, name
@@ -475,130 +514,6 @@ func (r *partRequestRepo) ListHistoryByRequestID(ctx context.Context, partReques
 	return items, nil
 }
 
-func insertPartRequestHistory(ctx context.Context, tx *sql.Tx, partRequestID int64, statusID int64, changedByUserID int64, comment string) error {
-	const q = `
-		INSERT INTO part_request_history (part_request_id, status_id, changed_by_user_id, comment, changed_at)
-		VALUES ($1, $2, $3, $4, NOW());
-	`
-	_, err := tx.ExecContext(ctx, q, partRequestID, statusID, changedByUserID, comment)
-	return err
-}
-
-func rollbackPartRequestTx(tx *sql.Tx) {
-	_ = tx.Rollback()
-}
-
-type partRequestScanner interface {
-	Scan(dest ...any) error
-}
-
-func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
-	var item models.PartRequest
-	var authorEmail sql.NullString
-	var authorFullName sql.NullString
-
-	if err := scanner.Scan(
-		&item.ID,
-		&item.PartID,
-		&item.PartCatalogCode,
-		&item.PartName,
-		&item.PartCategory,
-		&item.Quantity,
-		&item.MechanicComment,
-		&item.StatusID,
-		&item.StatusCode,
-		&item.StatusName,
-		&item.AuthorUserID,
-		&authorEmail,
-		&authorFullName,
-		&item.CreatedAt,
-		&item.UpdatedAt,
-	); err != nil {
-		return nil, err
-	}
-
-	item.AuthorEmail = nullableStringPtr(authorEmail)
-	item.AuthorFullName = nullableStringPtr(authorFullName)
-	return &item, nil
-}
-
-func scanPartRequestRows(rows *sql.Rows) (*models.PartRequest, error) {
-	return scanPartRequest(rows)
-}
-
-func scanPartRequestHistory(scanner partRequestScanner) (*models.PartRequestHistory, error) {
-	var item models.PartRequestHistory
-	var changedByEmail sql.NullString
-	var changedByFullName sql.NullString
-
-	if err := scanner.Scan(
-		&item.ID,
-		&item.PartRequestID,
-		&item.StatusID,
-		&item.StatusCode,
-		&item.StatusName,
-		&item.ChangedByUserID,
-		&changedByEmail,
-		&changedByFullName,
-		&item.Comment,
-		&item.ChangedAt,
-	); err != nil {
-		return nil, err
-	}
-
-	item.ChangedByEmail = nullableStringPtr(changedByEmail)
-	item.ChangedByFullName = nullableStringPtr(changedByFullName)
-	return &item, nil
-}
-
-func scanPartRequestHistoryRows(rows *sql.Rows) (*models.PartRequestHistory, error) {
-	return scanPartRequestHistory(rows)
-}
-
-func nullableStringPtr(v sql.NullString) *string {
-	if !v.Valid {
-		return nil
-	}
-	return &v.String
-}
-
-func normalizePartRequestSortBy(v string) string {
-	switch strings.TrimSpace(strings.ToLower(v)) {
-	case "part_id":
-		return "pr.part_id"
-	case "quantity":
-		return "pr.quantity"
-	case "status_id":
-		return "pr.status_id"
-	case "status_code":
-		return "s.code"
-	case "author_user_id":
-		return "pr.author_user_id"
-	case "updated_at":
-		return "pr.updated_at"
-	default:
-		return "pr.created_at"
-	}
-}
-
-func mapPartRequestError(err error) error {
-	msg := strings.ToLower(err.Error())
-	switch {
-	case strings.Contains(msg, "part_requests_part_id_fkey"):
-		return ErrPartRequestPartNotFound
-	case strings.Contains(msg, "part_requests_status_id_fkey"):
-		return ErrPartRequestStatusNotFound
-	case strings.Contains(msg, "part_requests_author_user_id_fkey"):
-		return ErrPartRequestUserNotFound
-	case strings.Contains(msg, "part_request_history_status_id_fkey"):
-		return ErrPartRequestStatusNotFound
-	case strings.Contains(msg, "part_request_history_changed_by_user_id_fkey"):
-		return ErrPartRequestUserNotFound
-	default:
-		return err
-	}
-}
-
 func (r *partRequestRepo) ListHistory(ctx context.Context, p ListPartRequestHistoryParams) ([]models.PartRequestHistory, int64, error) {
 	limit := p.Limit
 	if limit <= 0 || limit > 200 {
@@ -622,31 +537,26 @@ func (r *partRequestRepo) ListHistory(ctx context.Context, p ListPartRequestHist
 		args = append(args, p.PartRequestID)
 		argPos++
 	}
-
 	if p.StatusID > 0 {
 		conds = append(conds, fmt.Sprintf("h.status_id = $%d", argPos))
 		args = append(args, p.StatusID)
 		argPos++
 	}
-
 	if v := strings.TrimSpace(p.StatusCode); v != "" {
 		conds = append(conds, fmt.Sprintf("s.code = $%d", argPos))
 		args = append(args, strings.ToLower(v))
 		argPos++
 	}
-
 	if p.ChangedByUserID > 0 {
 		conds = append(conds, fmt.Sprintf("h.changed_by_user_id = $%d", argPos))
 		args = append(args, p.ChangedByUserID)
 		argPos++
 	}
-
 	if v := strings.TrimSpace(p.DateFrom); v != "" {
 		conds = append(conds, fmt.Sprintf("h.changed_at::date >= $%d", argPos))
 		args = append(args, v)
 		argPos++
 	}
-
 	if v := strings.TrimSpace(p.DateTo); v != "" {
 		conds = append(conds, fmt.Sprintf("h.changed_at::date <= $%d", argPos))
 		args = append(args, v)
@@ -695,22 +605,137 @@ func (r *partRequestRepo) ListHistory(ctx context.Context, p ListPartRequestHist
 	defer rows.Close()
 
 	items := make([]models.PartRequestHistory, 0)
-
 	for rows.Next() {
 		item, err := scanPartRequestHistoryRows(rows)
 		if err != nil {
 			return nil, 0, fmt.Errorf("list part request history scan: %w", err)
 		}
-
 		items = append(items, *item)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, 0, fmt.Errorf("list part request history rows: %w", err)
 	}
 
 	return items, total, nil
 }
+
+func insertPartRequestHistory(ctx context.Context, tx *sql.Tx, partRequestID int64, statusID int64, changedByUserID int64, comment string) error {
+	const q = `
+		INSERT INTO part_request_history (part_request_id, status_id, changed_by_user_id, comment, changed_at)
+		VALUES ($1, $2, $3, $4, NOW());
+	`
+	_, err := tx.ExecContext(ctx, q, partRequestID, statusID, changedByUserID, comment)
+	return err
+}
+
+func rollbackPartRequestTx(tx *sql.Tx) {
+	_ = tx.Rollback()
+}
+
+type partRequestScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
+	var item models.PartRequest
+	var rejectionComment sql.NullString
+	var authorEmail sql.NullString
+	var authorFullName sql.NullString
+
+	if err := scanner.Scan(
+		&item.ID,
+		&item.PartID,
+		&item.PartCatalogCode,
+		&item.PartName,
+		&item.PartCategory,
+		&item.Quantity,
+		&item.MechanicComment,
+		&rejectionComment,
+		&item.StatusID,
+		&item.StatusCode,
+		&item.StatusName,
+		&item.AuthorUserID,
+		&authorEmail,
+		&authorFullName,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+
+	item.RejectionComment = nullableStringPtr(rejectionComment)
+	item.AuthorEmail = nullableStringPtr(authorEmail)
+	item.AuthorFullName = nullableStringPtr(authorFullName)
+	return &item, nil
+}
+
+func scanPartRequestRows(rows *sql.Rows) (*models.PartRequest, error) {
+	return scanPartRequest(rows)
+}
+
+func scanPartRequestHistory(scanner partRequestScanner) (*models.PartRequestHistory, error) {
+	var item models.PartRequestHistory
+	var changedByEmail sql.NullString
+	var changedByFullName sql.NullString
+
+	if err := scanner.Scan(
+		&item.ID,
+		&item.PartRequestID,
+		&item.StatusID,
+		&item.StatusCode,
+		&item.StatusName,
+		&item.ChangedByUserID,
+		&changedByEmail,
+		&changedByFullName,
+		&item.Comment,
+		&item.ChangedAt,
+	); err != nil {
+		return nil, err
+	}
+
+	item.ChangedByEmail = nullableStringPtr(changedByEmail)
+	item.ChangedByFullName = nullableStringPtr(changedByFullName)
+	return &item, nil
+}
+
+func scanPartRequestHistoryRows(rows *sql.Rows) (*models.PartRequestHistory, error) {
+	return scanPartRequestHistory(rows)
+}
+
+func nullableStringPtr(v sql.NullString) *string {
+	if !v.Valid {
+		return nil
+	}
+	return &v.String
+}
+
+func nullableTextParam(value string) any {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	return trimmed
+}
+
+func normalizePartRequestSortBy(v string) string {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "part_id":
+		return "pr.part_id"
+	case "quantity":
+		return "pr.quantity"
+	case "status_id":
+		return "pr.status_id"
+	case "status_code":
+		return "s.code"
+	case "author_user_id":
+		return "pr.author_user_id"
+	case "updated_at":
+		return "pr.updated_at"
+	default:
+		return "pr.created_at"
+	}
+}
+
 func normalizePartRequestHistorySortBy(v string) string {
 	switch strings.TrimSpace(strings.ToLower(v)) {
 	case "part_request_id":
@@ -725,5 +750,23 @@ func normalizePartRequestHistorySortBy(v string) string {
 		return "h.changed_at"
 	default:
 		return "h.changed_at"
+	}
+}
+
+func mapPartRequestError(err error) error {
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "part_requests_part_id_fkey"):
+		return ErrPartRequestPartNotFound
+	case strings.Contains(msg, "part_requests_status_id_fkey"):
+		return ErrPartRequestStatusNotFound
+	case strings.Contains(msg, "part_requests_author_user_id_fkey"):
+		return ErrPartRequestUserNotFound
+	case strings.Contains(msg, "part_request_history_status_id_fkey"):
+		return ErrPartRequestStatusNotFound
+	case strings.Contains(msg, "part_request_history_changed_by_user_id_fkey"):
+		return ErrPartRequestUserNotFound
+	default:
+		return err
 	}
 }

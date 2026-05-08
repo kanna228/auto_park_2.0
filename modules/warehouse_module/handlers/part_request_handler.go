@@ -91,17 +91,19 @@ func (h *PartRequestHandler) GetPartRequestByID(c *gin.Context) {
 
 // ListPartRequests godoc
 // @Summary      List part requests
-// @Description  Returns warehouse part requests with filters, pagination and sorting. History for one request is available in request details and in /history endpoint.
+// @Description  Returns warehouse part requests with access control: admin and warehouse manager see all requests, duty mechanic sees only own requests. Supports status/date filters and created_at sorting.
 // @Tags         Warehouse Part Requests
 // @Produce      json
 // @Security     BearerAuth
 // @Param        part_id query int false "Filter by warehouse part internal ID"
 // @Param        status_id query int false "Filter by request status ID: 1=new, 2=rejected, 3=approved"
 // @Param        status_code query string false "Filter by request status code: new, rejected, approved"
-// @Param        author_user_id query int false "Filter by mechanic user ID"
+// @Param        author_user_id query int false "Filter by mechanic user ID. Works only for admin and warehouse manager"
+// @Param        date_from query string false "Created date from, YYYY-MM-DD"
+// @Param        date_to query string false "Created date to, YYYY-MM-DD"
 // @Param        limit query int false "Limit" default(50)
 // @Param        offset query int false "Offset" default(0)
-// @Param        sort_by query string false "Sort by field: created_at, updated_at, part_id, quantity, status_id, status_code, author_user_id"
+// @Param        sort_by query string false "Sort by field: created_at, updated_at, part_id, quantity, status_id, status_code, author_user_id" default(created_at)
 // @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} PartRequestListResponseWrap
 // @Failure      400 {object} ErrorResponse
@@ -110,20 +112,98 @@ func (h *PartRequestHandler) GetPartRequestByID(c *gin.Context) {
 // @Failure      500 {object} ErrorResponse
 // @Router       /api/warehouse/part-requests [get]
 func (h *PartRequestHandler) ListPartRequests(c *gin.Context) {
+	currentUserID, ok := getUserIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	roleID, ok := getRoleIDFromContext(c)
+	if !ok {
+		return
+	}
+
 	q := dto.PartRequestListQuery{
 		StatusCode: c.Query("status_code"),
+		DateFrom:   c.Query("date_from"),
+		DateTo:     c.Query("date_to"),
+		SortBy:     c.Query("sort_by"),
+		Order:      c.Query("order"),
+	}
+
+	if q.SortBy == "" {
+		q.SortBy = "created_at"
+	}
+
+	var okQuery bool
+
+	if q.PartID, okQuery = parseInt64Query(c, "part_id", false); !okQuery {
+		return
+	}
+
+	if q.StatusID, okQuery = parseInt64Query(c, "status_id", false); !okQuery {
+		return
+	}
+
+	if q.AuthorUserID, okQuery = parseInt64Query(c, "author_user_id", false); !okQuery {
+		return
+	}
+
+	if q.Limit, okQuery = parseIntQuery(c, "limit", false); !okQuery {
+		return
+	}
+
+	if q.Offset, okQuery = parseIntQuery(c, "offset", true); !okQuery {
+		return
+	}
+
+	resp, err := h.svc.List(c.Request.Context(), currentUserID, roleID, q)
+	if err != nil {
+		writePartRequestError(c, err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+
+// ListAllPartRequestHistory godoc
+// @Summary      List all part request history
+// @Description  Returns full immutable history journal for warehouse part requests with filters by request, status, changer and dates.
+// @Tags         Warehouse Part Requests
+// @Produce      json
+// @Security     BearerAuth
+// @Param        part_request_id query int false "Filter by part request ID"
+// @Param        status_id query int false "Filter by status ID"
+// @Param        status_code query string false "Filter by status code: new, rejected, approved"
+// @Param        changed_by_user_id query int false "Filter by user who changed request"
+// @Param        date_from query string false "Changed date from, YYYY-MM-DD"
+// @Param        date_to query string false "Changed date to, YYYY-MM-DD"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        sort_by query string false "Sort by field: changed_at, part_request_id, status_id, status_code, changed_by_user_id"
+// @Param        order query string false "Sort order: asc or desc"
+// @Success      200 {object} PartRequestHistoryListResponseWrap
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /api/warehouse/part-request-history [get]
+func (h *PartRequestHandler) ListAllPartRequestHistory(c *gin.Context) {
+	q := dto.PartRequestHistoryListQuery{
+		StatusCode: c.Query("status_code"),
+		DateFrom:   c.Query("date_from"),
+		DateTo:     c.Query("date_to"),
 		SortBy:     c.Query("sort_by"),
 		Order:      c.Query("order"),
 	}
 
 	var ok bool
-	if q.PartID, ok = parseInt64Query(c, "part_id", false); !ok {
+	if q.PartRequestID, ok = parseInt64Query(c, "part_request_id", false); !ok {
 		return
 	}
 	if q.StatusID, ok = parseInt64Query(c, "status_id", false); !ok {
 		return
 	}
-	if q.AuthorUserID, ok = parseInt64Query(c, "author_user_id", false); !ok {
+	if q.ChangedByUserID, ok = parseInt64Query(c, "changed_by_user_id", false); !ok {
 		return
 	}
 	if q.Limit, ok = parseIntQuery(c, "limit", false); !ok {
@@ -133,9 +213,9 @@ func (h *PartRequestHandler) ListPartRequests(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.List(c.Request.Context(), q)
+	resp, err := h.svc.ListHistory(c.Request.Context(), q)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
@@ -177,7 +257,7 @@ func (h *PartRequestHandler) ListPartRequestHistory(c *gin.Context) {
 
 // UpdatePartRequest godoc
 // @Summary      Full update part request
-// @Description  Fully updates part request fields including status and creates a history record. This route is blocked after request status becomes approved or rejected.
+// @Description  Fully updates part request fields including status and creates a history record. If status is rejected, rejection_comment is required and only warehouse manager can perform it. This route is blocked after request status becomes approved or rejected.
 // @Tags         Warehouse Part Requests
 // @Accept       json
 // @Produce      json
@@ -203,13 +283,18 @@ func (h *PartRequestHandler) UpdatePartRequest(c *gin.Context) {
 		return
 	}
 
+	roleID, ok := getRoleIDFromContext(c)
+	if !ok {
+		return
+	}
+
 	var req dto.PartRequestUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
 		return
 	}
 
-	updated, err := h.svc.UpdateByID(c.Request.Context(), id, changedByUserID, req)
+	updated, err := h.svc.UpdateByID(c.Request.Context(), id, changedByUserID, roleID, req)
 	if err != nil {
 		writePartRequestError(c, err)
 		return
@@ -224,7 +309,7 @@ func (h *PartRequestHandler) UpdatePartRequest(c *gin.Context) {
 
 // UpdatePartRequestStatus godoc
 // @Summary      Change part request status
-// @Description  Changes only the request status and creates a history record. This route can change status even if the request was already approved or rejected.
+// @Description  Changes only the request status and creates a history record. If status is rejected, rejection_comment is required and only warehouse manager can perform it. This route can change status even if the request was already approved or rejected.
 // @Tags         Warehouse Part Requests
 // @Accept       json
 // @Produce      json
@@ -249,13 +334,18 @@ func (h *PartRequestHandler) UpdatePartRequestStatus(c *gin.Context) {
 		return
 	}
 
+	roleID, ok := getRoleIDFromContext(c)
+	if !ok {
+		return
+	}
+
 	var req dto.PartRequestStatusUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
 		return
 	}
 
-	updated, err := h.svc.UpdateStatusByID(c.Request.Context(), id, changedByUserID, req)
+	updated, err := h.svc.UpdateStatusByID(c.Request.Context(), id, changedByUserID, roleID, req)
 	if err != nil {
 		writePartRequestError(c, err)
 		return
@@ -377,69 +467,13 @@ func writePartRequestError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "user not found"})
 	case errors.Is(err, repository.ErrPartRequestLocked):
 		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "part request cannot be changed after approval or rejection"})
+	case errors.Is(err, service.ErrPartRequestRejectionCommentRequired):
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "rejection_comment is required when status is rejected"})
+	case errors.Is(err, service.ErrPartRequestRejectForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "only warehouse manager can reject part request"})
+	case errors.Is(err, service.ErrPartRequestViewForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "part request list is not available for this role"})
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 	}
-}
-
-// ListAllPartRequestHistory godoc
-// @Summary      List all part request history
-// @Description  Returns full immutable history journal for warehouse part requests with filters by request, status, changer and dates.
-// @Tags         Warehouse Part Requests
-// @Produce      json
-// @Security     BearerAuth
-// @Param        part_request_id query int false "Filter by part request ID"
-// @Param        status_id query int false "Filter by status ID"
-// @Param        status_code query string false "Filter by status code: new, rejected, approved"
-// @Param        changed_by_user_id query int false "Filter by user who changed request"
-// @Param        date_from query string false "Changed date from, YYYY-MM-DD"
-// @Param        date_to query string false "Changed date to, YYYY-MM-DD"
-// @Param        limit query int false "Limit" default(50)
-// @Param        offset query int false "Offset" default(0)
-// @Param        sort_by query string false "Sort by field: changed_at, part_request_id, status_id, status_code, changed_by_user_id"
-// @Param        order query string false "Sort order: asc or desc"
-// @Success      200 {object} PartRequestHistoryListResponseWrap
-// @Failure      400 {object} ErrorResponse
-// @Failure      401 {object} ErrorResponse
-// @Failure      403 {object} ErrorResponse
-// @Failure      500 {object} ErrorResponse
-// @Router       /api/warehouse/part-request-history [get]
-func (h *PartRequestHandler) ListAllPartRequestHistory(c *gin.Context) {
-	q := dto.PartRequestHistoryListQuery{
-		StatusCode: c.Query("status_code"),
-		DateFrom:   c.Query("date_from"),
-		DateTo:     c.Query("date_to"),
-		SortBy:     c.Query("sort_by"),
-		Order:      c.Query("order"),
-	}
-
-	var ok bool
-
-	if q.PartRequestID, ok = parseInt64Query(c, "part_request_id", false); !ok {
-		return
-	}
-
-	if q.StatusID, ok = parseInt64Query(c, "status_id", false); !ok {
-		return
-	}
-
-	if q.ChangedByUserID, ok = parseInt64Query(c, "changed_by_user_id", false); !ok {
-		return
-	}
-
-	if q.Limit, ok = parseIntQuery(c, "limit", false); !ok {
-		return
-	}
-
-	if q.Offset, ok = parseIntQuery(c, "offset", true); !ok {
-		return
-	}
-
-	resp, err := h.svc.ListHistory(c.Request.Context(), q)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 }
