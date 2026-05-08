@@ -19,6 +19,7 @@ type VehicleRepository interface {
 	UnassignTiresByVehicleID(ctx context.Context, vehicleID int64) error
 	ListVehicleStatuses(ctx context.Context) ([]models.VehicleStatus, error)
 	ListIncidentsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleIncidentHistoryRow, error)
+	ListInstalledPartsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleInstalledPartHistoryRow, error)
 	ListDriversByIDs(ctx context.Context, ids []int64) ([]VehicleDriverRow, error)
 }
 

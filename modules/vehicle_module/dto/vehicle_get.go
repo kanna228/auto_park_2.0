@@ -28,6 +28,25 @@ type VehicleTechnicalInspectionHistoryItem struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type VehicleInstalledPartHistoryItem struct {
+	ID                   int64      `json:"id"`
+	PartID               int64      `json:"part_id"`
+	CatalogPartID        string     `json:"catalog_part_id"`
+	PartName             string     `json:"part_name"`
+	PartCategory         string     `json:"part_category"`
+	IsConsumable         bool       `json:"is_consumable"`
+	VehicleID            int64      `json:"vehicle_id"`
+	InstalledAt          time.Time  `json:"installed_at"`
+	PlannedReplacementAt *time.Time `json:"planned_replacement_at,omitempty"`
+	Quantity             int64      `json:"quantity"`
+	InstalledByUserID    int64      `json:"installed_by_user_id"`
+	InstallerEmail       *string    `json:"installer_email,omitempty"`
+	InstallerFullName    *string    `json:"installer_full_name,omitempty"`
+	IsActive             bool       `json:"is_active"`
+	CreatedAt            time.Time  `json:"created_at"`
+	UpdatedAt            time.Time  `json:"updated_at"`
+}
+
 type VehicleResponse struct {
 	ID int64 `json:"id"`
 
@@ -62,6 +81,7 @@ type VehicleResponse struct {
 	Insurances           []VehicleInsuranceHistoryItem           `json:"insurances"`
 	TechnicalInspections []VehicleTechnicalInspectionHistoryItem `json:"technical_inspections"`
 	Incidents            []VehicleIncidentHistoryItem            `json:"incidents"`
+	InstalledParts       []VehicleInstalledPartHistoryItem       `json:"installed_parts"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -76,6 +96,7 @@ type VehicleStatusListResponse struct {
 	Items []VehicleStatusResponse `json:"items"`
 	Total int64                   `json:"total"`
 }
+
 type VehicleDriverInfo struct {
 	ID         int64   `json:"id"`
 	IIN        string  `json:"iin"`

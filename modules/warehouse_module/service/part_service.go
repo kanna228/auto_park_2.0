@@ -61,6 +61,7 @@ func (s *partService) Create(ctx context.Context, req dto.PartCreateRequest) (in
 		Category:     category,
 		Dimensions:   dimensions,
 		Manufacturer: manufacturer,
+		IsConsumable: req.IsConsumable,
 	})
 }
 
@@ -140,6 +141,7 @@ func (s *partService) UpdateByID(ctx context.Context, id int64, req dto.PartUpda
 		Category:     category,
 		Dimensions:   dimensions,
 		Manufacturer: manufacturer,
+		IsConsumable: req.IsConsumable,
 	})
 }
 
@@ -184,6 +186,7 @@ func mapPartToDTO(item models.Part) dto.PartResponse {
 		Category:     item.Category,
 		Dimensions:   item.Dimensions,
 		Manufacturer: item.Manufacturer,
+		IsConsumable: item.IsConsumable,
 		CreatedAt:    item.CreatedAt,
 		UpdatedAt:    item.UpdatedAt,
 	}

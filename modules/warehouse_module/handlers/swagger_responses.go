@@ -80,3 +80,41 @@ type PartRequestDeleteResponseWrap struct {
 		ID int64 `json:"id" example:"1"`
 	} `json:"data"`
 }
+
+type VehiclePartInstallationResponseWrap struct {
+	Success bool                                `json:"success" example:"true"`
+	Data    dto.VehiclePartInstallationResponse `json:"data"`
+}
+
+type VehiclePartInstallationListResponseWrap struct {
+	Success bool                                    `json:"success" example:"true"`
+	Data    dto.VehiclePartInstallationListResponse `json:"data"`
+}
+
+type VehiclePartInstallationCreateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type VehiclePartInstallationUpdateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type VehiclePartInstallationActivityUpdateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type VehiclePartInstallationDeleteResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}

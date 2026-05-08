@@ -20,6 +20,7 @@ type CreatePartParams struct {
 	Category     string
 	Dimensions   *string
 	Manufacturer *string
+	IsConsumable bool
 }
 
 type UpdatePartParams struct {
@@ -28,6 +29,7 @@ type UpdatePartParams struct {
 	Category     string
 	Dimensions   *string
 	Manufacturer *string
+	IsConsumable bool
 }
 
 type ListPartsParams struct {
@@ -58,13 +60,13 @@ func NewPartRepository(db *sql.DB) PartRepository {
 
 func (r *partRepo) Create(ctx context.Context, p CreatePartParams) (int64, error) {
 	const q = `
-		INSERT INTO parts_catalog (part_id, name, quantity, category, dimensions, manufacturer, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		INSERT INTO parts_catalog (part_id, name, quantity, category, dimensions, manufacturer, is_consumable, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 		RETURNING id;
 	`
 
 	var id int64
-	if err := r.db.QueryRowContext(ctx, q, p.PartID, p.Name, p.Quantity, p.Category, p.Dimensions, p.Manufacturer).Scan(&id); err != nil {
+	if err := r.db.QueryRowContext(ctx, q, p.PartID, p.Name, p.Quantity, p.Category, p.Dimensions, p.Manufacturer, p.IsConsumable).Scan(&id); err != nil {
 		return 0, mapConstraintError(err)
 	}
 	return id, nil
@@ -72,7 +74,7 @@ func (r *partRepo) Create(ctx context.Context, p CreatePartParams) (int64, error
 
 func (r *partRepo) GetByID(ctx context.Context, id int64) (*models.Part, error) {
 	const q = `
-		SELECT id, part_id, name, quantity, category, dimensions, manufacturer, created_at, updated_at
+		SELECT id, part_id, name, quantity, category, dimensions, manufacturer, is_consumable, created_at, updated_at
 		FROM parts_catalog
 		WHERE id = $1;
 	`
@@ -86,6 +88,7 @@ func (r *partRepo) GetByID(ctx context.Context, id int64) (*models.Part, error) 
 		&item.Category,
 		&item.Dimensions,
 		&item.Manufacturer,
+		&item.IsConsumable,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
@@ -142,7 +145,7 @@ func (r *partRepo) List(ctx context.Context, p ListPartsParams) ([]models.Part, 
 	}
 
 	listQ := fmt.Sprintf(`
-		SELECT id, part_id, name, quantity, category, dimensions, manufacturer, created_at, updated_at
+		SELECT id, part_id, name, quantity, category, dimensions, manufacturer, is_consumable, created_at, updated_at
 		FROM parts_catalog
 		%s
 		ORDER BY %s %s, id ASC
@@ -167,6 +170,7 @@ func (r *partRepo) List(ctx context.Context, p ListPartsParams) ([]models.Part, 
 			&item.Category,
 			&item.Dimensions,
 			&item.Manufacturer,
+			&item.IsConsumable,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
@@ -189,10 +193,11 @@ func (r *partRepo) UpdateByID(ctx context.Context, id int64, p UpdatePartParams)
 			category = $3,
 			dimensions = $4,
 			manufacturer = $5,
+			is_consumable = $6,
 			updated_at = NOW()
-		WHERE id = $6;
+		WHERE id = $7;
 	`
-	res, err := r.db.ExecContext(ctx, q, p.Name, p.Quantity, p.Category, p.Dimensions, p.Manufacturer, id)
+	res, err := r.db.ExecContext(ctx, q, p.Name, p.Quantity, p.Category, p.Dimensions, p.Manufacturer, p.IsConsumable, id)
 	if err != nil {
 		return false, mapConstraintError(err)
 	}

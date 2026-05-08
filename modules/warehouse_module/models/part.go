@@ -10,6 +10,7 @@ type Part struct {
 	Category     string
 	Dimensions   *string
 	Manufacturer *string
+	IsConsumable bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

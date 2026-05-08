@@ -524,3 +524,109 @@ func (r *vehicleRepo) ListDriversByIDs(ctx context.Context, ids []int64) ([]Vehi
 
 	return items, nil
 }
+
+type VehicleInstalledPartHistoryRow struct {
+	ID                   int64
+	PartID               int64
+	CatalogPartID        string
+	PartName             string
+	PartCategory         string
+	IsConsumable         bool
+	VehicleID            int64
+	InstalledAt          time.Time
+	PlannedReplacementAt *time.Time
+	Quantity             int64
+	InstalledByUserID    int64
+	InstallerEmail       *string
+	InstallerFullName    *string
+	IsActive             bool
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+func (r *vehicleRepo) ListInstalledPartsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleInstalledPartHistoryRow, error) {
+	const q = `
+		SELECT
+			vpi.id,
+			vpi.part_id,
+			p.part_id AS catalog_part_id,
+			p.name AS part_name,
+			p.category AS part_category,
+			p.is_consumable,
+			vpi.vehicle_id,
+			vpi.installed_at,
+			vpi.planned_replacement_at,
+			vpi.quantity,
+			vpi.installed_by_user_id,
+			u.email AS installer_email,
+			NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS installer_full_name,
+			vpi.is_active,
+			vpi.created_at,
+			vpi.updated_at
+		FROM vehicle_part_installations vpi
+		JOIN parts_catalog p ON p.id = vpi.part_id
+		LEFT JOIN users u ON u.id = vpi.installed_by_user_id
+		WHERE vpi.vehicle_id = $1
+		ORDER BY vpi.installed_at DESC, vpi.id DESC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, vehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("list installed parts by vehicle id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]VehicleInstalledPartHistoryRow, 0)
+
+	for rows.Next() {
+		var item VehicleInstalledPartHistoryRow
+
+		var plannedReplacementAt sql.NullTime
+		var installerEmail sql.NullString
+		var installerFullName sql.NullString
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.PartID,
+			&item.CatalogPartID,
+			&item.PartName,
+			&item.PartCategory,
+			&item.IsConsumable,
+			&item.VehicleID,
+			&item.InstalledAt,
+			&plannedReplacementAt,
+			&item.Quantity,
+			&item.InstalledByUserID,
+			&installerEmail,
+			&installerFullName,
+			&item.IsActive,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan installed part by vehicle id: %w", err)
+		}
+
+		if plannedReplacementAt.Valid {
+			v := plannedReplacementAt.Time
+			item.PlannedReplacementAt = &v
+		}
+
+		if installerEmail.Valid {
+			v := installerEmail.String
+			item.InstallerEmail = &v
+		}
+
+		if installerFullName.Valid {
+			v := installerFullName.String
+			item.InstallerFullName = &v
+		}
+
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows installed parts by vehicle id: %w", err)
+	}
+
+	return items, nil
+}

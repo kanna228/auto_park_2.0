@@ -5,6 +5,7 @@
 2) Run migrations including:
    000022_warehouse_create_parts_catalog.up.sql
    000023_warehouse_create_part_requests.up.sql
+   000024_warehouse_create_vehicle_part_installations.up.sql
 
 Role mapping used:
 - 1 = admin
@@ -13,10 +14,15 @@ Role mapping used:
 
 Part catalog routes:
 - POST   /api/warehouse/parts      (warehouse_manager)
-- GET    /api/warehouse/parts      (admin, warehouse_manager)
-- GET    /api/warehouse/parts/:id  (admin, warehouse_manager)
+- GET    /api/warehouse/parts      (admin, duty_mechanic, warehouse_manager)
+- GET    /api/warehouse/parts/:id  (admin, duty_mechanic, warehouse_manager)
 - PUT    /api/warehouse/parts/:id  (warehouse_manager)
 - DELETE /api/warehouse/parts/:id  (admin)
+
+Part catalog note:
+- parts_catalog now has is_consumable BOOLEAN NOT NULL DEFAULT FALSE.
+- is_consumable=false means the same part cannot be active twice on the same vehicle.
+- is_consumable=true means repeated active usage on the same vehicle is allowed.
 
 Part request status seed data:
 - 1 = new      / Новая
@@ -32,11 +38,27 @@ Part request routes:
 - DELETE /api/warehouse/part-requests/:id         (admin, duty_mechanic, warehouse_manager; blocked if current status is approved/rejected)
 - GET    /api/warehouse/part-request-statuses     (admin, duty_mechanic, warehouse_manager)
 
-Important business rules implemented:
-- Detail/part must exist in parts_catalog.
-- Quantity must be greater than 0.
-- One request contains one part type only.
-- Repeated requests are inserted as new rows; no uniqueness constraint blocks them.
-- author_user_id is taken from JWT context user_id.
-- Full update and delete are blocked after status becomes approved/rejected.
-- Separate status update route is intentionally allowed even after approved/rejected.
+Vehicle part installation routes:
+- POST   /api/warehouse/vehicle-part-installations               (duty_mechanic, warehouse_manager)
+- GET    /api/warehouse/vehicle-part-installations               (admin, duty_mechanic, warehouse_manager)
+- GET    /api/warehouse/vehicle-part-installations/:id           (admin, duty_mechanic, warehouse_manager)
+- PUT    /api/warehouse/vehicle-part-installations/:id           (duty_mechanic, warehouse_manager)
+- PATCH  /api/warehouse/vehicle-part-installations/:id/activity  (duty_mechanic, warehouse_manager)
+- DELETE /api/warehouse/vehicle-part-installations/:id           (duty_mechanic, warehouse_manager)
+
+Vehicle part installation business rules implemented:
+- part_id must exist in parts_catalog.
+- vehicle_id must exist in vehicles.
+- quantity must be greater than 0.
+- On create, parts_catalog.quantity is decreased inside one DB transaction.
+- If stock quantity is not enough, installation is rejected.
+- Non-consumable part cannot be simultaneously active twice on the same vehicle.
+- Consumable part can be installed repeatedly.
+- Repeated installation is inserted as a new exploitation/history record.
+- installed_by_user_id is taken from JWT context user_id on create.
+- PUT can correct part/vehicle/date/quantity/installer/is_active and safely adjusts warehouse stock.
+- DELETE removes the record and returns its quantity back to warehouse stock.
+- PATCH /activity only changes is_active; use it to close old exploitation record before installing the same non-consumable part again.
+
+Vehicle passport integration:
+- GET /api/vehicles/:id and GET /api/vehicles now include installed_parts in the vehicle response.

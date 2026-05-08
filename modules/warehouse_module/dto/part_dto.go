@@ -9,6 +9,7 @@ type PartCreateRequest struct {
 	Category      string  `json:"category" binding:"required" example:"brake_system"`
 	Dimensions    *string `json:"dimensions,omitempty" example:"120x45x18 mm"`
 	Manufacturer  *string `json:"manufacturer,omitempty" example:"Bosch"`
+	IsConsumable  bool    `json:"is_consumable" example:"false"`
 }
 
 type PartUpdateRequest struct {
@@ -17,6 +18,7 @@ type PartUpdateRequest struct {
 	Category     string  `json:"category" binding:"required" example:"brake_system"`
 	Dimensions   *string `json:"dimensions,omitempty" example:"120x45x18 mm"`
 	Manufacturer *string `json:"manufacturer,omitempty" example:"Bosch"`
+	IsConsumable bool    `json:"is_consumable" example:"false"`
 }
 
 type PartResponse struct {
@@ -27,6 +29,7 @@ type PartResponse struct {
 	Category     string    `json:"category" example:"brake_system"`
 	Dimensions   *string   `json:"dimensions,omitempty" example:"120x45x18 mm"`
 	Manufacturer *string   `json:"manufacturer,omitempty" example:"Bosch"`
+	IsConsumable bool      `json:"is_consumable" example:"false"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

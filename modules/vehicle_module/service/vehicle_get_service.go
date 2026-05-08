@@ -112,6 +112,11 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 		return dto.VehicleResponse{}, err
 	}
 
+	installedParts, err := s.repo.ListInstalledPartsByVehicleID(ctx, v.ID)
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
 	resp.Drivers = make([]dto.VehicleDriverInfo, 0, len(vehicleDrivers))
 	for _, item := range vehicleDrivers {
 		resp.Drivers = append(resp.Drivers, dto.VehicleDriverInfo{
@@ -195,6 +200,28 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 		})
 	}
 
+	resp.InstalledParts = make([]dto.VehicleInstalledPartHistoryItem, 0, len(installedParts))
+	for _, item := range installedParts {
+		resp.InstalledParts = append(resp.InstalledParts, dto.VehicleInstalledPartHistoryItem{
+			ID:                   item.ID,
+			PartID:               item.PartID,
+			CatalogPartID:        item.CatalogPartID,
+			PartName:             item.PartName,
+			PartCategory:         item.PartCategory,
+			IsConsumable:         item.IsConsumable,
+			VehicleID:            item.VehicleID,
+			InstalledAt:          item.InstalledAt,
+			PlannedReplacementAt: item.PlannedReplacementAt,
+			Quantity:             item.Quantity,
+			InstalledByUserID:    item.InstalledByUserID,
+			InstallerEmail:       item.InstallerEmail,
+			InstallerFullName:    item.InstallerFullName,
+			IsActive:             item.IsActive,
+			CreatedAt:            item.CreatedAt,
+			UpdatedAt:            item.UpdatedAt,
+		})
+	}
+
 	return resp, nil
 }
 
@@ -233,6 +260,7 @@ func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
 		Insurances:           []dto.VehicleInsuranceHistoryItem{},
 		TechnicalInspections: []dto.VehicleTechnicalInspectionHistoryItem{},
 		Incidents:            []dto.VehicleIncidentHistoryItem{},
+		InstalledParts:       []dto.VehicleInstalledPartHistoryItem{},
 
 		CreatedAt: v.CreatedAt,
 		UpdatedAt: v.UpdatedAt,

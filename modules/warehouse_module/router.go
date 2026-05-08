@@ -27,12 +27,16 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	partRequestSvc := service.NewPartRequestService(partRequestRepo)
 	partRequestHandler := handlers.NewPartRequestHandler(partRequestSvc)
 
+	vehiclePartInstallationRepo := repository.NewVehiclePartInstallationRepository(db)
+	vehiclePartInstallationSvc := service.NewVehiclePartInstallationService(vehiclePartInstallationRepo)
+	vehiclePartInstallationHandler := handlers.NewVehiclePartInstallationHandler(vehiclePartInstallationSvc)
+
 	api := r.Group("/api/warehouse")
 	protected := api.Group("")
 	protected.Use(middleware.AuthJWT(cfg))
 	{
 		readGroup := protected.Group("/parts")
-		readGroup.Use(middleware.RequireRoles(roleAdmin, roleWarehouseManager))
+		readGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
 		{
 			readGroup.GET("", partHandler.ListParts)
 			readGroup.GET("/:id", partHandler.GetPartByID)
@@ -76,6 +80,22 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		partRequestStatusGroup.Use(middleware.RequireRoles(roleAdmin, roleWarehouseManager))
 		{
 			partRequestStatusGroup.PATCH("/:id/status", partRequestHandler.UpdatePartRequestStatus)
+		}
+
+		vehiclePartInstallationReadGroup := protected.Group("/vehicle-part-installations")
+		vehiclePartInstallationReadGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
+		{
+			vehiclePartInstallationReadGroup.GET("", vehiclePartInstallationHandler.ListVehiclePartInstallations)
+			vehiclePartInstallationReadGroup.GET("/:id", vehiclePartInstallationHandler.GetVehiclePartInstallationByID)
+		}
+
+		vehiclePartInstallationWriteGroup := protected.Group("/vehicle-part-installations")
+		vehiclePartInstallationWriteGroup.Use(middleware.RequireRoles(roleDutyMechanic, roleWarehouseManager))
+		{
+			vehiclePartInstallationWriteGroup.POST("", vehiclePartInstallationHandler.CreateVehiclePartInstallation)
+			vehiclePartInstallationWriteGroup.PUT("/:id", vehiclePartInstallationHandler.UpdateVehiclePartInstallation)
+			vehiclePartInstallationWriteGroup.PATCH("/:id/activity", vehiclePartInstallationHandler.UpdateVehiclePartInstallationActivity)
+			vehiclePartInstallationWriteGroup.DELETE("/:id", vehiclePartInstallationHandler.DeleteVehiclePartInstallation)
 		}
 	}
 }

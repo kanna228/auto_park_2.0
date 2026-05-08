@@ -60,7 +60,7 @@ func (h *PartHandler) CreatePart(c *gin.Context) {
 
 // GetPartByID godoc
 // @Summary      Get part by ID
-// @Description  Returns part information by ID. Accessible to admin and warehouse manager.
+// @Description  Returns part information by ID. Accessible to admin, duty mechanic and warehouse manager.
 // @Tags         Warehouse Parts
 // @Produce      json
 // @Security     BearerAuth
@@ -93,7 +93,7 @@ func (h *PartHandler) GetPartByID(c *gin.Context) {
 
 // ListParts godoc
 // @Summary      List parts
-// @Description  Returns warehouse parts with filters, pagination and sorting. Accessible to admin and warehouse manager.
+// @Description  Returns warehouse parts with filters, pagination and sorting. Accessible to admin, duty mechanic and warehouse manager.
 // @Tags         Warehouse Parts
 // @Produce      json
 // @Security     BearerAuth
