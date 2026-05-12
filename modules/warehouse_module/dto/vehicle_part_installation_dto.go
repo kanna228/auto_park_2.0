@@ -18,7 +18,6 @@ type VehiclePartInstallationUpdateRequest struct {
 	InstalledAt          string `json:"installed_at" binding:"required" example:"2026-05-12"`
 	PlannedReplacementAt string `json:"planned_replacement_at" binding:"required" example:"2026-08-12"`
 	Quantity             int64  `json:"quantity" binding:"required"`
-	InstalledByUserID    *int64 `json:"installed_by_user_id,omitempty"`
 	IsActive             *bool  `json:"is_active,omitempty"`
 }
 

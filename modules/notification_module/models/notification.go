@@ -22,6 +22,7 @@ type Notification struct {
 	Title              string
 	Message            string
 	Context            json.RawMessage
+	DedupKey           *string
 	IsReaded           bool
 	ReadAt             *time.Time
 	CreatedAt          time.Time

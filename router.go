@@ -1,6 +1,7 @@
 package auto_park
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"auto_park/modules/fuel_module"
 	"auto_park/modules/incident_module"
 	"auto_park/modules/notification_module"
+	notificationjobs "auto_park/modules/notification_module/jobs"
 	notificationrepository "auto_park/modules/notification_module/repository"
 	notificationservice "auto_park/modules/notification_module/service"
 	notificationws "auto_park/modules/notification_module/websocket"
@@ -65,6 +67,9 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	notificationRepo := notificationrepository.NewNotificationRepository(db)
 	notificationSvc := notificationservice.NewNotificationService(notificationRepo, notificationHub)
 	notification_module.RegisterRoutes(r, cfg, notificationSvc, notificationHub)
+
+	replacementReminderJob := notificationjobs.NewVehiclePartReplacementReminderJob(db, notificationSvc)
+	replacementReminderJob.Start(context.Background())
 
 	fuel_module.RegisterRoutes(r, cfg, db)
 	warehouse_module.RegisterRoutes(r, cfg, db, notificationSvc)

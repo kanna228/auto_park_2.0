@@ -196,9 +196,7 @@ func (s *vehiclePartInstallationService) UpdateByID(ctx context.Context, id int6
 	}
 
 	installedByUserID := current.InstalledByUserID
-	if req.InstalledByUserID != nil {
-		installedByUserID = *req.InstalledByUserID
-	} else if installedByUserID <= 0 {
+	if installedByUserID <= 0 {
 		installedByUserID = fallbackUserID
 	}
 

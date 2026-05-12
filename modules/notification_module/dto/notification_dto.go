@@ -11,6 +11,7 @@ type NotificationResponse struct {
 	Title              string         `json:"title" example:"Новая заявка на деталь"`
 	Message            string         `json:"message" example:"Механик создал новую заявку"`
 	Context            map[string]any `json:"context"`
+	DedupKey           *string        `json:"dedup_key,omitempty" example:"vehicle_part_replacement:7_days:vpi:1:date:2026-05-19"`
 	IsReaded           bool           `json:"is_readed" example:"false"`
 	ReadAt             *time.Time     `json:"read_at,omitempty"`
 	CreatedAt          time.Time      `json:"created_at"`

@@ -1,0 +1,11 @@
+.git
+.tmp
+.tmp/
+tmp
+tmp/
+storage
+storage/
+.env
+*.log
+*.tmp
+.DS_Store

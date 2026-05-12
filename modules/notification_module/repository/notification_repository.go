@@ -20,6 +20,7 @@ type CreateNotificationParams struct {
 	Title    string
 	Message  string
 	Context  map[string]any
+	DedupKey *string
 }
 
 type ListNotificationsParams struct {
@@ -52,29 +53,54 @@ func (r *notificationRepo) Create(ctx context.Context, p CreateNotificationParam
 		return nil, fmt.Errorf("marshal notification context: %w", err)
 	}
 
+	var dedupKey any
+	if p.DedupKey != nil && strings.TrimSpace(*p.DedupKey) != "" {
+		v := strings.TrimSpace(*p.DedupKey)
+		dedupKey = v
+	} else {
+		dedupKey = nil
+	}
+
 	const q = `
 		WITH nt AS (
 			SELECT id
 			FROM notification_types
 			WHERE code = $2
+		), inserted AS (
+			INSERT INTO notifications (
+				user_id,
+				notification_type_id,
+				title,
+				message,
+				context,
+				dedup_key,
+				is_readed,
+				created_at,
+				updated_at
+			)
+			SELECT $1, nt.id, $3, $4, $5::jsonb, $6, FALSE, NOW(), NOW()
+			FROM nt
+			ON CONFLICT (user_id, dedup_key) WHERE dedup_key IS NOT NULL DO NOTHING
+			RETURNING id
 		)
-		INSERT INTO notifications (
-			user_id,
-			notification_type_id,
-			title,
-			message,
-			context,
-			is_readed,
-			created_at,
-			updated_at
-		)
-		SELECT $1, nt.id, $3, $4, $5::jsonb, FALSE, NOW(), NOW()
-		FROM nt
-		RETURNING id;
+		SELECT id FROM inserted;
 	`
 
 	var id int64
-	if err := r.db.QueryRowContext(ctx, q, p.UserID, p.TypeCode, p.Title, p.Message, string(contextJSON)).Scan(&id); err != nil {
+	if err := r.db.QueryRowContext(ctx, q, p.UserID, p.TypeCode, p.Title, p.Message, string(contextJSON), dedupKey).Scan(&id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// Either the notification type does not exist, or this exact notification
+			// has already been created for this user. Check type existence so the
+			// caller still gets a useful error when type_code is wrong.
+			exists, checkErr := r.notificationTypeExists(ctx, p.TypeCode)
+			if checkErr != nil {
+				return nil, checkErr
+			}
+			if !exists {
+				return nil, ErrNotificationTypeNotFound
+			}
+			return nil, nil
+		}
 		return nil, mapNotificationError(err)
 	}
 
@@ -125,6 +151,7 @@ func (r *notificationRepo) ListByUser(ctx context.Context, p ListNotificationsPa
 			n.title,
 			n.message,
 			n.context,
+			n.dedup_key,
 			n.is_readed,
 			n.read_at,
 			n.created_at,
@@ -257,6 +284,7 @@ func (r *notificationRepo) getByID(ctx context.Context, id int64) (*models.Notif
 			n.title,
 			n.message,
 			n.context,
+			n.dedup_key,
 			n.is_readed,
 			n.read_at,
 			n.created_at,
@@ -272,6 +300,15 @@ func (r *notificationRepo) getByID(ctx context.Context, id int64) (*models.Notif
 	return item, nil
 }
 
+func (r *notificationRepo) notificationTypeExists(ctx context.Context, code string) (bool, error) {
+	const q = `SELECT EXISTS(SELECT 1 FROM notification_types WHERE code = $1);`
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, q, code).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check notification type exists: %w", err)
+	}
+	return exists, nil
+}
+
 type notificationScanner interface {
 	Scan(dest ...any) error
 }
@@ -279,6 +316,7 @@ type notificationScanner interface {
 func scanNotification(scanner notificationScanner) (*models.Notification, error) {
 	var item models.Notification
 	var readAt sql.NullTime
+	var dedupKey sql.NullString
 	var contextRaw []byte
 
 	if err := scanner.Scan(
@@ -290,6 +328,7 @@ func scanNotification(scanner notificationScanner) (*models.Notification, error)
 		&item.Title,
 		&item.Message,
 		&contextRaw,
+		&dedupKey,
 		&item.IsReaded,
 		&readAt,
 		&item.CreatedAt,
@@ -302,6 +341,9 @@ func scanNotification(scanner notificationScanner) (*models.Notification, error)
 		contextRaw = []byte("{}")
 	}
 	item.Context = json.RawMessage(contextRaw)
+	if dedupKey.Valid {
+		item.DedupKey = &dedupKey.String
+	}
 	if readAt.Valid {
 		item.ReadAt = &readAt.Time
 	}

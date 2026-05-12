@@ -17,14 +17,20 @@ const (
 	NotificationTypePartRequestApproved = "part_request_approved"
 	NotificationTypePartRequestRejected = "part_request_rejected"
 
+	NotificationTypeVehiclePartReplacement7Days = "vehicle_part_replacement_7_days"
+	NotificationTypeVehiclePartReplacementToday = "vehicle_part_replacement_today"
+
 	WarehouseManagerRoleCode       = "warehouse_manager"
 	WarehouseManagerFallbackRoleID = int64(5)
 )
 
 type NotificationService interface {
 	CreateForUser(ctx context.Context, userID int64, typeCode string, title string, message string, contextData map[string]any) (*dto.NotificationResponse, error)
+	CreateForUserOnce(ctx context.Context, userID int64, dedupKey string, typeCode string, title string, message string, contextData map[string]any) (*dto.NotificationResponse, error)
 	CreateForUsers(ctx context.Context, userIDs []int64, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error)
+	CreateForUsersOnce(ctx context.Context, userIDs []int64, dedupKey string, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error)
 	CreateForRole(ctx context.Context, roleCode string, fallbackRoleID int64, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error)
+	CreateForRoleOnce(ctx context.Context, roleCode string, fallbackRoleID int64, dedupKey string, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error)
 	List(ctx context.Context, userID int64, onlyUnread bool, limit int, offset int) (*dto.NotificationListResponse, error)
 	CountUnread(ctx context.Context, userID int64) (int64, error)
 	MarkAsRead(ctx context.Context, userID int64, notificationID int64) (bool, error)
@@ -42,6 +48,18 @@ func NewNotificationService(repo repository.NotificationRepository, hub *websock
 }
 
 func (s *notificationService) CreateForUser(ctx context.Context, userID int64, typeCode string, title string, message string, contextData map[string]any) (*dto.NotificationResponse, error) {
+	return s.createForUser(ctx, userID, nil, typeCode, title, message, contextData)
+}
+
+func (s *notificationService) CreateForUserOnce(ctx context.Context, userID int64, dedupKey string, typeCode string, title string, message string, contextData map[string]any) (*dto.NotificationResponse, error) {
+	dedupKey = strings.TrimSpace(dedupKey)
+	if dedupKey == "" {
+		return nil, fmt.Errorf("notification dedup_key is required")
+	}
+	return s.createForUser(ctx, userID, &dedupKey, typeCode, title, message, contextData)
+}
+
+func (s *notificationService) createForUser(ctx context.Context, userID int64, dedupKey *string, typeCode string, title string, message string, contextData map[string]any) (*dto.NotificationResponse, error) {
 	if userID <= 0 {
 		return nil, fmt.Errorf("invalid notification user_id")
 	}
@@ -67,9 +85,13 @@ func (s *notificationService) CreateForUser(ctx context.Context, userID int64, t
 		Title:    title,
 		Message:  message,
 		Context:  contextData,
+		DedupKey: dedupKey,
 	})
 	if err != nil {
 		return nil, err
+	}
+	if item == nil {
+		return nil, nil
 	}
 
 	resp := mapNotificationToDTO(*item)
@@ -84,6 +106,18 @@ func (s *notificationService) CreateForUser(ctx context.Context, userID int64, t
 }
 
 func (s *notificationService) CreateForUsers(ctx context.Context, userIDs []int64, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error) {
+	return s.createForUsers(ctx, userIDs, nil, typeCode, title, message, contextData)
+}
+
+func (s *notificationService) CreateForUsersOnce(ctx context.Context, userIDs []int64, dedupKey string, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error) {
+	dedupKey = strings.TrimSpace(dedupKey)
+	if dedupKey == "" {
+		return nil, fmt.Errorf("notification dedup_key is required")
+	}
+	return s.createForUsers(ctx, userIDs, &dedupKey, typeCode, title, message, contextData)
+}
+
+func (s *notificationService) createForUsers(ctx context.Context, userIDs []int64, dedupKey *string, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error) {
 	unique := make(map[int64]struct{}, len(userIDs))
 	items := make([]dto.NotificationResponse, 0, len(userIDs))
 
@@ -96,7 +130,7 @@ func (s *notificationService) CreateForUsers(ctx context.Context, userIDs []int6
 		}
 		unique[userID] = struct{}{}
 
-		item, err := s.CreateForUser(ctx, userID, typeCode, title, message, contextData)
+		item, err := s.createForUser(ctx, userID, dedupKey, typeCode, title, message, contextData)
 		if err != nil {
 			return items, err
 		}
@@ -114,6 +148,14 @@ func (s *notificationService) CreateForRole(ctx context.Context, roleCode string
 		return nil, err
 	}
 	return s.CreateForUsers(ctx, userIDs, typeCode, title, message, contextData)
+}
+
+func (s *notificationService) CreateForRoleOnce(ctx context.Context, roleCode string, fallbackRoleID int64, dedupKey string, typeCode string, title string, message string, contextData map[string]any) ([]dto.NotificationResponse, error) {
+	userIDs, err := s.repo.GetUserIDsByRole(ctx, roleCode, fallbackRoleID)
+	if err != nil {
+		return nil, err
+	}
+	return s.CreateForUsersOnce(ctx, userIDs, dedupKey, typeCode, title, message, contextData)
 }
 
 func (s *notificationService) List(ctx context.Context, userID int64, onlyUnread bool, limit int, offset int) (*dto.NotificationListResponse, error) {
@@ -232,6 +274,7 @@ func mapNotificationToDTO(item models.Notification) dto.NotificationResponse {
 		Title:              item.Title,
 		Message:            item.Message,
 		Context:            contextData,
+		DedupKey:           item.DedupKey,
 		IsReaded:           item.IsReaded,
 		ReadAt:             item.ReadAt,
 		CreatedAt:          item.CreatedAt,
