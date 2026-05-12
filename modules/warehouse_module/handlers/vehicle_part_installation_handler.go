@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"auto_park/middleware"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/repository"
 	"auto_park/modules/warehouse_module/service"
@@ -309,19 +310,7 @@ func (h *VehiclePartInstallationHandler) DeleteVehiclePartInstallation(c *gin.Co
 }
 
 func getRoleIDFromContext(c *gin.Context) (int64, bool) {
-	v, exists := c.Get("role_id")
-	if !exists {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "role id not found in context"})
-		return 0, false
-	}
-
-	roleID, ok := v.(int64)
-	if !ok || roleID <= 0 {
-		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "invalid role id"})
-		return 0, false
-	}
-
-	return roleID, true
+	return middleware.CurrentRoleIDOrAbort(c)
 }
 
 func parseBoolQuery(c *gin.Context, key string) (bool, bool, bool) {

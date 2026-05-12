@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"auto_park/middleware"
 	"auto_park/modules/user_module/repository"
 	"auto_park/modules/user_module/service"
 
@@ -95,17 +96,10 @@ func (h *UsersReadHandler) GetUserByID(c *gin.Context) {
 
 // helper: достаём role_id и user_id, которые положил AuthJWT middleware
 func getAuthFromContext(c *gin.Context) (roleID int64, userID int64, ok bool) {
-	rAny, rok := c.Get("role_id")
-	uAny, uok := c.Get("user_id")
-	if !rok || !uok || rAny == nil || uAny == nil {
+	auth, err := middleware.CurrentAuth(c)
+	if err != nil {
 		return 0, 0, false
 	}
 
-	r, ok1 := rAny.(int64)
-	u, ok2 := uAny.(int64)
-	if !ok1 || !ok2 || r == 0 || u == 0 {
-		return 0, 0, false
-	}
-
-	return r, u, true
+	return auth.RoleID, auth.UserID, true
 }

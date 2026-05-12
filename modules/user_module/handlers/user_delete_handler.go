@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"auto_park/middleware"
 	"auto_park/modules/user_module/service"
 
 	"github.com/gin-gonic/gin"
@@ -35,14 +36,8 @@ func NewUsersDeleteHandler(svc *service.UsersDeleteService) *UsersDeleteHandler 
 // @Failure      500 {object} ErrorResponse
 // @Router       /api/users/{id} [delete]
 func (h *UsersDeleteHandler) DeleteUser(c *gin.Context) {
-	// requester_id кладёт AuthJWT middleware
-	uidAny, ok := c.Get("user_id")
-	if !ok || uidAny == nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "unauthorized"})
-		return
-	}
-	requesterID, ok := uidAny.(int64)
-	if !ok || requesterID <= 0 {
+	requesterID, err := middleware.CurrentUserID(c)
+	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "unauthorized"})
 		return
 	}

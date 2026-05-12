@@ -9,6 +9,10 @@ import (
 	"auto_park/middleware"
 	"auto_park/modules/fuel_module"
 	"auto_park/modules/incident_module"
+	"auto_park/modules/notification_module"
+	notificationrepository "auto_park/modules/notification_module/repository"
+	notificationservice "auto_park/modules/notification_module/service"
+	notificationws "auto_park/modules/notification_module/websocket"
 	"auto_park/modules/tripsheet_module"
 	"auto_park/modules/user_module"
 	"auto_park/modules/vehicle_module"
@@ -57,8 +61,13 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	vehicle_module.RegisterRoutes(r, cfg, db)
 	tripsheet_module.RegisterRoutes(r, cfg, db)
 	incident_module.RegisterRoutes(r, cfg, db)
+	notificationHub := notificationws.NewHub()
+	notificationRepo := notificationrepository.NewNotificationRepository(db)
+	notificationSvc := notificationservice.NewNotificationService(notificationRepo, notificationHub)
+	notification_module.RegisterRoutes(r, cfg, notificationSvc, notificationHub)
+
 	fuel_module.RegisterRoutes(r, cfg, db)
-	warehouse_module.RegisterRoutes(r, cfg, db)
+	warehouse_module.RegisterRoutes(r, cfg, db, notificationSvc)
 
 	return r
 }

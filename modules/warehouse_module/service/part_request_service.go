@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
+	notificationservice "auto_park/modules/notification_module/service"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/models"
 	"auto_park/modules/warehouse_module/repository"
@@ -15,12 +17,14 @@ import (
 const defaultPartRequestStatusID int64 = 1
 const editablePartRequestStatusCode = "new"
 const rejectedPartRequestStatusCode = "rejected"
+const approvedPartRequestStatusCode = "approved"
 const warehouseManagerRoleID int64 = 5
 const AdminRoleID int64 = 1
 const dutyMechanicRoleID int64 = 4
 
 var ErrPartRequestRejectionCommentRequired = errors.New("rejection comment is required when request status is rejected")
 var ErrPartRequestRejectForbidden = errors.New("only warehouse manager can reject part request")
+var ErrPartRequestStatusChangeForbidden = errors.New("only warehouse manager can approve or reject part request")
 var ErrPartRequestViewForbidden = errors.New("part request list is not available for this role")
 
 type PartRequestService interface {
@@ -36,11 +40,16 @@ type PartRequestService interface {
 }
 
 type partRequestService struct {
-	repo repository.PartRequestRepository
+	repo      repository.PartRequestRepository
+	notifySvc notificationservice.NotificationService
 }
 
-func NewPartRequestService(repo repository.PartRequestRepository) PartRequestService {
-	return &partRequestService{repo: repo}
+func NewPartRequestService(repo repository.PartRequestRepository, notifySvc ...notificationservice.NotificationService) PartRequestService {
+	var ns notificationservice.NotificationService
+	if len(notifySvc) > 0 {
+		ns = notifySvc[0]
+	}
+	return &partRequestService{repo: repo, notifySvc: ns}
 }
 
 func (s *partRequestService) Create(ctx context.Context, authorUserID int64, req dto.PartRequestCreateRequest) (int64, error) {
@@ -58,7 +67,7 @@ func (s *partRequestService) Create(ctx context.Context, authorUserID int64, req
 		return 0, err
 	}
 
-	return s.repo.Create(ctx, repository.CreatePartRequestParams{
+	id, err := s.repo.Create(ctx, repository.CreatePartRequestParams{
 		PartID:          req.PartID,
 		Quantity:        req.Quantity,
 		MechanicComment: comment,
@@ -66,6 +75,12 @@ func (s *partRequestService) Create(ctx context.Context, authorUserID int64, req
 		AuthorUserID:    authorUserID,
 		HistoryComment:  "Заявка создана",
 	})
+	if err != nil {
+		return 0, err
+	}
+
+	s.notifyPartRequestCreated(ctx, id)
+	return id, nil
 }
 
 func (s *partRequestService) GetByID(ctx context.Context, id int64) (*dto.PartRequestResponse, error) {
@@ -121,13 +136,9 @@ func (s *partRequestService) List(ctx context.Context, currentUserID int64, role
 	case AdminRoleID, warehouseManagerRoleID:
 		// Админ и заведующий складом видят все заявки.
 		// Если передан author_user_id, он работает как дополнительный фильтр.
-
 	case dutyMechanicRoleID:
 		// Механик всегда видит только свои заявки.
-		// Даже если он передаст author_user_id другого пользователя,
-		// backend всё равно заменит его на currentUserID.
 		effectiveAuthorUserID = currentUserID
-
 	default:
 		return nil, ErrPartRequestViewForbidden
 	}
@@ -207,11 +218,12 @@ func (s *partRequestService) UpdateByID(ctx context.Context, id int64, changedBy
 	}
 
 	rejectionComment := ""
-	if status.Code == rejectedPartRequestStatusCode {
+	if status.Code == approvedPartRequestStatusCode || status.Code == rejectedPartRequestStatusCode {
 		if roleID != warehouseManagerRoleID && roleID != AdminRoleID {
-			return false, ErrPartRequestRejectForbidden
+			return false, ErrPartRequestStatusChangeForbidden
 		}
-
+	}
+	if status.Code == rejectedPartRequestStatusCode {
 		rejectionComment, err = normalizeRejectionComment(req.RejectionComment)
 		if err != nil {
 			return false, err
@@ -227,7 +239,7 @@ func (s *partRequestService) UpdateByID(ctx context.Context, id int64, changedBy
 		return false, err
 	}
 
-	return s.repo.UpdateByID(ctx, id, repository.UpdatePartRequestParams{
+	updated, err := s.repo.UpdateByID(ctx, id, repository.UpdatePartRequestParams{
 		PartID:           req.PartID,
 		Quantity:         req.Quantity,
 		MechanicComment:  comment,
@@ -236,6 +248,15 @@ func (s *partRequestService) UpdateByID(ctx context.Context, id int64, changedBy
 		ChangedByUserID:  changedByUserID,
 		HistoryComment:   historyComment,
 	})
+	if err != nil || !updated {
+		return updated, err
+	}
+
+	if current.StatusCode != status.Code {
+		s.notifyPartRequestStatusChanged(ctx, id, status.Code, rejectionComment)
+	}
+
+	return true, nil
 }
 
 func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, changedByUserID int64, roleID int64, req dto.PartRequestStatusUpdateRequest) (bool, error) {
@@ -246,6 +267,14 @@ func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, cha
 		return false, fmt.Errorf("invalid changed_by_user_id")
 	}
 
+	current, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if current == nil {
+		return false, nil
+	}
+
 	status, err := s.getStatusByID(ctx, req.StatusID)
 	if err != nil {
 		return false, err
@@ -254,11 +283,13 @@ func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, cha
 	rejectionComment := ""
 	historyDefault := "Статус заявки изменён"
 
-	if status.Code == rejectedPartRequestStatusCode {
+	if status.Code == approvedPartRequestStatusCode || status.Code == rejectedPartRequestStatusCode {
 		if roleID != warehouseManagerRoleID && roleID != AdminRoleID {
-			return false, ErrPartRequestRejectForbidden
+			return false, ErrPartRequestStatusChangeForbidden
 		}
+	}
 
+	if status.Code == rejectedPartRequestStatusCode {
 		rejectionComment, err = normalizeRejectionComment(firstNonEmpty(req.RejectionComment, req.Comment))
 		if err != nil {
 			return false, err
@@ -271,12 +302,21 @@ func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, cha
 		return false, err
 	}
 
-	return s.repo.UpdateStatusByID(ctx, id, repository.UpdatePartRequestStatusParams{
+	updated, err := s.repo.UpdateStatusByID(ctx, id, repository.UpdatePartRequestStatusParams{
 		StatusID:         req.StatusID,
 		RejectionComment: rejectionComment,
 		ChangedByUserID:  changedByUserID,
 		HistoryComment:   historyComment,
 	})
+	if err != nil || !updated {
+		return updated, err
+	}
+
+	if current.StatusCode != status.Code {
+		s.notifyPartRequestStatusChanged(ctx, id, status.Code, rejectionComment)
+	}
+
+	return true, nil
 }
 
 func (s *partRequestService) DeleteByID(ctx context.Context, id int64, changedByUserID int64) (bool, error) {
@@ -429,6 +469,93 @@ func (s *partRequestService) getStatusByID(ctx context.Context, statusID int64) 
 	}
 
 	return status, nil
+}
+
+func (s *partRequestService) notifyPartRequestCreated(ctx context.Context, partRequestID int64) {
+	if s.notifySvc == nil || partRequestID <= 0 {
+		return
+	}
+
+	item, err := s.repo.GetByID(ctx, partRequestID)
+	if err != nil || item == nil {
+		if err != nil {
+			log.Printf("[notifications] get created part request failed: %v", err)
+		}
+		return
+	}
+
+	author := "Механик"
+	if item.AuthorFullName != nil && strings.TrimSpace(*item.AuthorFullName) != "" {
+		author = strings.TrimSpace(*item.AuthorFullName)
+	}
+
+	title := "Новая заявка на деталь"
+	message := fmt.Sprintf("%s создал заявку №%d на деталь %s, количество: %d", author, item.ID, item.PartName, item.Quantity)
+	contextData := map[string]any{
+		"part_request_id": item.ID,
+		"part_id":         item.PartID,
+		"part_name":       item.PartName,
+		"quantity":        item.Quantity,
+		"author_user_id":  item.AuthorUserID,
+		"status_code":     item.StatusCode,
+	}
+
+	if _, err := s.notifySvc.CreateForRole(
+		ctx,
+		notificationservice.WarehouseManagerRoleCode,
+		notificationservice.WarehouseManagerFallbackRoleID,
+		notificationservice.NotificationTypePartRequestCreated,
+		title,
+		message,
+		contextData,
+	); err != nil {
+		log.Printf("[notifications] create warehouse manager notification failed: %v", err)
+	}
+}
+
+func (s *partRequestService) notifyPartRequestStatusChanged(ctx context.Context, partRequestID int64, statusCode string, rejectionComment string) {
+	if s.notifySvc == nil || partRequestID <= 0 {
+		return
+	}
+	if statusCode != approvedPartRequestStatusCode && statusCode != rejectedPartRequestStatusCode {
+		return
+	}
+
+	item, err := s.repo.GetByID(ctx, partRequestID)
+	if err != nil || item == nil {
+		if err != nil {
+			log.Printf("[notifications] get updated part request failed: %v", err)
+		}
+		return
+	}
+	if item.AuthorUserID <= 0 {
+		return
+	}
+
+	typeCode := notificationservice.NotificationTypePartRequestApproved
+	title := "Заявка утверждена"
+	message := fmt.Sprintf("Ваша заявка №%d на деталь %s утверждена", item.ID, item.PartName)
+	if statusCode == rejectedPartRequestStatusCode {
+		typeCode = notificationservice.NotificationTypePartRequestRejected
+		title = "Заявка отклонена"
+		message = fmt.Sprintf("Ваша заявка №%d на деталь %s отклонена", item.ID, item.PartName)
+		if strings.TrimSpace(rejectionComment) != "" {
+			message += ". Причина: " + strings.TrimSpace(rejectionComment)
+		}
+	}
+
+	contextData := map[string]any{
+		"part_request_id":   item.ID,
+		"part_id":           item.PartID,
+		"part_name":         item.PartName,
+		"quantity":          item.Quantity,
+		"status_code":       statusCode,
+		"rejection_comment": strings.TrimSpace(rejectionComment),
+	}
+
+	if _, err := s.notifySvc.CreateForUser(ctx, item.AuthorUserID, typeCode, title, message, contextData); err != nil {
+		log.Printf("[notifications] create mechanic notification failed: %v", err)
+	}
 }
 
 func normalizeMechanicComment(value string) (string, error) {

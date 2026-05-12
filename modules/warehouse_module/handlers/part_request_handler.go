@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"auto_park/middleware"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/repository"
 	"auto_park/modules/warehouse_module/service"
@@ -418,17 +419,7 @@ func (h *PartRequestHandler) ListPartRequestStatuses(c *gin.Context) {
 }
 
 func getUserIDFromContext(c *gin.Context) (int64, bool) {
-	v, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "user id not found in context"})
-		return 0, false
-	}
-	userID, ok := v.(int64)
-	if !ok || userID <= 0 {
-		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "invalid user id"})
-		return 0, false
-	}
-	return userID, true
+	return middleware.CurrentUserIDOrAbort(c)
 }
 
 func parseInt64Query(c *gin.Context, key string, allowZero bool) (int64, bool) {
@@ -471,6 +462,8 @@ func writePartRequestError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "rejection_comment is required when status is rejected"})
 	case errors.Is(err, service.ErrPartRequestRejectForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "only warehouse manager can reject part request"})
+	case errors.Is(err, service.ErrPartRequestStatusChangeForbidden):
+		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "only warehouse manager can approve or reject part request"})
 	case errors.Is(err, service.ErrPartRequestViewForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "part request list is not available for this role"})
 	default:

@@ -36,6 +36,15 @@ func AuthJWT(cfg *config.Config) gin.HandlerFunc {
 			}
 		}
 
+		// Useful for browser WebSocket clients because native WebSocket API
+		// cannot set Authorization header. Prefer cookie/Bearer for normal HTTP.
+		if tokenStr == "" {
+			tokenStr = strings.TrimSpace(c.Query("access_token"))
+		}
+		if tokenStr == "" {
+			tokenStr = strings.TrimSpace(c.Query("token"))
+		}
+
 		if tokenStr == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "error": "missing auth token"})
 			return
@@ -53,10 +62,15 @@ func AuthJWT(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", claims.UserID)
-		c.Set("role_id", claims.RoleID)
-		c.Set("email", claims.Email)
-		c.Set("iin", claims.IIN)
+		if claims.UserID <= 0 || claims.RoleID <= 0 {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"success": false, "error": "invalid token claims"})
+			return
+		}
+
+		c.Set(ContextUserIDKey, claims.UserID)
+		c.Set(ContextRoleIDKey, claims.RoleID)
+		c.Set(ContextEmailKey, claims.Email)
+		c.Set(ContextIINKey, claims.IIN)
 		c.Next()
 	}
 }
@@ -68,7 +82,7 @@ func RequireRoles(allowedRoles ...int64) gin.HandlerFunc {
 	}
 
 	return func(c *gin.Context) {
-		roleVal, exists := c.Get("role_id")
+		roleVal, exists := c.Get(ContextRoleIDKey)
 		if !exists {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"success": false, "error": "role not found in context"})
 			return
