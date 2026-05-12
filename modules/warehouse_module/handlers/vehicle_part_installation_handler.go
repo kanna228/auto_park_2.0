@@ -23,7 +23,7 @@ func NewVehiclePartInstallationHandler(svc service.VehiclePartInstallationServic
 
 // CreateVehiclePartInstallation godoc
 // @Summary      Install part on vehicle
-// @Description  Creates a vehicle part installation record, validates warehouse stock, decreases part quantity and stores installation/replacement dates for vehicle passport history. Available to duty mechanic and warehouse manager.
+// @Description  Creates a vehicle part installation record, validates warehouse stock, decreases part quantity, stores mechanic_shift_id and installation/replacement dates for vehicle passport history. Available to duty mechanic and warehouse manager.
 // @Tags         Warehouse Vehicle Part Installations
 // @Accept       json
 // @Produce      json
@@ -64,7 +64,7 @@ func (h *VehiclePartInstallationHandler) CreateVehiclePartInstallation(c *gin.Co
 
 // GetVehiclePartInstallationByID godoc
 // @Summary      Get vehicle part installation by ID
-// @Description  Returns installed vehicle part record by ID.
+// @Description  Returns installed vehicle part record by ID with mechanic shift info.
 // @Tags         Warehouse Vehicle Part Installations
 // @Produce      json
 // @Security     BearerAuth
@@ -97,12 +97,13 @@ func (h *VehiclePartInstallationHandler) GetVehiclePartInstallationByID(c *gin.C
 
 // ListVehiclePartInstallations godoc
 // @Summary      List vehicle part installations
-// @Description  Returns vehicle part installation history with filters, pagination and sorting.
+// @Description  Returns vehicle part installation history with filters, pagination, sorting and mechanic shift info.
 // @Tags         Warehouse Vehicle Part Installations
 // @Produce      json
 // @Security     BearerAuth
 // @Param        part_id query int false "Filter by warehouse part internal ID"
 // @Param        vehicle_id query int false "Filter by vehicle ID"
+// @Param        mechanic_shift_id query int false "Filter by mechanic shift ID"
 // @Param        installed_by_user_id query int false "Filter by installer user ID"
 // @Param        is_active query bool false "Filter by active flag"
 // @Param        date_from query string false "Installed date from, YYYY-MM-DD"
@@ -111,7 +112,7 @@ func (h *VehiclePartInstallationHandler) GetVehiclePartInstallationByID(c *gin.C
 // @Param        replacement_to query string false "Planned replacement date to, YYYY-MM-DD"
 // @Param        limit query int false "Limit" default(50)
 // @Param        offset query int false "Offset" default(0)
-// @Param        sort_by query string false "Sort by field: installed_at, planned_replacement_at, created_at, updated_at, part_id, vehicle_id, quantity, installed_by_user_id, is_active"
+// @Param        sort_by query string false "Sort by field: installed_at, planned_replacement_at, created_at, updated_at, part_id, vehicle_id, mechanic_shift_id, quantity, installed_by_user_id, is_active"
 // @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} VehiclePartInstallationListResponseWrap
 // @Failure      400 {object} ErrorResponse
@@ -135,6 +136,9 @@ func (h *VehiclePartInstallationHandler) ListVehiclePartInstallations(c *gin.Con
 		return
 	}
 	if q.VehicleID, ok = parseInt64Query(c, "vehicle_id", false); !ok {
+		return
+	}
+	if q.MechanicShiftID, ok = parseInt64Query(c, "mechanic_shift_id", false); !ok {
 		return
 	}
 	if q.InstalledByUserID, ok = parseInt64Query(c, "installed_by_user_id", false); !ok {
@@ -164,7 +168,7 @@ func (h *VehiclePartInstallationHandler) ListVehiclePartInstallations(c *gin.Con
 
 // UpdateVehiclePartInstallation godoc
 // @Summary      Update vehicle part installation
-// @Description  Fully updates vehicle part installation. If part or quantity is changed, warehouse stock is adjusted safely. The installed_at date is locked after save for all users except administrator.
+// @Description  Fully updates vehicle part installation including mechanic_shift_id. If part or quantity is changed, warehouse stock is adjusted safely. The installed_at date is locked after save for all users except administrator.
 // @Tags         Warehouse Vehicle Part Installations
 // @Accept       json
 // @Produce      json
@@ -345,6 +349,9 @@ func writeVehiclePartInstallationError(c *gin.Context, err error) {
 
 	case errors.Is(err, repository.ErrVehiclePartInstallationUserNotFound):
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "installer user not found"})
+
+	case errors.Is(err, repository.ErrVehiclePartInstallationMechanicShiftNotFound):
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "mechanic shift not found"})
 
 	case errors.Is(err, repository.ErrVehiclePartInstallationInsufficientStock):
 		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "not enough part quantity in warehouse"})

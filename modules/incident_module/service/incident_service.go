@@ -62,6 +62,14 @@ func timeToStringPtr(t *time.Time) *string {
 	return &s
 }
 
+func clockTimeToStringPtr(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	s := t.Format("15:04:05")
+	return &s
+}
+
 func mapTripsheetToDTO(item *models.IncidentTripsheet) *dto.IncidentTripsheetResponse {
 	if item == nil {
 		return nil
@@ -90,6 +98,26 @@ func mapTripsheetToDTO(item *models.IncidentTripsheet) *dto.IncidentTripsheetRes
 	}
 }
 
+func mapMechanicShiftToDTO(item *models.IncidentMechanicShift) *dto.IncidentMechanicShiftResponse {
+	if item == nil {
+		return nil
+	}
+
+	return &dto.IncidentMechanicShiftResponse{
+		ID:               item.ID,
+		UserID:           item.UserID,
+		ShiftDate:        item.ShiftDate.Format("2006-01-02"),
+		TimeFrom:         item.TimeFrom.Format("15:04:05"),
+		TimeTo:           clockTimeToStringPtr(item.TimeTo),
+		Comment:          item.Comment,
+		IsActive:         item.IsActive,
+		MechanicEmail:    item.MechanicEmail,
+		MechanicFullName: item.MechanicFullName,
+		CreatedAt:        item.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:        item.UpdatedAt.Format(time.RFC3339),
+	}
+}
+
 func mapIncidentToDTO(item *models.Incident) *dto.IncidentResponse {
 	if item == nil {
 		return nil
@@ -105,6 +133,8 @@ func mapIncidentToDTO(item *models.Incident) *dto.IncidentResponse {
 		DriverFullName:     item.DriverFullName,
 		MechanicID:         item.MechanicID,
 		MechanicFullName:   item.MechanicFullName,
+		MechanicShiftID:    item.MechanicShiftID,
+		MechanicShift:      mapMechanicShiftToDTO(item.MechanicShift),
 		TripsheetID:        item.TripsheetID,
 		Tripsheet:          mapTripsheetToDTO(item.Tripsheet),
 		Date:               item.IncidentDate.Format("2006-01-02"),
@@ -126,8 +156,8 @@ func (s *incidentService) Create(ctx context.Context, req dto.IncidentCreateRequ
 		return nil, err
 	}
 
-	if req.IncidentTypeID <= 0 || req.VehicleID <= 0 || req.DriverID <= 0 || req.MechanicID <= 0 {
-		return nil, fmt.Errorf("incident_type_id, vehicle_id, driver_id and mechanic_id must be > 0")
+	if req.IncidentTypeID <= 0 || req.VehicleID <= 0 || req.DriverID <= 0 || req.MechanicID <= 0 || req.MechanicShiftID <= 0 {
+		return nil, fmt.Errorf("incident_type_id, vehicle_id, driver_id, mechanic_id and mechanic_shift_id must be > 0")
 	}
 	if req.TripsheetID != nil && *req.TripsheetID <= 0 {
 		return nil, fmt.Errorf("tripsheet_id must be > 0")
@@ -139,15 +169,16 @@ func (s *incidentService) Create(ctx context.Context, req dto.IncidentCreateRequ
 	}
 
 	item, err := s.repo.Create(ctx, models.CreateIncidentInput{
-		IncidentTypeID: req.IncidentTypeID,
-		VehicleID:      req.VehicleID,
-		DriverID:       req.DriverID,
-		MechanicID:     req.MechanicID,
-		TripsheetID:    req.TripsheetID,
-		IncidentDate:   dateVal,
-		IncidentTime:   timeVal,
-		Location:       location,
-		Description:    strings.TrimSpace(req.Description),
+		IncidentTypeID:  req.IncidentTypeID,
+		VehicleID:       req.VehicleID,
+		DriverID:        req.DriverID,
+		MechanicID:      req.MechanicID,
+		MechanicShiftID: req.MechanicShiftID,
+		TripsheetID:     req.TripsheetID,
+		IncidentDate:    dateVal,
+		IncidentTime:    timeVal,
+		Location:        location,
+		Description:     strings.TrimSpace(req.Description),
 	})
 	if err != nil {
 		return nil, err
@@ -181,6 +212,9 @@ func (s *incidentService) GetAll(ctx context.Context, filter dto.IncidentListQue
 	if filter.TripsheetID != nil && *filter.TripsheetID <= 0 {
 		return nil, 0, fmt.Errorf("tripsheet_id must be > 0")
 	}
+	if filter.MechanicShiftID != nil && *filter.MechanicShiftID <= 0 {
+		return nil, 0, fmt.Errorf("mechanic_shift_id must be > 0")
+	}
 
 	items, total, err := s.repo.GetAll(ctx, filter)
 	if err != nil {
@@ -212,8 +246,8 @@ func (s *incidentService) Update(ctx context.Context, id int64, req dto.Incident
 		return nil, err
 	}
 
-	if req.IncidentTypeID <= 0 || req.VehicleID <= 0 || req.DriverID <= 0 || req.MechanicID <= 0 {
-		return nil, fmt.Errorf("incident_type_id, vehicle_id, driver_id and mechanic_id must be > 0")
+	if req.IncidentTypeID <= 0 || req.VehicleID <= 0 || req.DriverID <= 0 || req.MechanicID <= 0 || req.MechanicShiftID <= 0 {
+		return nil, fmt.Errorf("incident_type_id, vehicle_id, driver_id, mechanic_id and mechanic_shift_id must be > 0")
 	}
 	if req.TripsheetID != nil && *req.TripsheetID <= 0 {
 		return nil, fmt.Errorf("tripsheet_id must be > 0")
@@ -225,16 +259,17 @@ func (s *incidentService) Update(ctx context.Context, id int64, req dto.Incident
 	}
 
 	item, err := s.repo.Update(ctx, models.UpdateIncidentInput{
-		ID:             id,
-		IncidentTypeID: req.IncidentTypeID,
-		VehicleID:      req.VehicleID,
-		DriverID:       req.DriverID,
-		MechanicID:     req.MechanicID,
-		TripsheetID:    req.TripsheetID,
-		IncidentDate:   dateVal,
-		IncidentTime:   timeVal,
-		Location:       location,
-		Description:    strings.TrimSpace(req.Description),
+		ID:              id,
+		IncidentTypeID:  req.IncidentTypeID,
+		VehicleID:       req.VehicleID,
+		DriverID:        req.DriverID,
+		MechanicID:      req.MechanicID,
+		MechanicShiftID: req.MechanicShiftID,
+		TripsheetID:     req.TripsheetID,
+		IncidentDate:    dateVal,
+		IncidentTime:    timeVal,
+		Location:        location,
+		Description:     strings.TrimSpace(req.Description),
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {

@@ -18,7 +18,7 @@ func NewIncidentHandler(svc service.IncidentService) *IncidentHandler {
 
 // Create godoc
 // @Summary      Create incident
-// @Description  Creates a new vehicle incident and automatically sets vehicle status to "На ТО".
+// @Description  Creates a new vehicle incident, links it to mechanic shift and automatically sets vehicle status to "На ТО".
 // @Tags         Incidents
 // @Accept       json
 // @Produce      json

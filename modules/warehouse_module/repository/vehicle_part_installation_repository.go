@@ -15,12 +15,14 @@ import (
 var ErrVehiclePartInstallationPartNotFound = errors.New("part not found")
 var ErrVehiclePartInstallationVehicleNotFound = errors.New("vehicle not found")
 var ErrVehiclePartInstallationUserNotFound = errors.New("installer user not found")
+var ErrVehiclePartInstallationMechanicShiftNotFound = errors.New("mechanic shift not found")
 var ErrVehiclePartInstallationInsufficientStock = errors.New("not enough part quantity in warehouse")
 var ErrVehiclePartInstallationActiveDuplicate = errors.New("non-consumable part is already active on this vehicle")
 
 type CreateVehiclePartInstallationParams struct {
 	PartID               int64
 	VehicleID            int64
+	MechanicShiftID      int64
 	InstalledAt          string
 	PlannedReplacementAt string
 	Quantity             int64
@@ -30,6 +32,7 @@ type CreateVehiclePartInstallationParams struct {
 type UpdateVehiclePartInstallationParams struct {
 	PartID               int64
 	VehicleID            int64
+	MechanicShiftID      int64
 	InstalledAt          string
 	PlannedReplacementAt string
 	Quantity             int64
@@ -40,6 +43,7 @@ type UpdateVehiclePartInstallationParams struct {
 type ListVehiclePartInstallationsParams struct {
 	PartID            int64
 	VehicleID         int64
+	MechanicShiftID   int64
 	InstalledByUserID int64
 	IsActive          *bool
 	DateFrom          string
@@ -82,6 +86,7 @@ type vehiclePartInstallationState struct {
 	ID                   int64
 	PartID               int64
 	VehicleID            int64
+	MechanicShiftID      *int64
 	InstalledAt          time.Time
 	PlannedReplacementAt time.Time
 	Quantity             int64
@@ -107,6 +112,9 @@ func (r *vehiclePartInstallationRepo) Create(ctx context.Context, p CreateVehicl
 	if err := ensureInstallerExistsTx(ctx, tx, p.InstalledByUserID); err != nil {
 		return 0, err
 	}
+	if err := ensureMechanicShiftExistsTx(ctx, tx, p.MechanicShiftID); err != nil {
+		return 0, err
+	}
 	if part.Quantity < p.Quantity {
 		return 0, ErrVehiclePartInstallationInsufficientStock
 	}
@@ -125,18 +133,29 @@ func (r *vehiclePartInstallationRepo) Create(ctx context.Context, p CreateVehicl
 	}
 
 	const insertQ = `
-	INSERT INTO vehicle_part_installations (
-		part_id, vehicle_id, installed_at, planned_replacement_at, quantity, installed_by_user_id, is_active, created_at, updated_at
-	)
-	VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW(), NOW())
-	RETURNING id;
-`
+		INSERT INTO vehicle_part_installations (
+			part_id,
+			vehicle_id,
+			mechanic_shift_id,
+			installed_at,
+			planned_replacement_at,
+			quantity,
+			installed_by_user_id,
+			is_active,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, NOW(), NOW())
+		RETURNING id;
+	`
+
 	var id int64
 	if err := tx.QueryRowContext(
 		ctx,
 		insertQ,
 		p.PartID,
 		p.VehicleID,
+		p.MechanicShiftID,
 		p.InstalledAt,
 		p.PlannedReplacementAt,
 		p.Quantity,
@@ -144,6 +163,11 @@ func (r *vehiclePartInstallationRepo) Create(ctx context.Context, p CreateVehicl
 	).Scan(&id); err != nil {
 		return 0, mapVehiclePartInstallationError(err)
 	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit create vehicle part installation: %w", err)
+	}
+
 	return id, nil
 }
 
@@ -169,8 +193,8 @@ func (r *vehiclePartInstallationRepo) List(ctx context.Context, p ListVehiclePar
 		offset = 0
 	}
 
-	conds := make([]string, 0, 6)
-	args := make([]any, 0, 10)
+	conds := make([]string, 0, 10)
+	args := make([]any, 0, 12)
 	argPos := 1
 
 	if p.PartID > 0 {
@@ -181,6 +205,11 @@ func (r *vehiclePartInstallationRepo) List(ctx context.Context, p ListVehiclePar
 	if p.VehicleID > 0 {
 		conds = append(conds, fmt.Sprintf("vpi.vehicle_id = $%d", argPos))
 		args = append(args, p.VehicleID)
+		argPos++
+	}
+	if p.MechanicShiftID > 0 {
+		conds = append(conds, fmt.Sprintf("vpi.mechanic_shift_id = $%d", argPos))
+		args = append(args, p.MechanicShiftID)
 		argPos++
 	}
 	if p.InstalledByUserID > 0 {
@@ -213,6 +242,7 @@ func (r *vehiclePartInstallationRepo) List(ctx context.Context, p ListVehiclePar
 		args = append(args, v)
 		argPos++
 	}
+
 	whereSQL := ""
 	if len(conds) > 0 {
 		whereSQL = " WHERE " + strings.Join(conds, " AND ")
@@ -224,6 +254,8 @@ func (r *vehiclePartInstallationRepo) List(ctx context.Context, p ListVehiclePar
 		INNER JOIN parts_catalog p ON p.id = vpi.part_id
 		INNER JOIN vehicles v ON v.id = vpi.vehicle_id
 		LEFT JOIN users u ON u.id = vpi.installed_by_user_id
+		LEFT JOIN mechanic_shifts ms ON ms.id = vpi.mechanic_shift_id
+		LEFT JOIN users msu ON msu.id = ms.user_id
 	` + whereSQL
 
 	var total int64
@@ -292,6 +324,9 @@ func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, 
 	if err := ensureInstallerExistsTx(ctx, tx, p.InstalledByUserID); err != nil {
 		return false, err
 	}
+	if err := ensureMechanicShiftExistsTx(ctx, tx, p.MechanicShiftID); err != nil {
+		return false, err
+	}
 
 	if p.IsActive && !newPart.IsConsumable {
 		exists, err := activeInstallationExistsTx(ctx, tx, p.PartID, p.VehicleID, id)
@@ -330,22 +365,24 @@ func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, 
 	}
 
 	const q = `
-	UPDATE vehicle_part_installations
-	SET part_id = $1,
-		vehicle_id = $2,
-		installed_at = $3,
-		planned_replacement_at = $4,
-		quantity = $5,
-		installed_by_user_id = $6,
-		is_active = $7,
-		updated_at = NOW()
-	WHERE id = $8;
-`
+		UPDATE vehicle_part_installations
+		SET part_id = $1,
+			vehicle_id = $2,
+			mechanic_shift_id = $3,
+			installed_at = $4,
+			planned_replacement_at = $5,
+			quantity = $6,
+			installed_by_user_id = $7,
+			is_active = $8,
+			updated_at = NOW()
+		WHERE id = $9;
+	`
 	res, err := tx.ExecContext(
 		ctx,
 		q,
 		p.PartID,
 		p.VehicleID,
+		p.MechanicShiftID,
 		p.InstalledAt,
 		p.PlannedReplacementAt,
 		p.Quantity,
@@ -353,6 +390,10 @@ func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, 
 		p.IsActive,
 		id,
 	)
+	if err != nil {
+		return false, mapVehiclePartInstallationError(err)
+	}
+
 	aff, err := res.RowsAffected()
 	if err != nil {
 		return false, fmt.Errorf("update vehicle part installation rows affected: %w", err)
@@ -471,6 +512,13 @@ const vehiclePartInstallationSelectSQL = `
 		vpi.vehicle_id,
 		v.state_number AS vehicle_state_number,
 		v.brand_model AS vehicle_brand_model,
+		vpi.mechanic_shift_id,
+		ms.user_id AS mechanic_shift_user_id,
+		ms.shift_date AS mechanic_shift_date,
+		ms.time_from AS mechanic_shift_time_from,
+		ms.time_to AS mechanic_shift_time_to,
+		msu.email AS mechanic_shift_user_email,
+		NULLIF(TRIM(CONCAT_WS(' ', msu.last_name, msu.first_name, msu.middle_name)), '') AS mechanic_shift_user_full_name,
 		vpi.installed_at,
 		vpi.planned_replacement_at,
 		vpi.quantity,
@@ -483,6 +531,8 @@ const vehiclePartInstallationSelectSQL = `
 	FROM vehicle_part_installations vpi
 	INNER JOIN parts_catalog p ON p.id = vpi.part_id
 	INNER JOIN vehicles v ON v.id = vpi.vehicle_id
+	LEFT JOIN mechanic_shifts ms ON ms.id = vpi.mechanic_shift_id
+	LEFT JOIN users msu ON msu.id = ms.user_id
 	LEFT JOIN users u ON u.id = vpi.installed_by_user_id
 `
 
@@ -492,6 +542,13 @@ type vehiclePartInstallationScanner interface {
 
 func scanVehiclePartInstallation(scanner vehiclePartInstallationScanner) (*models.VehiclePartInstallation, error) {
 	var item models.VehiclePartInstallation
+	var mechanicShiftID sql.NullInt64
+	var mechanicShiftUserID sql.NullInt64
+	var mechanicShiftDate sql.NullTime
+	var mechanicShiftTimeFrom sql.NullTime
+	var mechanicShiftTimeTo sql.NullTime
+	var mechanicShiftUserEmail sql.NullString
+	var mechanicShiftUserFullName sql.NullString
 	var installerEmail sql.NullString
 	var installerFullName sql.NullString
 
@@ -505,6 +562,13 @@ func scanVehiclePartInstallation(scanner vehiclePartInstallationScanner) (*model
 		&item.VehicleID,
 		&item.VehicleStateNumber,
 		&item.VehicleBrandModel,
+		&mechanicShiftID,
+		&mechanicShiftUserID,
+		&mechanicShiftDate,
+		&mechanicShiftTimeFrom,
+		&mechanicShiftTimeTo,
+		&mechanicShiftUserEmail,
+		&mechanicShiftUserFullName,
 		&item.InstalledAt,
 		&item.PlannedReplacementAt,
 		&item.Quantity,
@@ -518,8 +582,16 @@ func scanVehiclePartInstallation(scanner vehiclePartInstallationScanner) (*model
 		return nil, err
 	}
 
+	item.MechanicShiftID = nullableInt64Ptr(mechanicShiftID)
+	item.MechanicShiftUserID = nullableInt64Ptr(mechanicShiftUserID)
+	item.MechanicShiftDate = nullableTimePtr(mechanicShiftDate)
+	item.MechanicShiftTimeFrom = nullableTimePtr(mechanicShiftTimeFrom)
+	item.MechanicShiftTimeTo = nullableTimePtr(mechanicShiftTimeTo)
+	item.MechanicShiftUserEmail = nullableStringPtr(mechanicShiftUserEmail)
+	item.MechanicShiftUserFullName = nullableStringPtr(mechanicShiftUserFullName)
 	item.InstallerEmail = nullableStringPtr(installerEmail)
 	item.InstallerFullName = nullableStringPtr(installerFullName)
+
 	return &item, nil
 }
 
@@ -578,16 +650,18 @@ func lockPartsForUpdate(ctx context.Context, tx *sql.Tx, ids ...int64) (map[int6
 
 func getInstallationForUpdate(ctx context.Context, tx *sql.Tx, id int64) (*vehiclePartInstallationState, error) {
 	const q = `
-		SELECT id, part_id, vehicle_id, installed_at, planned_replacement_at, quantity, installed_by_user_id, is_active
+		SELECT id, part_id, vehicle_id, mechanic_shift_id, installed_at, planned_replacement_at, quantity, installed_by_user_id, is_active
 		FROM vehicle_part_installations
 		WHERE id = $1
 		FOR UPDATE;
 	`
 	var item vehiclePartInstallationState
+	var mechanicShiftID sql.NullInt64
 	if err := tx.QueryRowContext(ctx, q, id).Scan(
 		&item.ID,
 		&item.PartID,
 		&item.VehicleID,
+		&mechanicShiftID,
 		&item.InstalledAt,
 		&item.PlannedReplacementAt,
 		&item.Quantity,
@@ -596,6 +670,7 @@ func getInstallationForUpdate(ctx context.Context, tx *sql.Tx, id int64) (*vehic
 	); err != nil {
 		return nil, err
 	}
+	item.MechanicShiftID = nullableInt64Ptr(mechanicShiftID)
 	return &item, nil
 }
 
@@ -619,6 +694,25 @@ func ensureInstallerExistsTx(ctx context.Context, tx *sql.Tx, userID int64) erro
 	}
 	if !exists {
 		return ErrVehiclePartInstallationUserNotFound
+	}
+	return nil
+}
+
+func ensureMechanicShiftExistsTx(ctx context.Context, tx *sql.Tx, mechanicShiftID int64) error {
+	const q = `
+		SELECT EXISTS(
+			SELECT 1
+			FROM mechanic_shifts
+			WHERE id = $1
+			  AND is_deleted = FALSE
+		);
+	`
+	var exists bool
+	if err := tx.QueryRowContext(ctx, q, mechanicShiftID).Scan(&exists); err != nil {
+		return fmt.Errorf("check mechanic shift exists: %w", err)
+	}
+	if !exists {
+		return ErrVehiclePartInstallationMechanicShiftNotFound
 	}
 	return nil
 }
@@ -675,6 +769,8 @@ func normalizeVehiclePartInstallationSortBy(v string) string {
 		return "vpi.part_id"
 	case "vehicle_id":
 		return "vpi.vehicle_id"
+	case "mechanic_shift_id":
+		return "vpi.mechanic_shift_id"
 	case "quantity":
 		return "vpi.quantity"
 	case "installed_by_user_id":
@@ -701,9 +797,27 @@ func mapVehiclePartInstallationError(err error) error {
 		return ErrVehiclePartInstallationVehicleNotFound
 	case strings.Contains(msg, "vehicle_part_installations_installed_by_user_id_fkey"):
 		return ErrVehiclePartInstallationUserNotFound
+	case strings.Contains(msg, "vehicle_part_installations_mechanic_shift_id_fkey"):
+		return ErrVehiclePartInstallationMechanicShiftNotFound
 	default:
 		return err
 	}
+}
+
+func nullableInt64Ptr(v sql.NullInt64) *int64 {
+	if !v.Valid {
+		return nil
+	}
+	out := v.Int64
+	return &out
+}
+
+func nullableTimePtr(v sql.NullTime) *time.Time {
+	if !v.Valid {
+		return nil
+	}
+	out := v.Time
+	return &out
 }
 
 func rollbackUnlessCommitted(tx *sql.Tx) {

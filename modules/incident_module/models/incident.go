@@ -24,6 +24,20 @@ type IncidentTripsheet struct {
 	FuelConsumptionActual      int
 }
 
+type IncidentMechanicShift struct {
+	ID               int64
+	UserID           int64
+	ShiftDate        time.Time
+	TimeFrom         time.Time
+	TimeTo           *time.Time
+	Comment          *string
+	IsActive         bool
+	MechanicEmail    *string
+	MechanicFullName *string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
 type Incident struct {
 	ID                 int64
 	IncidentTypeID     int64
@@ -34,6 +48,8 @@ type Incident struct {
 	DriverFullName     string
 	MechanicID         int64
 	MechanicFullName   string
+	MechanicShiftID    *int64
+	MechanicShift      *IncidentMechanicShift
 	TripsheetID        *int64
 	Tripsheet          *IncidentTripsheet
 	IncidentDate       time.Time
@@ -45,28 +61,30 @@ type Incident struct {
 }
 
 type CreateIncidentInput struct {
-	IncidentTypeID int64
-	VehicleID      int64
-	DriverID       int64
-	MechanicID     int64
-	TripsheetID    *int64
-	IncidentDate   time.Time
-	IncidentTime   time.Time
-	Location       string
-	Description    string
+	IncidentTypeID  int64
+	VehicleID       int64
+	DriverID        int64
+	MechanicID      int64
+	MechanicShiftID int64
+	TripsheetID     *int64
+	IncidentDate    time.Time
+	IncidentTime    time.Time
+	Location        string
+	Description     string
 }
 
 type UpdateIncidentInput struct {
-	ID             int64
-	IncidentTypeID int64
-	VehicleID      int64
-	DriverID       int64
-	MechanicID     int64
-	TripsheetID    *int64
-	IncidentDate   time.Time
-	IncidentTime   time.Time
-	Location       string
-	Description    string
+	ID              int64
+	IncidentTypeID  int64
+	VehicleID       int64
+	DriverID        int64
+	MechanicID      int64
+	MechanicShiftID int64
+	TripsheetID     *int64
+	IncidentDate    time.Time
+	IncidentTime    time.Time
+	Location        string
+	Description     string
 }
 
 type IncidentType struct {

@@ -19,6 +19,7 @@ import (
 // @Param        vehicle_id query int false "Vehicle ID"
 // @Param        driver_id query int false "Driver ID"
 // @Param        mechanic_id query int false "Mechanic ID"
+// @Param        mechanic_shift_id query int false "Mechanic shift ID"
 // @Param        tripsheet_id query int false "Tripsheet ID"
 // @Param        date_from query string false "Date from (YYYY-MM-DD)"
 // @Param        date_to query string false "Date to (YYYY-MM-DD)"

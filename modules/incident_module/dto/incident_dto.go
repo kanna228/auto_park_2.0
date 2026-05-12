@@ -1,27 +1,29 @@
 package dto
 
 type IncidentCreateRequest struct {
-	IncidentTypeID int64  `json:"incident_type_id" binding:"required"`
-	VehicleID      int64  `json:"vehicle_id" binding:"required"`
-	DriverID       int64  `json:"driver_id" binding:"required"`
-	MechanicID     int64  `json:"mechanic_id" binding:"required"`
-	TripsheetID    *int64 `json:"tripsheet_id,omitempty"`
-	Date           string `json:"date" binding:"required"`
-	Time           string `json:"time" binding:"required"`
-	Location       string `json:"location" binding:"required"`
-	Description    string `json:"description"`
+	IncidentTypeID  int64  `json:"incident_type_id" binding:"required"`
+	VehicleID       int64  `json:"vehicle_id" binding:"required"`
+	DriverID        int64  `json:"driver_id" binding:"required"`
+	MechanicID      int64  `json:"mechanic_id" binding:"required"`
+	MechanicShiftID int64  `json:"mechanic_shift_id" binding:"required"`
+	TripsheetID     *int64 `json:"tripsheet_id,omitempty"`
+	Date            string `json:"date" binding:"required"`
+	Time            string `json:"time" binding:"required"`
+	Location        string `json:"location" binding:"required"`
+	Description     string `json:"description"`
 }
 
 type IncidentUpdateRequest struct {
-	IncidentTypeID int64  `json:"incident_type_id" binding:"required"`
-	VehicleID      int64  `json:"vehicle_id" binding:"required"`
-	DriverID       int64  `json:"driver_id" binding:"required"`
-	MechanicID     int64  `json:"mechanic_id" binding:"required"`
-	TripsheetID    *int64 `json:"tripsheet_id,omitempty"`
-	Date           string `json:"date" binding:"required"`
-	Time           string `json:"time" binding:"required"`
-	Location       string `json:"location" binding:"required"`
-	Description    string `json:"description"`
+	IncidentTypeID  int64  `json:"incident_type_id" binding:"required"`
+	VehicleID       int64  `json:"vehicle_id" binding:"required"`
+	DriverID        int64  `json:"driver_id" binding:"required"`
+	MechanicID      int64  `json:"mechanic_id" binding:"required"`
+	MechanicShiftID int64  `json:"mechanic_shift_id" binding:"required"`
+	TripsheetID     *int64 `json:"tripsheet_id,omitempty"`
+	Date            string `json:"date" binding:"required"`
+	Time            string `json:"time" binding:"required"`
+	Location        string `json:"location" binding:"required"`
+	Description     string `json:"description"`
 }
 
 type IncidentCreateResponse struct {
@@ -50,34 +52,51 @@ type IncidentTripsheetResponse struct {
 	FuelConsumptionActual      int     `json:"fuel_consumption_actual"`
 }
 
+type IncidentMechanicShiftResponse struct {
+	ID               int64   `json:"id"`
+	UserID           int64   `json:"user_id"`
+	ShiftDate        string  `json:"shift_date"`
+	TimeFrom         string  `json:"time_from"`
+	TimeTo           *string `json:"time_to,omitempty"`
+	Comment          *string `json:"comment,omitempty"`
+	IsActive         bool    `json:"is_active"`
+	MechanicEmail    *string `json:"mechanic_email,omitempty"`
+	MechanicFullName *string `json:"mechanic_full_name,omitempty"`
+	CreatedAt        string  `json:"created_at"`
+	UpdatedAt        string  `json:"updated_at"`
+}
+
 type IncidentResponse struct {
-	ID                 int64                      `json:"id"`
-	IncidentTypeID     int64                      `json:"incident_type_id"`
-	IncidentTypeName   string                     `json:"incident_type_name"`
-	VehicleID          int64                      `json:"vehicle_id"`
-	VehicleStateNumber string                     `json:"vehicle_state_number"`
-	DriverID           int64                      `json:"driver_id"`
-	DriverFullName     string                     `json:"driver_full_name"`
-	MechanicID         int64                      `json:"mechanic_id"`
-	MechanicFullName   string                     `json:"mechanic_full_name"`
-	TripsheetID        *int64                     `json:"tripsheet_id,omitempty"`
-	Tripsheet          *IncidentTripsheetResponse `json:"tripsheet,omitempty"`
-	Date               string                     `json:"date"`
-	Time               string                     `json:"time"`
-	Location           string                     `json:"location"`
-	Description        string                     `json:"description,omitempty"`
-	CreatedAt          string                     `json:"created_at"`
-	UpdatedAt          string                     `json:"updated_at"`
+	ID                 int64                          `json:"id"`
+	IncidentTypeID     int64                          `json:"incident_type_id"`
+	IncidentTypeName   string                         `json:"incident_type_name"`
+	VehicleID          int64                          `json:"vehicle_id"`
+	VehicleStateNumber string                         `json:"vehicle_state_number"`
+	DriverID           int64                          `json:"driver_id"`
+	DriverFullName     string                         `json:"driver_full_name"`
+	MechanicID         int64                          `json:"mechanic_id"`
+	MechanicFullName   string                         `json:"mechanic_full_name"`
+	MechanicShiftID    *int64                         `json:"mechanic_shift_id,omitempty"`
+	MechanicShift      *IncidentMechanicShiftResponse `json:"mechanic_shift,omitempty"`
+	TripsheetID        *int64                         `json:"tripsheet_id,omitempty"`
+	Tripsheet          *IncidentTripsheetResponse     `json:"tripsheet,omitempty"`
+	Date               string                         `json:"date"`
+	Time               string                         `json:"time"`
+	Location           string                         `json:"location"`
+	Description        string                         `json:"description,omitempty"`
+	CreatedAt          string                         `json:"created_at"`
+	UpdatedAt          string                         `json:"updated_at"`
 }
 
 type IncidentListQuery struct {
-	IncidentTypeID *int64 `form:"incident_type_id"`
-	VehicleID      *int64 `form:"vehicle_id"`
-	DriverID       *int64 `form:"driver_id"`
-	MechanicID     *int64 `form:"mechanic_id"`
-	TripsheetID    *int64 `form:"tripsheet_id"`
-	DateFrom       string `form:"date_from"`
-	DateTo         string `form:"date_to"`
+	IncidentTypeID  *int64 `form:"incident_type_id"`
+	VehicleID       *int64 `form:"vehicle_id"`
+	DriverID        *int64 `form:"driver_id"`
+	MechanicID      *int64 `form:"mechanic_id"`
+	MechanicShiftID *int64 `form:"mechanic_shift_id"`
+	TripsheetID     *int64 `form:"tripsheet_id"`
+	DateFrom        string `form:"date_from"`
+	DateTo          string `form:"date_to"`
 }
 
 type IncidentTypeResponse struct {

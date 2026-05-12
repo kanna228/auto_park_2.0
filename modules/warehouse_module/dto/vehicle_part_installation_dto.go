@@ -3,30 +3,33 @@ package dto
 import "time"
 
 type VehiclePartInstallationCreateRequest struct {
-	PartID               int64  `json:"part_id" binding:"required" example:"1"`
-	VehicleID            int64  `json:"vehicle_id" binding:"required" example:"12"`
-	InstalledAt          string `json:"installed_at" binding:"required" example:"2026-05-08"`
-	PlannedReplacementAt string `json:"planned_replacement_at" binding:"required" example:"2027-05-08"`
-	Quantity             int64  `json:"quantity" binding:"required" example:"1"`
+	PartID               int64  `json:"part_id" binding:"required"`
+	VehicleID            int64  `json:"vehicle_id" binding:"required"`
+	MechanicShiftID      int64  `json:"mechanic_shift_id" binding:"required"`
+	InstalledAt          string `json:"installed_at" binding:"required" example:"2026-05-12"`
+	PlannedReplacementAt string `json:"planned_replacement_at" binding:"required" example:"2026-08-12"`
+	Quantity             int64  `json:"quantity" binding:"required"`
 }
 
 type VehiclePartInstallationUpdateRequest struct {
-	PartID               int64  `json:"part_id" binding:"required" example:"1"`
-	VehicleID            int64  `json:"vehicle_id" binding:"required" example:"12"`
-	InstalledAt          string `json:"installed_at" binding:"required" example:"2026-05-08"`
-	PlannedReplacementAt string `json:"planned_replacement_at" binding:"required" example:"2027-05-08"`
-	Quantity             int64  `json:"quantity" binding:"required" example:"1"`
-	InstalledByUserID    *int64 `json:"installed_by_user_id,omitempty" example:"5"`
-	IsActive             *bool  `json:"is_active,omitempty" example:"true"`
+	PartID               int64  `json:"part_id" binding:"required"`
+	VehicleID            int64  `json:"vehicle_id" binding:"required"`
+	MechanicShiftID      int64  `json:"mechanic_shift_id" binding:"required"`
+	InstalledAt          string `json:"installed_at" binding:"required" example:"2026-05-12"`
+	PlannedReplacementAt string `json:"planned_replacement_at" binding:"required" example:"2026-08-12"`
+	Quantity             int64  `json:"quantity" binding:"required"`
+	InstalledByUserID    *int64 `json:"installed_by_user_id,omitempty"`
+	IsActive             *bool  `json:"is_active,omitempty"`
 }
 
 type VehiclePartInstallationActivityUpdateRequest struct {
-	IsActive bool `json:"is_active" example:"false"`
+	IsActive bool `json:"is_active"`
 }
 
 type VehiclePartInstallationListQuery struct {
 	PartID            int64
 	VehicleID         int64
+	MechanicShiftID   int64
 	InstalledByUserID int64
 	IsActive          *bool
 	DateFrom          string
@@ -40,39 +43,51 @@ type VehiclePartInstallationListQuery struct {
 }
 
 type VehiclePartInstallationPartBriefResponse struct {
-	ID            int64  `json:"id" example:"1"`
-	CatalogPartID string `json:"catalog_part_id" example:"BRK-PAD-001"`
-	Name          string `json:"name" example:"Brake Pad Front"`
-	Category      string `json:"category" example:"brake_system"`
-	IsConsumable  bool   `json:"is_consumable" example:"false"`
+	ID            int64  `json:"id"`
+	CatalogPartID string `json:"catalog_part_id"`
+	Name          string `json:"name"`
+	Category      string `json:"category"`
+	IsConsumable  bool   `json:"is_consumable"`
 }
 
 type VehiclePartInstallationVehicleBriefResponse struct {
-	ID          int64  `json:"id" example:"12"`
-	StateNumber string `json:"state_number" example:"123ABC01"`
-	BrandModel  string `json:"brand_model" example:"Toyota Camry"`
+	ID          int64  `json:"id"`
+	StateNumber string `json:"state_number"`
+	BrandModel  string `json:"brand_model"`
+}
+
+type VehiclePartInstallationMechanicShiftBriefResponse struct {
+	ID               int64   `json:"id"`
+	UserID           int64   `json:"user_id"`
+	ShiftDate        string  `json:"shift_date"`
+	TimeFrom         string  `json:"time_from"`
+	TimeTo           *string `json:"time_to,omitempty"`
+	MechanicEmail    *string `json:"mechanic_email,omitempty"`
+	MechanicFullName *string `json:"mechanic_full_name,omitempty"`
 }
 
 type VehiclePartInstallationResponse struct {
-	ID                   int64                                       `json:"id" example:"1"`
-	PartID               int64                                       `json:"part_id" example:"1"`
-	Part                 VehiclePartInstallationPartBriefResponse    `json:"part"`
-	VehicleID            int64                                       `json:"vehicle_id" example:"12"`
-	Vehicle              VehiclePartInstallationVehicleBriefResponse `json:"vehicle"`
-	InstalledAt          string                                      `json:"installed_at" example:"2026-05-08"`
-	PlannedReplacementAt string                                      `json:"planned_replacement_at" example:"2027-05-08"`
-	Quantity             int64                                       `json:"quantity" example:"1"`
-	InstalledByUserID    int64                                       `json:"installed_by_user_id" example:"5"`
-	InstallerEmail       *string                                     `json:"installer_email,omitempty" example:"mechanic@example.com"`
-	InstallerFullName    *string                                     `json:"installer_full_name,omitempty" example:"Ivan Ivanov"`
-	IsActive             bool                                        `json:"is_active" example:"true"`
-	CreatedAt            time.Time                                   `json:"created_at"`
-	UpdatedAt            time.Time                                   `json:"updated_at"`
+	ID                   int64                                              `json:"id"`
+	PartID               int64                                              `json:"part_id"`
+	Part                 VehiclePartInstallationPartBriefResponse           `json:"part"`
+	VehicleID            int64                                              `json:"vehicle_id"`
+	Vehicle              VehiclePartInstallationVehicleBriefResponse        `json:"vehicle"`
+	MechanicShiftID      *int64                                             `json:"mechanic_shift_id"`
+	MechanicShift        *VehiclePartInstallationMechanicShiftBriefResponse `json:"mechanic_shift,omitempty"`
+	InstalledAt          string                                             `json:"installed_at"`
+	PlannedReplacementAt string                                             `json:"planned_replacement_at"`
+	Quantity             int64                                              `json:"quantity"`
+	InstalledByUserID    int64                                              `json:"installed_by_user_id"`
+	InstallerEmail       *string                                            `json:"installer_email,omitempty"`
+	InstallerFullName    *string                                            `json:"installer_full_name,omitempty"`
+	IsActive             bool                                               `json:"is_active"`
+	CreatedAt            time.Time                                          `json:"created_at"`
+	UpdatedAt            time.Time                                          `json:"updated_at"`
 }
 
 type VehiclePartInstallationListResponse struct {
 	Items  []VehiclePartInstallationResponse `json:"items"`
-	Total  int64                             `json:"total" example:"1"`
-	Limit  int                               `json:"limit" example:"50"`
-	Offset int                               `json:"offset" example:"0"`
+	Total  int64                             `json:"total"`
+	Limit  int                               `json:"limit"`
+	Offset int                               `json:"offset"`
 }

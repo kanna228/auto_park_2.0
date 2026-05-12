@@ -11,7 +11,7 @@ import (
 
 // Update godoc
 // @Summary      Update incident
-// @Description  Updates an existing incident by ID.
+// @Description  Updates an existing incident by ID, including mechanic shift link.
 // @Tags         Incidents
 // @Accept       json
 // @Produce      json

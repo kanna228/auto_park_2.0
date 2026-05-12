@@ -41,6 +41,9 @@ func (s *vehiclePartInstallationService) Create(ctx context.Context, userID int6
 	if req.VehicleID <= 0 {
 		return 0, fmt.Errorf("vehicle_id is required")
 	}
+	if req.MechanicShiftID <= 0 {
+		return 0, fmt.Errorf("mechanic_shift_id is required")
+	}
 	if req.Quantity <= 0 {
 		return 0, fmt.Errorf("quantity must be greater than 0")
 	}
@@ -62,6 +65,7 @@ func (s *vehiclePartInstallationService) Create(ctx context.Context, userID int6
 	return s.repo.Create(ctx, repository.CreateVehiclePartInstallationParams{
 		PartID:               req.PartID,
 		VehicleID:            req.VehicleID,
+		MechanicShiftID:      req.MechanicShiftID,
 		InstalledAt:          installedAt,
 		PlannedReplacementAt: plannedReplacementAt,
 		Quantity:             req.Quantity,
@@ -110,6 +114,7 @@ func (s *vehiclePartInstallationService) List(ctx context.Context, q dto.Vehicle
 	items, total, err := s.repo.List(ctx, repository.ListVehiclePartInstallationsParams{
 		PartID:            q.PartID,
 		VehicleID:         q.VehicleID,
+		MechanicShiftID:   q.MechanicShiftID,
 		InstalledByUserID: q.InstalledByUserID,
 		IsActive:          q.IsActive,
 		DateFrom:          dateFrom,
@@ -157,6 +162,9 @@ func (s *vehiclePartInstallationService) UpdateByID(ctx context.Context, id int6
 	}
 	if req.VehicleID <= 0 {
 		return false, fmt.Errorf("vehicle_id is required")
+	}
+	if req.MechanicShiftID <= 0 {
+		return false, fmt.Errorf("mechanic_shift_id is required")
 	}
 	if req.Quantity <= 0 {
 		return false, fmt.Errorf("quantity must be greater than 0")
@@ -206,6 +214,7 @@ func (s *vehiclePartInstallationService) UpdateByID(ctx context.Context, id int6
 	return s.repo.UpdateByID(ctx, id, repository.UpdateVehiclePartInstallationParams{
 		PartID:               req.PartID,
 		VehicleID:            req.VehicleID,
+		MechanicShiftID:      req.MechanicShiftID,
 		InstalledAt:          installedAt,
 		PlannedReplacementAt: plannedReplacementAt,
 		Quantity:             req.Quantity,
@@ -253,7 +262,7 @@ func normalizeOptionalDate(value, field string) (string, error) {
 }
 
 func mapVehiclePartInstallationToDTO(item models.VehiclePartInstallation) dto.VehiclePartInstallationResponse {
-	return dto.VehiclePartInstallationResponse{
+	resp := dto.VehiclePartInstallationResponse{
 		ID:     item.ID,
 		PartID: item.PartID,
 		Part: dto.VehiclePartInstallationPartBriefResponse{
@@ -269,6 +278,7 @@ func mapVehiclePartInstallationToDTO(item models.VehiclePartInstallation) dto.Ve
 			StateNumber: item.VehicleStateNumber,
 			BrandModel:  item.VehicleBrandModel,
 		},
+		MechanicShiftID:      item.MechanicShiftID,
 		InstalledAt:          item.InstalledAt.Format("2006-01-02"),
 		PlannedReplacementAt: item.PlannedReplacementAt.Format("2006-01-02"),
 		Quantity:             item.Quantity,
@@ -279,4 +289,26 @@ func mapVehiclePartInstallationToDTO(item models.VehiclePartInstallation) dto.Ve
 		CreatedAt:            item.CreatedAt,
 		UpdatedAt:            item.UpdatedAt,
 	}
+
+	if item.MechanicShiftID != nil && item.MechanicShiftUserID != nil && item.MechanicShiftDate != nil && item.MechanicShiftTimeFrom != nil {
+		resp.MechanicShift = &dto.VehiclePartInstallationMechanicShiftBriefResponse{
+			ID:               *item.MechanicShiftID,
+			UserID:           *item.MechanicShiftUserID,
+			ShiftDate:        item.MechanicShiftDate.Format("2006-01-02"),
+			TimeFrom:         item.MechanicShiftTimeFrom.Format("15:04:05"),
+			TimeTo:           formatOptionalTime(item.MechanicShiftTimeTo),
+			MechanicEmail:    item.MechanicShiftUserEmail,
+			MechanicFullName: item.MechanicShiftUserFullName,
+		}
+	}
+
+	return resp
+}
+
+func formatOptionalTime(v *time.Time) *string {
+	if v == nil {
+		return nil
+	}
+	formatted := v.Format("15:04:05")
+	return &formatted
 }

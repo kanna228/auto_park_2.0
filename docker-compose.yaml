@@ -32,11 +32,10 @@ services:
     restart: "no"
 
   auto_park:
-    volumes:
-      - ./storage:/app/storage
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     container_name: auto-park-app
     depends_on:
       postgres:
@@ -47,7 +46,14 @@ services:
       - ./.env
     ports:
       - "8080:8080"
+    volumes:
+      - .:/app
+      - ./storage:/app/storage
+      - go_pkg_mod:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
     restart: unless-stopped
 
 volumes:
   postgres_data:
+  go_pkg_mod:
+  go_build_cache:
