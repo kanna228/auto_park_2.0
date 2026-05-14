@@ -47,6 +47,103 @@ type VehicleInstalledPartHistoryItem struct {
 	UpdatedAt            time.Time  `json:"updated_at"`
 }
 
+type VehicleStatusHistoryItem struct {
+	ID             int64                  `json:"id"`
+	VehicleID      int64                  `json:"vehicle_id"`
+	StatusID       int64                  `json:"status_id"`
+	Status         VehicleStatusBriefInfo `json:"status"`
+	StartDate      time.Time              `json:"start_date"`
+	EndDate        *time.Time             `json:"end_date,omitempty"`
+	EndDateDisplay string                 `json:"end_date_display"`
+	IsCurrent      bool                   `json:"is_current"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+}
+
+type VehicleStatusBriefInfo struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+type VehicleTripsheetStatusBriefInfo struct {
+	ID   int64  `json:"id"`
+	Name string `json:"name"`
+}
+
+type VehicleTripsheetDriverInfo struct {
+	ID         *int64  `json:"id,omitempty"`
+	IIN        *string `json:"iin,omitempty"`
+	FirstName  *string `json:"first_name,omitempty"`
+	LastName   *string `json:"last_name,omitempty"`
+	MiddleName *string `json:"middle_name,omitempty"`
+	Phone      *string `json:"phone,omitempty"`
+	Email      *string `json:"email,omitempty"`
+}
+
+type VehicleTripsheetTripHistoryItem struct {
+	ID               int64                           `json:"id"`
+	TripsheetID      int64                           `json:"tripsheet_id"`
+	RouteDescription string                          `json:"route_description"`
+	StartTime        *time.Time                      `json:"start_time,omitempty"`
+	EndTime          *time.Time                      `json:"end_time,omitempty"`
+	DistancePassed   int                             `json:"distance_passed"`
+	StatusID         int64                           `json:"status_id"`
+	Status           VehicleTripsheetStatusBriefInfo `json:"status"`
+	CreatedAt        time.Time                       `json:"created_at"`
+	UpdatedAt        time.Time                       `json:"updated_at"`
+}
+
+type VehicleTripsheetHistoryItem struct {
+	ID                         int64                             `json:"id"`
+	TripsheetNumber            string                            `json:"tripsheet_number"`
+	TripsheetDate              string                            `json:"tripsheet_date"`
+	VehicleID                  *int64                            `json:"vehicle_id,omitempty"`
+	VehicleBrand               *string                           `json:"vehicle_brand,omitempty"`
+	VehiclePlateNumber         string                            `json:"vehicle_plate_number"`
+	DriverID                   *int64                            `json:"driver_id,omitempty"`
+	Driver                     *VehicleTripsheetDriverInfo       `json:"driver,omitempty"`
+	DriverLastName             *string                           `json:"driver_last_name,omitempty"`
+	DriverFirstName            *string                           `json:"driver_first_name,omitempty"`
+	DriverMiddleName           *string                           `json:"driver_middle_name,omitempty"`
+	StartTime                  *time.Time                        `json:"start_time,omitempty"`
+	EndTime                    *time.Time                        `json:"end_time,omitempty"`
+	MileageStart               int                               `json:"mileage_start"`
+	MileageEnd                 int                               `json:"mileage_end"`
+	FuelStart                  int                               `json:"fuel_start"`
+	FuelIssued                 int                               `json:"fuel_issued"`
+	FuelConsumptionTheoretical int                               `json:"fuel_consumption_theoretical"`
+	FuelConsumptionActual      int                               `json:"fuel_consumption_actual"`
+	StatusID                   int64                             `json:"status_id"`
+	Status                     VehicleTripsheetStatusBriefInfo   `json:"status"`
+	Trips                      []VehicleTripsheetTripHistoryItem `json:"trips"`
+	CreatedAt                  time.Time                         `json:"created_at"`
+	UpdatedAt                  time.Time                         `json:"updated_at"`
+}
+
+type VehicleServicePartInfo struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+}
+
+type VehicleServiceTypeInfo struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	Description *string `json:"description,omitempty"`
+}
+
+type VehicleServiceHistoryItem struct {
+	ID        int64                  `json:"id"`
+	TypeID    int64                  `json:"type_id"`
+	Type      VehicleServiceTypeInfo `json:"type"`
+	PartID    int64                  `json:"part_id"`
+	Part      VehicleServicePartInfo `json:"part"`
+	VehicleID int64                  `json:"vehicle_id"`
+	Date      time.Time              `json:"date"`
+	CreatedAt time.Time              `json:"created_at"`
+	UpdatedAt time.Time              `json:"updated_at"`
+}
+
 type VehicleResponse struct {
 	ID int64 `json:"id"`
 
@@ -82,6 +179,9 @@ type VehicleResponse struct {
 	TechnicalInspections []VehicleTechnicalInspectionHistoryItem `json:"technical_inspections"`
 	Incidents            []VehicleIncidentHistoryItem            `json:"incidents"`
 	InstalledParts       []VehicleInstalledPartHistoryItem       `json:"installed_parts"`
+	StatusHistory        []VehicleStatusHistoryItem              `json:"status_history"`
+	Tripsheets           []VehicleTripsheetHistoryItem           `json:"tripsheets"`
+	Services             []VehicleServiceHistoryItem             `json:"services"`
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

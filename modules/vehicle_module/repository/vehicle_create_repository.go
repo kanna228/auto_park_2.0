@@ -20,6 +20,10 @@ type VehicleRepository interface {
 	ListVehicleStatuses(ctx context.Context) ([]models.VehicleStatus, error)
 	ListIncidentsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleIncidentHistoryRow, error)
 	ListInstalledPartsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleInstalledPartHistoryRow, error)
+	ListTripsheetsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleTripsheetHistoryRow, error)
+	ListVehicleServicesByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleServiceHistoryRow, error)
+	GetVehicleStatusHistoryByID(ctx context.Context, id int64) (*models.VehicleStatusHistory, error)
+	ListVehicleStatusHistory(ctx context.Context, p ListVehicleStatusHistoryParams) ([]models.VehicleStatusHistory, int64, error)
 	ListDriversByIDs(ctx context.Context, ids []int64) ([]VehicleDriverRow, error)
 }
 

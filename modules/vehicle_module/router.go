@@ -48,40 +48,45 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	protected.Use(middleware.AuthJWT(cfg))
 	{
 		protected.POST("", vehicleHandler.CreateVehicle)
-		protected.GET("/:id", vehicleHandler.GetVehicleByID)
 		protected.GET("", vehicleHandler.ListVehicles)
+
+		// Static routes must stay before /:id routes.
+		protected.GET("/statuses", vehicleHandler.ListVehicleStatuses)
+		protected.GET("/status-history", vehicleHandler.ListVehicleStatusHistory)
+		protected.GET("/status-history/:id", vehicleHandler.GetVehicleStatusHistoryByID)
+
+		protected.GET("/:id", vehicleHandler.GetVehicleByID)
 		protected.PUT("/:id", vehicleHandler.UpdateVehicle)
 		protected.DELETE("/:id", vehicleHandler.DeleteVehicle)
-		protected.GET("/statuses", vehicleHandler.ListVehicleStatuses)
 
 		protected.POST("/:id/photo", vehicleHandler.UploadVehiclePhoto)
 		protected.PUT("/:id/photo", vehicleHandler.UpdateVehiclePhoto)
 		protected.DELETE("/:id/photo", vehicleHandler.DeleteVehiclePhoto)
 
 		protected.POST("/tires", tireHandler.CreateTire)
-		protected.GET("/tires/:id", tireHandler.GetTireByID)
 		protected.GET("/tires", tireHandler.ListTires)
+		protected.GET("/tires/:id", tireHandler.GetTireByID)
 		protected.PUT("/tires/:id", tireHandler.UpdateTire)
 		protected.DELETE("/tires/:id", tireHandler.DeleteTire)
 
 		protected.POST("/tire-places", tirePlaceHandler.CreateTirePlace)
-		protected.GET("/tire-places/:id", tirePlaceHandler.GetTirePlaceByID)
 		protected.GET("/tire-places", tirePlaceHandler.ListTirePlaces)
+		protected.GET("/tire-places/:id", tirePlaceHandler.GetTirePlaceByID)
 		protected.PUT("/tire-places/:id", tirePlaceHandler.UpdateTirePlace)
 		protected.DELETE("/tire-places/:id", tirePlaceHandler.DeleteTirePlace)
 		protected.GET("/vehicle-tires/:vehicle_id", tireHandler.GetTiresByVehicleID)
 
 		protected.POST("/insurance", insuranceHandler.CreateInsurance)
-		protected.GET("/insurance/:id", insuranceHandler.GetInsuranceByID)
 		protected.GET("/insurance", insuranceHandler.ListInsurance)
+		protected.GET("/insurance/:id", insuranceHandler.GetInsuranceByID)
 		protected.PUT("/insurance/:id", insuranceHandler.UpdateInsurance)
 		protected.DELETE("/insurance/:id", insuranceHandler.DeleteInsurance)
 		protected.POST("/insurance/:id/file", insuranceHandler.UploadInsuranceFile)
 		protected.DELETE("/insurance/:id/file", insuranceHandler.DeleteInsuranceFile)
 
 		protected.POST("/technical-inspections", technicalInspectionHandler.CreateTechnicalInspection)
-		protected.GET("/technical-inspections/:id", technicalInspectionHandler.GetTechnicalInspectionByID)
 		protected.GET("/technical-inspections", technicalInspectionHandler.ListTechnicalInspections)
+		protected.GET("/technical-inspections/:id", technicalInspectionHandler.GetTechnicalInspectionByID)
 		protected.PUT("/technical-inspections/:id", technicalInspectionHandler.UpdateTechnicalInspection)
 		protected.DELETE("/technical-inspections/:id", technicalInspectionHandler.DeleteTechnicalInspection)
 		protected.POST("/technical-inspections/:id/file", technicalInspectionHandler.UploadTechnicalInspectionFile)

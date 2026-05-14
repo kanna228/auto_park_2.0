@@ -123,3 +123,96 @@ type VehiclePartInstallationDeleteResponseWrap struct {
 		ID int64 `json:"id" example:"1"`
 	} `json:"data"`
 }
+
+type PartsCollectionResponseWrap struct {
+	Success bool                        `json:"success" example:"true"`
+	Data    dto.PartsCollectionResponse `json:"data"`
+}
+
+type PartsCollectionListResponseWrap struct {
+	Success bool                            `json:"success" example:"true"`
+	Data    dto.PartsCollectionListResponse `json:"data"`
+}
+
+type PartsCollectionCreateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type PartsCollectionUpdateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type PartsCollectionDeleteResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type ServiceTypeResponseWrap struct {
+	Success bool                    `json:"success" example:"true"`
+	Data    dto.ServiceTypeResponse `json:"data"`
+}
+
+type ServiceTypeListResponseWrap struct {
+	Success bool                        `json:"success" example:"true"`
+	Data    dto.ServiceTypeListResponse `json:"data"`
+}
+
+type ServiceTypeCreateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type ServiceTypeUpdateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type ServiceTypeDeleteResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type VehicleServiceResponseWrap struct {
+	Success bool                       `json:"success" example:"true"`
+	Data    dto.VehicleServiceResponse `json:"data"`
+}
+
+type VehicleServiceListResponseWrap struct {
+	Success bool                           `json:"success" example:"true"`
+	Data    dto.VehicleServiceListResponse `json:"data"`
+}
+
+type VehicleServiceCreateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type VehicleServiceUpdateResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}
+
+type VehicleServiceDeleteResponseWrap struct {
+	Success bool `json:"success" example:"true"`
+	Data    struct {
+		ID int64 `json:"id" example:"1"`
+	} `json:"data"`
+}

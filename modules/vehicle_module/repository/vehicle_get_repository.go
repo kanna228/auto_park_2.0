@@ -630,3 +630,352 @@ func (r *vehicleRepo) ListInstalledPartsByVehicleID(ctx context.Context, vehicle
 
 	return items, nil
 }
+
+type VehicleTripsheetTripHistoryRow struct {
+	ID               int64
+	TripsheetID      int64
+	RouteDescription string
+	StartTime        *time.Time
+	EndTime          *time.Time
+	DistancePassed   int
+	StatusID         int64
+	StatusName       string
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+type VehicleTripsheetHistoryRow struct {
+	ID                         int64
+	TripsheetNumber            string
+	TripsheetDate              time.Time
+	VehicleID                  *int64
+	VehicleBrand               *string
+	VehiclePlateNumber         string
+	DriverID                   *int64
+	DriverIIN                  *string
+	DriverFirstName            *string
+	DriverLastName             *string
+	DriverMiddleName           *string
+	DriverPhone                *string
+	DriverEmail                *string
+	DriverSnapshotLastName     *string
+	DriverSnapshotFirstName    *string
+	DriverSnapshotMiddleName   *string
+	StartTime                  *time.Time
+	EndTime                    *time.Time
+	MileageStart               int
+	MileageEnd                 int
+	FuelStart                  int
+	FuelIssued                 int
+	FuelConsumptionTheoretical int
+	FuelConsumptionActual      int
+	StatusID                   int64
+	StatusName                 string
+	Trips                      []VehicleTripsheetTripHistoryRow
+	CreatedAt                  time.Time
+	UpdatedAt                  time.Time
+}
+
+func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleTripsheetHistoryRow, error) {
+	const q = `
+		SELECT
+			t.id,
+			t.tripsheet_number,
+			t.tripsheet_date,
+			t.vehicle_id,
+			t.vehicle_brand,
+			t.vehicle_plate_number,
+			t.driver_id,
+			d.iin AS driver_iin,
+			d.name AS driver_first_name,
+			d.surname AS driver_last_name,
+			d.middlename AS driver_middle_name,
+			d.phone AS driver_phone,
+			d.mail AS driver_email,
+			t.driver_last_name AS driver_snapshot_last_name,
+			t.driver_first_name AS driver_snapshot_first_name,
+			t.driver_middle_name AS driver_snapshot_middle_name,
+			t.start_time,
+			t.end_time,
+			t.mileage_start,
+			t.mileage_end,
+			t.fuel_start,
+			t.fuel_issued,
+			t.fuel_consumption_theoretical,
+			t.fuel_consumption_actual,
+			t.status_id,
+			COALESCE(ts.name, '') AS status_name,
+			t.created_at,
+			t.updated_at
+		FROM tripsheets t
+		LEFT JOIN tripsheet_statuses ts ON ts.id = t.status_id
+		LEFT JOIN drivers d ON d.id = t.driver_id
+		WHERE t.vehicle_id = $1
+		   OR t.vehicle_plate_number = (
+			   SELECT state_number
+			   FROM vehicles
+			   WHERE id = $1
+		   )
+		ORDER BY t.tripsheet_date DESC, t.id DESC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, vehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("list tripsheets by vehicle id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]VehicleTripsheetHistoryRow, 0)
+	tripsheetIDs := make([]int64, 0)
+	indexByID := make(map[int64]int)
+
+	for rows.Next() {
+		var item VehicleTripsheetHistoryRow
+
+		var vehicleIDValue sql.NullInt64
+		var vehicleBrand sql.NullString
+		var driverID sql.NullInt64
+		var driverIIN sql.NullString
+		var driverFirstName sql.NullString
+		var driverLastName sql.NullString
+		var driverMiddleName sql.NullString
+		var driverPhone sql.NullString
+		var driverEmail sql.NullString
+		var driverSnapshotLastName sql.NullString
+		var driverSnapshotFirstName sql.NullString
+		var driverSnapshotMiddleName sql.NullString
+		var startTime sql.NullTime
+		var endTime sql.NullTime
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.TripsheetNumber,
+			&item.TripsheetDate,
+			&vehicleIDValue,
+			&vehicleBrand,
+			&item.VehiclePlateNumber,
+			&driverID,
+			&driverIIN,
+			&driverFirstName,
+			&driverLastName,
+			&driverMiddleName,
+			&driverPhone,
+			&driverEmail,
+			&driverSnapshotLastName,
+			&driverSnapshotFirstName,
+			&driverSnapshotMiddleName,
+			&startTime,
+			&endTime,
+			&item.MileageStart,
+			&item.MileageEnd,
+			&item.FuelStart,
+			&item.FuelIssued,
+			&item.FuelConsumptionTheoretical,
+			&item.FuelConsumptionActual,
+			&item.StatusID,
+			&item.StatusName,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan tripsheet by vehicle id: %w", err)
+		}
+
+		item.VehicleID = nullableInt64Ptr(vehicleIDValue)
+		item.VehicleBrand = nullableStringPtrVehicle(vehicleBrand)
+		item.DriverID = nullableInt64Ptr(driverID)
+		item.DriverIIN = nullableStringPtrVehicle(driverIIN)
+		item.DriverFirstName = nullableStringPtrVehicle(driverFirstName)
+		item.DriverLastName = nullableStringPtrVehicle(driverLastName)
+		item.DriverMiddleName = nullableStringPtrVehicle(driverMiddleName)
+		item.DriverPhone = nullableStringPtrVehicle(driverPhone)
+		item.DriverEmail = nullableStringPtrVehicle(driverEmail)
+		item.DriverSnapshotLastName = nullableStringPtrVehicle(driverSnapshotLastName)
+		item.DriverSnapshotFirstName = nullableStringPtrVehicle(driverSnapshotFirstName)
+		item.DriverSnapshotMiddleName = nullableStringPtrVehicle(driverSnapshotMiddleName)
+		item.StartTime = nullableTimePtr(startTime)
+		item.EndTime = nullableTimePtr(endTime)
+		item.Trips = []VehicleTripsheetTripHistoryRow{}
+
+		indexByID[item.ID] = len(items)
+		tripsheetIDs = append(tripsheetIDs, item.ID)
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows tripsheets by vehicle id: %w", err)
+	}
+
+	if len(tripsheetIDs) == 0 {
+		return items, nil
+	}
+
+	trips, err := r.listTripsheetTripsByTripsheetIDs(ctx, tripsheetIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, trip := range trips {
+		idx, ok := indexByID[trip.TripsheetID]
+		if !ok {
+			continue
+		}
+		items[idx].Trips = append(items[idx].Trips, trip)
+	}
+
+	return items, nil
+}
+
+func (r *vehicleRepo) listTripsheetTripsByTripsheetIDs(ctx context.Context, tripsheetIDs []int64) ([]VehicleTripsheetTripHistoryRow, error) {
+	const q = `
+		SELECT
+			tt.id,
+			tt.tripsheet_id,
+			tt.route_description,
+			tt.start_time,
+			tt.end_time,
+			tt.distance_passed,
+			tt.status_id,
+			COALESCE(ts.name, '') AS status_name,
+			tt.created_at,
+			tt.updated_at
+		FROM tripsheet_trips tt
+		LEFT JOIN tripsheet_statuses ts ON ts.id = tt.status_id
+		WHERE tt.tripsheet_id = ANY($1)
+		ORDER BY tt.tripsheet_id ASC, tt.start_time ASC NULLS LAST, tt.id ASC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, pq.Int64Array(tripsheetIDs))
+	if err != nil {
+		return nil, fmt.Errorf("list tripsheet trips by tripsheet ids: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]VehicleTripsheetTripHistoryRow, 0)
+	for rows.Next() {
+		var item VehicleTripsheetTripHistoryRow
+		var startTime sql.NullTime
+		var endTime sql.NullTime
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.TripsheetID,
+			&item.RouteDescription,
+			&startTime,
+			&endTime,
+			&item.DistancePassed,
+			&item.StatusID,
+			&item.StatusName,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan tripsheet trip by tripsheet ids: %w", err)
+		}
+
+		item.StartTime = nullableTimePtr(startTime)
+		item.EndTime = nullableTimePtr(endTime)
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows tripsheet trips by tripsheet ids: %w", err)
+	}
+
+	return items, nil
+}
+
+type VehicleServiceHistoryRow struct {
+	ID              int64
+	TypeID          int64
+	TypeName        string
+	TypeDescription *string
+	PartID          int64
+	PartName        string
+	PartDescription *string
+	VehicleID       int64
+	ServiceDate     time.Time
+	CreatedAt       time.Time
+	UpdatedAt       time.Time
+}
+
+func (r *vehicleRepo) ListVehicleServicesByVehicleID(ctx context.Context, vehicleID int64) ([]VehicleServiceHistoryRow, error) {
+	const q = `
+		SELECT
+			vs.id,
+			vs.type_id,
+			st.name AS type_name,
+			st.description AS type_description,
+			vs.part_id,
+			pc.name AS part_name,
+			pc.description AS part_description,
+			vs.vehicle_id,
+			vs.service_date,
+			vs.created_at,
+			vs.updated_at
+		FROM vehicle_services vs
+		INNER JOIN service_types st ON st.id = vs.type_id
+		INNER JOIN parts_collection pc ON pc.id = vs.part_id
+		WHERE vs.vehicle_id = $1
+		ORDER BY vs.service_date DESC, vs.id DESC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, vehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("list vehicle services by vehicle id: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]VehicleServiceHistoryRow, 0)
+	for rows.Next() {
+		var item VehicleServiceHistoryRow
+		var typeDescription sql.NullString
+		var partDescription sql.NullString
+		if err := rows.Scan(
+			&item.ID,
+			&item.TypeID,
+			&item.TypeName,
+			&typeDescription,
+			&item.PartID,
+			&item.PartName,
+			&partDescription,
+			&item.VehicleID,
+			&item.ServiceDate,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan vehicle service by vehicle id: %w", err)
+		}
+		item.TypeDescription = nullableStringPtrVehicle(typeDescription)
+		item.PartDescription = nullableStringPtrVehicle(partDescription)
+		items = append(items, item)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows vehicle services by vehicle id: %w", err)
+	}
+
+	return items, nil
+}
+
+func nullableInt64Ptr(v sql.NullInt64) *int64 {
+	if !v.Valid {
+		return nil
+	}
+	value := v.Int64
+	return &value
+}
+
+func nullableStringPtrVehicle(v sql.NullString) *string {
+	if !v.Valid {
+		return nil
+	}
+	value := v.String
+	return &value
+}
+
+func nullableTimePtr(v sql.NullTime) *time.Time {
+	if !v.Valid {
+		return nil
+	}
+	value := v.Time
+	return &value
+}

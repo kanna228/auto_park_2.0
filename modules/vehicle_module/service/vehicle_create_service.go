@@ -15,6 +15,8 @@ type VehicleService interface {
 	GetByID(ctx context.Context, id int64) (*dto.VehicleResponse, error)
 	List(ctx context.Context, q dto.VehicleListQuery) (*dto.VehicleListResponse, error)
 	ListVehicleStatuses(ctx context.Context) (*dto.VehicleStatusListResponse, error)
+	GetVehicleStatusHistoryByID(ctx context.Context, id int64) (*dto.VehicleStatusHistoryResponse, error)
+	ListVehicleStatusHistory(ctx context.Context, q dto.VehicleStatusHistoryListQuery) (*dto.VehicleStatusHistoryListResponse, error)
 	UpdateByID(ctx context.Context, id int64, req dto.VehicleUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
 	UploadPhoto(ctx context.Context, id int64, fileHeader any) (*dto.VehicleResponse, error)

@@ -57,3 +57,13 @@ type CreateVehicleResponseWrap struct {
 	Success bool                      `json:"success"`
 	Data    dto.VehicleCreateResponse `json:"data"`
 }
+
+type VehicleStatusHistoryResponseWrap struct {
+	Success bool                             `json:"success" example:"true"`
+	Data    dto.VehicleStatusHistoryResponse `json:"data"`
+}
+
+type VehicleStatusHistoryListResponseWrap struct {
+	Success bool                                 `json:"success" example:"true"`
+	Data    dto.VehicleStatusHistoryListResponse `json:"data"`
+}

@@ -32,6 +32,10 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 	vehiclePartInstallationSvc := service.NewVehiclePartInstallationService(vehiclePartInstallationRepo)
 	vehiclePartInstallationHandler := handlers.NewVehiclePartInstallationHandler(vehiclePartInstallationSvc)
 
+	vehicleServiceRepo := repository.NewVehicleServiceRepository(db)
+	vehicleServiceSvc := service.NewVehicleServiceService(vehicleServiceRepo)
+	vehicleServiceHandler := handlers.NewVehicleServiceHandler(vehicleServiceSvc)
+
 	api := r.Group("/api/warehouse")
 	protected := api.Group("")
 	protected.Use(middleware.AuthJWT(cfg))
@@ -92,6 +96,41 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		{
 			vehiclePartInstallationReadGroup.GET("", vehiclePartInstallationHandler.ListVehiclePartInstallations)
 			vehiclePartInstallationReadGroup.GET("/:id", vehiclePartInstallationHandler.GetVehiclePartInstallationByID)
+		}
+
+		serviceCatalogReadGroup := protected.Group("")
+		serviceCatalogReadGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
+		{
+			serviceCatalogReadGroup.GET("/service-parts", vehicleServiceHandler.ListPartsCollection)
+			serviceCatalogReadGroup.GET("/service-parts/:id", vehicleServiceHandler.GetPartsCollectionByID)
+			serviceCatalogReadGroup.GET("/service-types", vehicleServiceHandler.ListServiceTypes)
+			serviceCatalogReadGroup.GET("/service-types/:id", vehicleServiceHandler.GetServiceTypeByID)
+		}
+
+		serviceCatalogWriteGroup := protected.Group("")
+		serviceCatalogWriteGroup.Use(middleware.RequireRoles(roleAdmin, roleWarehouseManager))
+		{
+			serviceCatalogWriteGroup.POST("/service-parts", vehicleServiceHandler.CreatePartsCollection)
+			serviceCatalogWriteGroup.PUT("/service-parts/:id", vehicleServiceHandler.UpdatePartsCollection)
+			serviceCatalogWriteGroup.DELETE("/service-parts/:id", vehicleServiceHandler.DeletePartsCollection)
+			serviceCatalogWriteGroup.POST("/service-types", vehicleServiceHandler.CreateServiceType)
+			serviceCatalogWriteGroup.PUT("/service-types/:id", vehicleServiceHandler.UpdateServiceType)
+			serviceCatalogWriteGroup.DELETE("/service-types/:id", vehicleServiceHandler.DeleteServiceType)
+		}
+
+		vehicleServiceReadGroup := protected.Group("/vehicle-services")
+		vehicleServiceReadGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
+		{
+			vehicleServiceReadGroup.GET("", vehicleServiceHandler.ListVehicleServices)
+			vehicleServiceReadGroup.GET("/:id", vehicleServiceHandler.GetVehicleServiceByID)
+		}
+
+		vehicleServiceWriteGroup := protected.Group("/vehicle-services")
+		vehicleServiceWriteGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
+		{
+			vehicleServiceWriteGroup.POST("", vehicleServiceHandler.CreateVehicleService)
+			vehicleServiceWriteGroup.PUT("/:id", vehicleServiceHandler.UpdateVehicleService)
+			vehicleServiceWriteGroup.DELETE("/:id", vehicleServiceHandler.DeleteVehicleService)
 		}
 
 		vehiclePartInstallationWriteGroup := protected.Group("/vehicle-part-installations")

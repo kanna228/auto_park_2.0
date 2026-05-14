@@ -117,6 +117,27 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 		return dto.VehicleResponse{}, err
 	}
 
+	statusHistory, _, err := s.repo.ListVehicleStatusHistory(ctx, repository.ListVehicleStatusHistoryParams{
+		VehicleID: v.ID,
+		Limit:     1000,
+		Offset:    0,
+		SortBy:    "start_date",
+		Order:     "desc",
+	})
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
+	tripsheets, err := s.repo.ListTripsheetsByVehicleID(ctx, v.ID)
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
+	vehicleServices, err := s.repo.ListVehicleServicesByVehicleID(ctx, v.ID)
+	if err != nil {
+		return dto.VehicleResponse{}, err
+	}
+
 	resp.Drivers = make([]dto.VehicleDriverInfo, 0, len(vehicleDrivers))
 	for _, item := range vehicleDrivers {
 		resp.Drivers = append(resp.Drivers, dto.VehicleDriverInfo{
@@ -222,7 +243,146 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 		})
 	}
 
+	resp.StatusHistory = make([]dto.VehicleStatusHistoryItem, 0, len(statusHistory))
+	for _, item := range statusHistory {
+		resp.StatusHistory = append(resp.StatusHistory, mapVehicleStatusHistoryToVehicleItemDTO(item))
+	}
+
+	resp.Tripsheets = make([]dto.VehicleTripsheetHistoryItem, 0, len(tripsheets))
+	for _, item := range tripsheets {
+		resp.Tripsheets = append(resp.Tripsheets, mapVehicleTripsheetToDTO(item))
+	}
+
+	resp.Services = make([]dto.VehicleServiceHistoryItem, 0, len(vehicleServices))
+	for _, item := range vehicleServices {
+		resp.Services = append(resp.Services, mapVehicleServiceHistoryToDTO(item))
+	}
+
 	return resp, nil
+}
+
+func mapVehicleStatusHistoryToVehicleItemDTO(item models.VehicleStatusHistory) dto.VehicleStatusHistoryItem {
+	isCurrent := item.EndDate == nil
+	endDateDisplay := ""
+	if isCurrent {
+		endDateDisplay = "По настоящее время"
+	} else if item.EndDate != nil {
+		endDateDisplay = item.EndDate.Format("2006-01-02 15:04:05")
+	}
+
+	return dto.VehicleStatusHistoryItem{
+		ID:        item.ID,
+		VehicleID: item.VehicleID,
+		StatusID:  item.StatusID,
+		Status: dto.VehicleStatusBriefInfo{
+			ID:   item.StatusID,
+			Name: item.StatusName,
+		},
+		StartDate:      item.StartDate,
+		EndDate:        item.EndDate,
+		EndDateDisplay: endDateDisplay,
+		IsCurrent:      isCurrent,
+		CreatedAt:      item.CreatedAt,
+		UpdatedAt:      item.UpdatedAt,
+	}
+}
+
+func mapVehicleTripsheetToDTO(item repository.VehicleTripsheetHistoryRow) dto.VehicleTripsheetHistoryItem {
+	trips := make([]dto.VehicleTripsheetTripHistoryItem, 0, len(item.Trips))
+	for _, trip := range item.Trips {
+		trips = append(trips, dto.VehicleTripsheetTripHistoryItem{
+			ID:               trip.ID,
+			TripsheetID:      trip.TripsheetID,
+			RouteDescription: trip.RouteDescription,
+			StartTime:        trip.StartTime,
+			EndTime:          trip.EndTime,
+			DistancePassed:   trip.DistancePassed,
+			StatusID:         trip.StatusID,
+			Status: dto.VehicleTripsheetStatusBriefInfo{
+				ID:   trip.StatusID,
+				Name: trip.StatusName,
+			},
+			CreatedAt: trip.CreatedAt,
+			UpdatedAt: trip.UpdatedAt,
+		})
+	}
+
+	return dto.VehicleTripsheetHistoryItem{
+		ID:                         item.ID,
+		TripsheetNumber:            item.TripsheetNumber,
+		TripsheetDate:              item.TripsheetDate.Format("2006-01-02"),
+		VehicleID:                  item.VehicleID,
+		VehicleBrand:               item.VehicleBrand,
+		VehiclePlateNumber:         item.VehiclePlateNumber,
+		DriverID:                   item.DriverID,
+		Driver:                     mapVehicleTripsheetDriverToDTO(item),
+		DriverLastName:             firstStringPtr(item.DriverLastName, item.DriverSnapshotLastName),
+		DriverFirstName:            firstStringPtr(item.DriverFirstName, item.DriverSnapshotFirstName),
+		DriverMiddleName:           firstStringPtr(item.DriverMiddleName, item.DriverSnapshotMiddleName),
+		StartTime:                  item.StartTime,
+		EndTime:                    item.EndTime,
+		MileageStart:               item.MileageStart,
+		MileageEnd:                 item.MileageEnd,
+		FuelStart:                  item.FuelStart,
+		FuelIssued:                 item.FuelIssued,
+		FuelConsumptionTheoretical: item.FuelConsumptionTheoretical,
+		FuelConsumptionActual:      item.FuelConsumptionActual,
+		StatusID:                   item.StatusID,
+		Status: dto.VehicleTripsheetStatusBriefInfo{
+			ID:   item.StatusID,
+			Name: item.StatusName,
+		},
+		Trips:     trips,
+		CreatedAt: item.CreatedAt,
+		UpdatedAt: item.UpdatedAt,
+	}
+}
+
+func mapVehicleTripsheetDriverToDTO(item repository.VehicleTripsheetHistoryRow) *dto.VehicleTripsheetDriverInfo {
+	if item.DriverID == nil && item.DriverIIN == nil && item.DriverFirstName == nil && item.DriverLastName == nil && item.DriverSnapshotFirstName == nil && item.DriverSnapshotLastName == nil {
+		return nil
+	}
+
+	return &dto.VehicleTripsheetDriverInfo{
+		ID:         item.DriverID,
+		IIN:        item.DriverIIN,
+		FirstName:  firstStringPtr(item.DriverFirstName, item.DriverSnapshotFirstName),
+		LastName:   firstStringPtr(item.DriverLastName, item.DriverSnapshotLastName),
+		MiddleName: firstStringPtr(item.DriverMiddleName, item.DriverSnapshotMiddleName),
+		Phone:      item.DriverPhone,
+		Email:      item.DriverEmail,
+	}
+}
+
+func firstStringPtr(values ...*string) *string {
+	for _, value := range values {
+		if value != nil && *value != "" {
+			return value
+		}
+	}
+	return nil
+}
+
+func mapVehicleServiceHistoryToDTO(item repository.VehicleServiceHistoryRow) dto.VehicleServiceHistoryItem {
+	return dto.VehicleServiceHistoryItem{
+		ID:     item.ID,
+		TypeID: item.TypeID,
+		Type: dto.VehicleServiceTypeInfo{
+			ID:          item.TypeID,
+			Name:        item.TypeName,
+			Description: item.TypeDescription,
+		},
+		PartID: item.PartID,
+		Part: dto.VehicleServicePartInfo{
+			ID:          item.PartID,
+			Name:        item.PartName,
+			Description: item.PartDescription,
+		},
+		VehicleID: item.VehicleID,
+		Date:      item.ServiceDate,
+		CreatedAt: item.CreatedAt,
+		UpdatedAt: item.UpdatedAt,
+	}
 }
 
 func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
@@ -261,6 +421,9 @@ func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
 		TechnicalInspections: []dto.VehicleTechnicalInspectionHistoryItem{},
 		Incidents:            []dto.VehicleIncidentHistoryItem{},
 		InstalledParts:       []dto.VehicleInstalledPartHistoryItem{},
+		StatusHistory:        []dto.VehicleStatusHistoryItem{},
+		Tripsheets:           []dto.VehicleTripsheetHistoryItem{},
+		Services:             []dto.VehicleServiceHistoryItem{},
 
 		CreatedAt: v.CreatedAt,
 		UpdatedAt: v.UpdatedAt,
