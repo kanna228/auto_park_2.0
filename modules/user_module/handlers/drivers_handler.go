@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"auto_park/modules/user_module/dto"
+	"auto_park/modules/user_module/models"
 	"auto_park/modules/user_module/repository"
 	"auto_park/modules/user_module/service"
 
@@ -18,22 +19,82 @@ import (
 // =======================
 
 type DriverDTO struct {
-	ID         int64  `json:"id" example:"1"`
-	IIN        string `json:"iin" example:"001122334455"`
-	Name       string `json:"name" example:"Dias"`
-	Surname    string `json:"surname" example:"Arnold"`
-	Middlename string `json:"middlename,omitempty" example:"A."`
-	Phone      string `json:"phone,omitempty" example:"+77001234567"`
-	Mail       string `json:"mail,omitempty" example:"dias@example.com"`
-	PhotoPath  string `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
-	PhotoURL   string `json:"photo_url,omitempty" example:"http://localhost:8080/static/drivers/driver_1_1710000000.jpg"`
-	CreatedAt  string `json:"created_at" example:"2026-02-18T12:34:56Z"`
-	UpdatedAt  string `json:"updated_at" example:"2026-02-18T12:34:56Z"`
+	ID              int64   `json:"id" example:"1"`
+	IIN             string  `json:"iin" example:"001122334455"`
+	Name            string  `json:"name" example:"Dias"`
+	Surname         string  `json:"surname" example:"Arnold"`
+	Middlename      string  `json:"middlename,omitempty" example:"A."`
+	Phone           string  `json:"phone,omitempty" example:"+77001234567"`
+	Mail            string  `json:"mail,omitempty" example:"dias@example.com"`
+	PhotoPath       string  `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
+	PhotoURL        string  `json:"photo_url,omitempty" example:"http://localhost:8080/static/drivers/driver_1_1710000000.jpg"`
+	BirthDate       *string `json:"birth_date,omitempty" example:"1990-11-11"`
+	LicenseNumber   string  `json:"license_number,omitempty" example:"DL-123456"`
+	LicenseCategory string  `json:"license_category,omitempty" example:"B, C"`
+	ExperienceYears *int    `json:"experience_years,omitempty" example:"5"`
+	CreatedAt       string  `json:"created_at" example:"2026-02-18T12:34:56Z"`
+	UpdatedAt       string  `json:"updated_at" example:"2026-02-18T12:34:56Z"`
+}
+
+type DriverAssignedVehicleDTO struct {
+	ID          int64  `json:"id" example:"1"`
+	BoardNumber string `json:"board_number" example:"55"`
+	StateNumber string `json:"state_number" example:"777ABC01"`
+	BrandModel  string `json:"brand_model" example:"Toyota Camry"`
+	StatusID    int64  `json:"status_id" example:"1"`
+	StatusName  string `json:"status_name" example:"В использовании"`
+}
+
+type DriverPassportTripsheetDTO struct {
+	ID                 int64   `json:"id" example:"1"`
+	TripsheetNumber    string  `json:"tripsheet_number" example:"TS-001"`
+	TripsheetDate      string  `json:"tripsheet_date" example:"2026-05-14"`
+	VehicleID          *int64  `json:"vehicle_id,omitempty" example:"1"`
+	VehicleBrand       *string `json:"vehicle_brand,omitempty" example:"Toyota Camry"`
+	VehiclePlateNumber string  `json:"vehicle_plate_number" example:"777ABC01"`
+	StartTime          *string `json:"start_time,omitempty" example:"2026-05-14T08:00:00Z"`
+	EndTime            *string `json:"end_time,omitempty" example:"2026-05-14T18:00:00Z"`
+	WorkedHours        float64 `json:"worked_hours" example:"10"`
+	TripsCount         int64   `json:"trips_count" example:"5"`
+	StatusID           int64   `json:"status_id" example:"1"`
+	StatusName         *string `json:"status_name,omitempty" example:"Окончен"`
+	CreatedAt          string  `json:"created_at" example:"2026-05-14T08:00:00Z"`
+	UpdatedAt          string  `json:"updated_at" example:"2026-05-14T18:00:00Z"`
+}
+
+type DriverPassportIncidentDTO struct {
+	ID                 int64  `json:"id" example:"1"`
+	IncidentTypeID     int64  `json:"incident_type_id" example:"1"`
+	IncidentTypeName   string `json:"incident_type_name" example:"ДТП"`
+	VehicleID          int64  `json:"vehicle_id" example:"1"`
+	VehicleStateNumber string `json:"vehicle_state_number" example:"777ABC01"`
+	TripsheetID        *int64 `json:"tripsheet_id,omitempty" example:"1"`
+	IncidentDate       string `json:"incident_date" example:"2026-05-14"`
+	IncidentTime       string `json:"incident_time" example:"14:30:00"`
+	Location           string `json:"location" example:"Астана"`
+	Description        string `json:"description,omitempty" example:"Minor accident"`
+	CreatedAt          string `json:"created_at" example:"2026-05-14T14:30:00Z"`
+	UpdatedAt          string `json:"updated_at" example:"2026-05-14T14:30:00Z"`
+}
+
+type DriverPassportDTO struct {
+	Driver           DriverDTO                    `json:"driver"`
+	Status           string                       `json:"status" example:"Доступен"`
+	AssignedVehicles []DriverAssignedVehicleDTO   `json:"assigned_vehicles"`
+	TotalWorkedHours float64                      `json:"total_worked_hours" example:"40"`
+	IncidentsCount   int64                        `json:"incidents_count" example:"5"`
+	Tripsheets       []DriverPassportTripsheetDTO `json:"tripsheets"`
+	Incidents        []DriverPassportIncidentDTO  `json:"incidents"`
 }
 
 type DriverResponse struct {
 	Success bool      `json:"success" example:"true"`
 	Data    DriverDTO `json:"data"`
+}
+
+type DriverPassportResponse struct {
+	Success bool              `json:"success" example:"true"`
+	Data    DriverPassportDTO `json:"data"`
 }
 
 type DriversListResponse struct {
@@ -98,26 +159,11 @@ func (h *DriversHandler) Create(c *gin.Context) {
 
 	drv, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, DriverResponse{
-		Success: true,
-		Data: DriverDTO{
-			ID:         drv.ID,
-			IIN:        drv.IIN,
-			Name:       drv.Name,
-			Surname:    drv.Surname,
-			Middlename: drv.Middlename,
-			Phone:      drv.Phone,
-			Mail:       drv.Mail,
-			PhotoPath:  drv.PhotoPath,
-			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
-			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-		},
-	})
+	c.JSON(http.StatusCreated, DriverResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
 
 // List godoc
@@ -146,33 +192,20 @@ func (h *DriversHandler) List(c *gin.Context) {
 
 	out := make([]DriverDTO, 0, len(list))
 	for i := range list {
-		d := list[i]
-		out = append(out, DriverDTO{
-			ID:         d.ID,
-			IIN:        d.IIN,
-			Name:       d.Name,
-			Surname:    d.Surname,
-			Middlename: d.Middlename,
-			Phone:      d.Phone,
-			Mail:       d.Mail,
-			PhotoPath:  d.PhotoPath,
-			PhotoURL:   driverPhotoURL(c, d.PhotoPath),
-			CreatedAt:  d.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:  d.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-		})
+		out = append(out, driverToDTO(c, list[i]))
 	}
 
 	c.JSON(http.StatusOK, DriversListResponse{Success: true, Data: out, Total: total, Limit: limit, Offset: offset})
 }
 
 // GetByID godoc
-// @Summary      Get driver by ID
-// @Description  Returns driver by id (any authorized role). JWT required.
+// @Summary      Get driver passport by ID
+// @Description  Returns full driver passport by id: base data, photo, license data, assigned vehicles, total worked hours, incidents count, latest tripsheets and latest incidents. JWT required.
 // @Tags         Drivers
 // @Produce      json
 // @Security     BearerAuth
 // @Param        id path int true "Driver ID"
-// @Success      200 {object} DriverResponse
+// @Success      200 {object} DriverPassportResponse
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      404 {object} ErrorResponse
@@ -185,7 +218,7 @@ func (h *DriversHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	drv, err := h.svc.GetByID(c.Request.Context(), id)
+	passport, err := h.svc.GetPassport(c.Request.Context(), id)
 	if err != nil {
 		if err == repository.ErrNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
@@ -195,22 +228,7 @@ func (h *DriversHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, DriverResponse{
-		Success: true,
-		Data: DriverDTO{
-			ID:         drv.ID,
-			IIN:        drv.IIN,
-			Name:       drv.Name,
-			Surname:    drv.Surname,
-			Middlename: drv.Middlename,
-			Phone:      drv.Phone,
-			Mail:       drv.Mail,
-			PhotoPath:  drv.PhotoPath,
-			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
-			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-		},
-	})
+	c.JSON(http.StatusOK, DriverPassportResponse{Success: true, Data: driverPassportToDTO(c, *passport)})
 }
 
 // Update godoc
@@ -248,26 +266,11 @@ func (h *DriversHandler) Update(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, DriverResponse{
-		Success: true,
-		Data: DriverDTO{
-			ID:         drv.ID,
-			IIN:        drv.IIN,
-			Name:       drv.Name,
-			Surname:    drv.Surname,
-			Middlename: drv.Middlename,
-			Phone:      drv.Phone,
-			Mail:       drv.Mail,
-			PhotoPath:  drv.PhotoPath,
-			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
-			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-		},
-	})
+	c.JSON(http.StatusOK, DriverResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
 
 // UploadPhoto godoc
@@ -309,22 +312,7 @@ func (h *DriversHandler) UploadPhoto(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, DriverResponse{
-		Success: true,
-		Data: DriverDTO{
-			ID:         drv.ID,
-			IIN:        drv.IIN,
-			Name:       drv.Name,
-			Surname:    drv.Surname,
-			Middlename: drv.Middlename,
-			Phone:      drv.Phone,
-			Mail:       drv.Mail,
-			PhotoPath:  drv.PhotoPath,
-			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
-			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-		},
-	})
+	c.JSON(http.StatusOK, DriverResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
 
 // DeletePhoto godoc
@@ -358,22 +346,7 @@ func (h *DriversHandler) DeletePhoto(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, DriverResponse{
-		Success: true,
-		Data: DriverDTO{
-			ID:         drv.ID,
-			IIN:        drv.IIN,
-			Name:       drv.Name,
-			Surname:    drv.Surname,
-			Middlename: drv.Middlename,
-			Phone:      drv.Phone,
-			Mail:       drv.Mail,
-			PhotoPath:  drv.PhotoPath,
-			PhotoURL:   driverPhotoURL(c, drv.PhotoPath),
-			CreatedAt:  drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-			UpdatedAt:  drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
-		},
-	})
+	c.JSON(http.StatusOK, DriverResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
 
 // Delete godoc
@@ -409,4 +382,103 @@ func (h *DriversHandler) Delete(c *gin.Context) {
 	resp := DeleteDriverResponse{Success: true}
 	resp.Data.ID = id
 	c.JSON(http.StatusOK, resp)
+}
+
+func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
+	var birthDate *string
+	if drv.BirthDate != nil {
+		v := drv.BirthDate.Format("2006-01-02")
+		birthDate = &v
+	}
+
+	return DriverDTO{
+		ID:              drv.ID,
+		IIN:             drv.IIN,
+		Name:            drv.Name,
+		Surname:         drv.Surname,
+		Middlename:      drv.Middlename,
+		Phone:           drv.Phone,
+		Mail:            drv.Mail,
+		PhotoPath:       drv.PhotoPath,
+		PhotoURL:        driverPhotoURL(c, drv.PhotoPath),
+		BirthDate:       birthDate,
+		LicenseNumber:   drv.LicenseNumber,
+		LicenseCategory: drv.LicenseCategory,
+		ExperienceYears: drv.ExperienceYears,
+		CreatedAt:       drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:       drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+}
+
+func driverPassportToDTO(c *gin.Context, passport models.DriverPassport) DriverPassportDTO {
+	assignedVehicles := make([]DriverAssignedVehicleDTO, 0, len(passport.AssignedVehicles))
+	for _, vehicle := range passport.AssignedVehicles {
+		assignedVehicles = append(assignedVehicles, DriverAssignedVehicleDTO{
+			ID:          vehicle.ID,
+			BoardNumber: vehicle.BoardNumber,
+			StateNumber: vehicle.StateNumber,
+			BrandModel:  vehicle.BrandModel,
+			StatusID:    vehicle.StatusID,
+			StatusName:  vehicle.StatusName,
+		})
+	}
+
+	tripsheets := make([]DriverPassportTripsheetDTO, 0, len(passport.Tripsheets))
+	for _, item := range passport.Tripsheets {
+		var startTime *string
+		if item.StartTime != nil {
+			v := item.StartTime.Format("15:04")
+			startTime = &v
+		}
+		var endTime *string
+		if item.EndTime != nil {
+			v := item.EndTime.Format("15:04")
+			endTime = &v
+		}
+
+		tripsheets = append(tripsheets, DriverPassportTripsheetDTO{
+			ID:                 item.ID,
+			TripsheetNumber:    item.TripsheetNumber,
+			TripsheetDate:      item.TripsheetDate,
+			VehicleID:          item.VehicleID,
+			VehicleBrand:       item.VehicleBrand,
+			VehiclePlateNumber: item.VehiclePlateNumber,
+			StartTime:          startTime,
+			EndTime:            endTime,
+			WorkedHours:        item.WorkedHours,
+			TripsCount:         item.TripsCount,
+			StatusID:           item.StatusID,
+			StatusName:         item.StatusName,
+			CreatedAt:          item.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:          item.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		})
+	}
+
+	incidents := make([]DriverPassportIncidentDTO, 0, len(passport.Incidents))
+	for _, item := range passport.Incidents {
+		incidents = append(incidents, DriverPassportIncidentDTO{
+			ID:                 item.ID,
+			IncidentTypeID:     item.IncidentTypeID,
+			IncidentTypeName:   item.IncidentTypeName,
+			VehicleID:          item.VehicleID,
+			VehicleStateNumber: item.VehicleStateNumber,
+			TripsheetID:        item.TripsheetID,
+			IncidentDate:       item.IncidentDate,
+			IncidentTime:       item.IncidentTime,
+			Location:           item.Location,
+			Description:        item.Description,
+			CreatedAt:          item.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			UpdatedAt:          item.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		})
+	}
+
+	return DriverPassportDTO{
+		Driver:           driverToDTO(c, passport.Driver),
+		Status:           passport.Status,
+		AssignedVehicles: assignedVehicles,
+		TotalWorkedHours: passport.TotalWorkedHours,
+		IncidentsCount:   passport.IncidentsCount,
+		Tripsheets:       tripsheets,
+		Incidents:        incidents,
+	}
 }

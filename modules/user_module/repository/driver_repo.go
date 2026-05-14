@@ -28,9 +28,35 @@ func (r *DriverRepo) table() string {
 
 func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driver, error) {
 	q := fmt.Sprintf(`
-		INSERT INTO %s (iin, name, surname, middlename, phone, mail, photo_path)
-		VALUES ($1,$2,$3,$4,$5,$6,$7)
-		RETURNING id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
+		INSERT INTO %s (
+			iin,
+			name,
+			surname,
+			middlename,
+			phone,
+			mail,
+			photo_path,
+			birth_date,
+			license_number,
+			license_category,
+			experience_years
+		)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+		RETURNING
+			id,
+			iin,
+			name,
+			surname,
+			middlename,
+			phone,
+			mail,
+			photo_path,
+			birth_date,
+			license_number,
+			license_category,
+			experience_years,
+			created_at,
+			updated_at
 	`, r.table())
 
 	row := r.db.QueryRowContext(ctx, q,
@@ -41,48 +67,43 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 		nullIfEmpty(d.Phone),
 		nullIfEmpty(d.Mail),
 		nullIfEmpty(d.PhotoPath),
+		nullTimeValue(d.BirthDate),
+		nullIfEmpty(d.LicenseNumber),
+		nullIfEmpty(d.LicenseCategory),
+		nullIntValue(d.ExperienceYears),
 	)
 
-	out := &models.Driver{}
-	var middlename, phone, mail, photoPath sql.NullString
-	if err := row.Scan(
-		&out.ID, &out.IIN, &out.Name, &out.Surname,
-		&middlename, &phone, &mail, &photoPath,
-		&out.CreatedAt, &out.UpdatedAt,
-	); err != nil {
-		return nil, err
-	}
-	out.Middlename = middlename.String
-	out.Phone = phone.String
-	out.Mail = mail.String
-	out.PhotoPath = photoPath.String
-	return out, nil
+	return scanDriver(row)
 }
 
 func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, error) {
 	q := fmt.Sprintf(`
-		SELECT id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
+		SELECT
+			id,
+			iin,
+			name,
+			surname,
+			middlename,
+			phone,
+			mail,
+			photo_path,
+			birth_date,
+			license_number,
+			license_category,
+			experience_years,
+			created_at,
+			updated_at
 		FROM %s
 		WHERE id=$1
 	`, r.table())
 
-	out := &models.Driver{}
-	var middlename, phone, mail, photoPath sql.NullString
-	err := r.db.QueryRowContext(ctx, q, id).Scan(
-		&out.ID, &out.IIN, &out.Name, &out.Surname,
-		&middlename, &phone, &mail, &photoPath,
-		&out.CreatedAt, &out.UpdatedAt,
-	)
+	out, err := scanDriver(r.db.QueryRowContext(ctx, q, id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	out.Middlename = middlename.String
-	out.Phone = phone.String
-	out.Mail = mail.String
-	out.PhotoPath = photoPath.String
 	return out, nil
 }
 
@@ -101,7 +122,21 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 	}
 
 	q := fmt.Sprintf(`
-		SELECT id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
+		SELECT
+			id,
+			iin,
+			name,
+			surname,
+			middlename,
+			phone,
+			mail,
+			photo_path,
+			birth_date,
+			license_number,
+			license_category,
+			experience_years,
+			created_at,
+			updated_at
 		FROM %s
 		ORDER BY surname ASC, name ASC, id ASC
 		LIMIT $1 OFFSET $2
@@ -113,22 +148,13 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 	}
 	defer rows.Close()
 
-	var res []models.Driver
+	res := make([]models.Driver, 0)
 	for rows.Next() {
-		var d models.Driver
-		var middlename, phone, mail, photoPath sql.NullString
-		if err := rows.Scan(
-			&d.ID, &d.IIN, &d.Name, &d.Surname,
-			&middlename, &phone, &mail, &photoPath,
-			&d.CreatedAt, &d.UpdatedAt,
-		); err != nil {
+		d, err := scanDriver(rows)
+		if err != nil {
 			return nil, 0, err
 		}
-		d.Middlename = middlename.String
-		d.Phone = phone.String
-		d.Mail = mail.String
-		d.PhotoPath = photoPath.String
-		res = append(res, d)
+		res = append(res, *d)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
@@ -142,13 +168,17 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 	}
 
 	allowed := map[string]bool{
-		"iin":        true,
-		"name":       true,
-		"surname":    true,
-		"middlename": true,
-		"phone":      true,
-		"mail":       true,
-		"photo_path": true,
+		"iin":              true,
+		"name":             true,
+		"surname":          true,
+		"middlename":       true,
+		"phone":            true,
+		"mail":             true,
+		"photo_path":       true,
+		"birth_date":       true,
+		"license_number":   true,
+		"license_category": true,
+		"experience_years": true,
 	}
 
 	setParts := make([]string, 0, len(upd)+1)
@@ -178,27 +208,30 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		UPDATE %s
 		SET %s
 		WHERE id=$%d
-		RETURNING id, iin, name, surname, middlename, phone, mail, photo_path, created_at, updated_at
+		RETURNING
+			id,
+			iin,
+			name,
+			surname,
+			middlename,
+			phone,
+			mail,
+			photo_path,
+			birth_date,
+			license_number,
+			license_category,
+			experience_years,
+			created_at,
+			updated_at
 	`, r.table(), strings.Join(setParts, ", "), i)
 
-	row := r.db.QueryRowContext(ctx, q, args...)
-
-	out := &models.Driver{}
-	var middlename, phone, mail, photoPath sql.NullString
-	if err := row.Scan(
-		&out.ID, &out.IIN, &out.Name, &out.Surname,
-		&middlename, &phone, &mail, &photoPath,
-		&out.CreatedAt, &out.UpdatedAt,
-	); err != nil {
+	out, err := scanDriver(r.db.QueryRowContext(ctx, q, args...))
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
 		return nil, err
 	}
-	out.Middlename = middlename.String
-	out.Phone = phone.String
-	out.Mail = mail.String
-	out.PhotoPath = photoPath.String
 	return out, nil
 }
 
@@ -221,9 +254,370 @@ func (r *DriverRepo) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
+func (r *DriverRepo) GetPassport(ctx context.Context, id int64) (*models.DriverPassport, error) {
+	driver, err := r.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	assignedVehicles, err := r.listDriverAssignedVehicles(ctx, driver.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	totalWorkedHours, err := r.getDriverTotalWorkedHours(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	incidentsCount, err := r.getDriverAccidentsCount(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	tripsheets, err := r.listDriverPassportTripsheets(ctx, id, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	incidents, err := r.listDriverPassportIncidents(ctx, id, 8)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.DriverPassport{
+		Driver:           *driver,
+		Status:           resolveDriverStatus(assignedVehicles),
+		AssignedVehicles: assignedVehicles,
+		TotalWorkedHours: totalWorkedHours,
+		IncidentsCount:   incidentsCount,
+		Tripsheets:       tripsheets,
+		Incidents:        incidents,
+	}, nil
+}
+
+func (r *DriverRepo) listDriverAssignedVehicles(ctx context.Context, driverID int64) ([]models.DriverAssignedVehicle, error) {
+	const q = `
+		SELECT
+			v.id,
+			v.board_number,
+			v.state_number,
+			v.brand_model,
+			v.status_id,
+			COALESCE(vs.name, '') AS status_name
+		FROM vehicles v
+		LEFT JOIN vehicle_status vs ON vs.id = v.status_id
+		WHERE $1 = ANY(v.drivers_ids)
+		ORDER BY v.updated_at DESC, v.id DESC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, driverID)
+	if err != nil {
+		return nil, fmt.Errorf("list assigned vehicles for driver: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.DriverAssignedVehicle, 0)
+	for rows.Next() {
+		var item models.DriverAssignedVehicle
+		if err := rows.Scan(&item.ID, &item.BoardNumber, &item.StateNumber, &item.BrandModel, &item.StatusID, &item.StatusName); err != nil {
+			return nil, fmt.Errorf("scan assigned vehicle for driver: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("assigned vehicles rows: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *DriverRepo) getDriverTotalWorkedHours(ctx context.Context, driverID int64) (float64, error) {
+	const q = `
+		SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 3600.0), 0)
+		FROM tripsheets
+		WHERE driver_id = $1
+		  AND start_time IS NOT NULL
+		  AND end_time IS NOT NULL
+		  AND end_time > start_time;
+	`
+
+	var hours float64
+	if err := r.db.QueryRowContext(ctx, q, driverID).Scan(&hours); err != nil {
+		return 0, fmt.Errorf("get driver total worked hours: %w", err)
+	}
+	return hours, nil
+}
+
+func (r *DriverRepo) getDriverAccidentsCount(ctx context.Context, driverID int64) (int64, error) {
+	const q = `
+		SELECT COUNT(*)
+		FROM incidents i
+		INNER JOIN incident_types it ON it.id = i.incident_type_id
+		WHERE i.driver_id = $1
+		  AND LOWER(it.name) = LOWER('ДТП');
+	`
+
+	var count int64
+	if err := r.db.QueryRowContext(ctx, q, driverID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("get driver accidents count: %w", err)
+	}
+	return count, nil
+}
+
+func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID int64, limit int) ([]models.DriverPassportTripsheetItem, error) {
+	if limit <= 0 {
+		limit = 8
+	}
+
+	const q = `
+		SELECT
+			t.id,
+			t.tripsheet_number,
+			t.tripsheet_date,
+			t.vehicle_id,
+			t.vehicle_brand,
+			t.vehicle_plate_number,
+			t.start_time,
+			t.end_time,
+			CASE
+				WHEN t.start_time IS NOT NULL AND t.end_time IS NOT NULL AND t.end_time > t.start_time
+				THEN EXTRACT(EPOCH FROM (t.end_time - t.start_time)) / 3600.0
+				ELSE 0
+			END AS worked_hours,
+			COUNT(tt.id) AS trips_count,
+			t.status_id,
+			ts.name AS status_name,
+			t.created_at,
+			t.updated_at
+		FROM tripsheets t
+		LEFT JOIN tripsheet_statuses ts ON ts.id = t.status_id
+		LEFT JOIN tripsheet_trips tt ON tt.tripsheet_id = t.id
+		WHERE t.driver_id = $1
+		GROUP BY
+			t.id,
+			t.tripsheet_number,
+			t.tripsheet_date,
+			t.vehicle_id,
+			t.vehicle_brand,
+			t.vehicle_plate_number,
+			t.start_time,
+			t.end_time,
+			t.status_id,
+			ts.name,
+			t.created_at,
+			t.updated_at
+		ORDER BY t.tripsheet_date DESC, COALESCE(t.start_time, t.created_at) DESC, t.id DESC
+		LIMIT $2;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, driverID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list driver passport tripsheets: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.DriverPassportTripsheetItem, 0)
+	for rows.Next() {
+		var item models.DriverPassportTripsheetItem
+		var tripDate time.Time
+		var vehicleID sql.NullInt64
+		var vehicleBrand sql.NullString
+		var startTime sql.NullTime
+		var endTime sql.NullTime
+		var statusName sql.NullString
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.TripsheetNumber,
+			&tripDate,
+			&vehicleID,
+			&vehicleBrand,
+			&item.VehiclePlateNumber,
+			&startTime,
+			&endTime,
+			&item.WorkedHours,
+			&item.TripsCount,
+			&item.StatusID,
+			&statusName,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan driver passport tripsheet: %w", err)
+		}
+
+		item.TripsheetDate = tripDate.Format("2006-01-02")
+		item.VehicleID = nullableInt64Ptr(vehicleID)
+		item.VehicleBrand = nullableStringPtr(vehicleBrand)
+		item.StatusName = nullableStringPtr(statusName)
+		if startTime.Valid {
+			item.StartTime = &startTime.Time
+		}
+		if endTime.Valid {
+			item.EndTime = &endTime.Time
+		}
+
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("driver passport tripsheet rows: %w", err)
+	}
+
+	return items, nil
+}
+
+func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID int64, limit int) ([]models.DriverPassportIncidentItem, error) {
+	if limit <= 0 {
+		limit = 8
+	}
+
+	const q = `
+		SELECT
+			i.id,
+			i.incident_type_id,
+			it.name AS incident_type_name,
+			i.vehicle_id,
+			v.state_number AS vehicle_state_number,
+			i.tripsheet_id,
+			i.incident_date,
+			i.incident_time::text,
+			i.location,
+			COALESCE(i.description, ''),
+			i.created_at,
+			i.updated_at
+		FROM incidents i
+		INNER JOIN incident_types it ON it.id = i.incident_type_id
+		INNER JOIN vehicles v ON v.id = i.vehicle_id
+		WHERE i.driver_id = $1
+		ORDER BY i.incident_date DESC, i.incident_time DESC, i.id DESC
+		LIMIT $2;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, driverID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list driver passport incidents: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.DriverPassportIncidentItem, 0)
+	for rows.Next() {
+		var item models.DriverPassportIncidentItem
+		var incidentDate time.Time
+		var tripsheetID sql.NullInt64
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.IncidentTypeID,
+			&item.IncidentTypeName,
+			&item.VehicleID,
+			&item.VehicleStateNumber,
+			&tripsheetID,
+			&incidentDate,
+			&item.IncidentTime,
+			&item.Location,
+			&item.Description,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan driver passport incident: %w", err)
+		}
+
+		item.IncidentDate = incidentDate.Format("2006-01-02")
+		item.TripsheetID = nullableInt64Ptr(tripsheetID)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("driver passport incident rows: %w", err)
+	}
+
+	return items, nil
+}
+
+type driverScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanDriver(scanner driverScanner) (*models.Driver, error) {
+	out := &models.Driver{}
+	var middlename, phone, mail, photoPath sql.NullString
+	var birthDate sql.NullTime
+	var licenseNumber, licenseCategory sql.NullString
+	var experienceYears sql.NullInt64
+
+	if err := scanner.Scan(
+		&out.ID,
+		&out.IIN,
+		&out.Name,
+		&out.Surname,
+		&middlename,
+		&phone,
+		&mail,
+		&photoPath,
+		&birthDate,
+		&licenseNumber,
+		&licenseCategory,
+		&experienceYears,
+		&out.CreatedAt,
+		&out.UpdatedAt,
+	); err != nil {
+		return nil, err
+	}
+
+	out.Middlename = middlename.String
+	out.Phone = phone.String
+	out.Mail = mail.String
+	out.PhotoPath = photoPath.String
+	if birthDate.Valid {
+		out.BirthDate = &birthDate.Time
+	}
+	out.LicenseNumber = licenseNumber.String
+	out.LicenseCategory = licenseCategory.String
+	if experienceYears.Valid {
+		v := int(experienceYears.Int64)
+		out.ExperienceYears = &v
+	}
+
+	return out, nil
+}
+
 func nullIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}
 	return s
+}
+
+func nullTimeValue(v *time.Time) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
+func nullIntValue(v *int) any {
+	if v == nil || *v < 0 {
+		return nil
+	}
+	return *v
+}
+
+func nullableStringPtr(v sql.NullString) *string {
+	if !v.Valid {
+		return nil
+	}
+	return &v.String
+}
+
+func nullableInt64Ptr(v sql.NullInt64) *int64 {
+	if !v.Valid {
+		return nil
+	}
+	return &v.Int64
+}
+
+func resolveDriverStatus(assignedVehicles []models.DriverAssignedVehicle) string {
+	if len(assignedVehicles) == 0 {
+		return "Не закреплён"
+	}
+	return "Доступен"
 }

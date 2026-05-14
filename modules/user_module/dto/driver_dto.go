@@ -1,21 +1,29 @@
 package dto
 
 type CreateDriverRequest struct {
-	IIN        string `json:"iin" binding:"required" example:"990101350011"`
-	Name       string `json:"name" binding:"required" example:"Ivan"`
-	Surname    string `json:"surname" binding:"required" example:"Ivanov"`
-	Middlename string `json:"middlename" example:"Ivanovich"`
-	Phone      string `json:"phone" example:"+77001234567"`
-	Mail       string `json:"mail" example:"driver@mail.com"`
+	IIN             string `json:"iin" binding:"required" example:"990101350011"`
+	Name            string `json:"name" binding:"required" example:"Ivan"`
+	Surname         string `json:"surname" binding:"required" example:"Ivanov"`
+	Middlename      string `json:"middlename" example:"Ivanovich"`
+	Phone           string `json:"phone" example:"+77001234567"`
+	Mail            string `json:"mail" example:"driver@mail.com"`
+	BirthDate       string `json:"birth_date,omitempty" example:"1990-11-11"`
+	LicenseNumber   string `json:"license_number,omitempty" example:"DL-123456"`
+	LicenseCategory string `json:"license_category,omitempty" example:"B, C"`
+	ExperienceYears *int   `json:"experience_years,omitempty" example:"5"`
 }
 
 type UpdateDriverRequest struct {
-	IIN        *string `json:"iin"`
-	Name       *string `json:"name"`
-	Surname    *string `json:"surname"`
-	Middlename *string `json:"middlename"`
-	Phone      *string `json:"phone"`
-	Mail       *string `json:"mail"`
+	IIN             *string `json:"iin"`
+	Name            *string `json:"name"`
+	Surname         *string `json:"surname"`
+	Middlename      *string `json:"middlename"`
+	Phone           *string `json:"phone"`
+	Mail            *string `json:"mail"`
+	BirthDate       *string `json:"birth_date"`
+	LicenseNumber   *string `json:"license_number"`
+	LicenseCategory *string `json:"license_category"`
+	ExperienceYears *int    `json:"experience_years"`
 }
 
 type UploadDriverPhotoRequest struct {
