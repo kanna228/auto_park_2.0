@@ -14,7 +14,7 @@ type TireRepository interface {
 	List(ctx context.Context, q ListTiresParams) ([]models.Tire, int64, error)
 	UpdateByID(ctx context.Context, id int64, p UpdateTireParams) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
-	GetByVehicleID(ctx context.Context, vehicleID int64) ([]models.Tire, error)
+	GetByVehicleID(ctx context.Context, vehicleID int64, limit int, offset int) ([]models.Tire, int64, error)
 }
 
 type CreateTireParams struct {

@@ -39,6 +39,9 @@ type DriverResponse struct {
 type DriversListResponse struct {
 	Success bool        `json:"success" example:"true"`
 	Data    []DriverDTO `json:"data"`
+	Total   int64       `json:"total" example:"1"`
+	Limit   int         `json:"limit" example:"50"`
+	Offset  int         `json:"offset" example:"0"`
 }
 
 type DeleteDriverResponse struct {
@@ -125,6 +128,8 @@ func (h *DriversHandler) Create(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        limit  query int false "Limit"  default(50)
 // @Param        offset query int false "Offset" default(0)
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size" default(50)
 // @Success      200 {object} DriversListResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
@@ -133,7 +138,7 @@ func (h *DriversHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	list, err := h.svc.List(c.Request.Context(), limit, offset)
+	list, total, err := h.svc.List(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
@@ -157,7 +162,7 @@ func (h *DriversHandler) List(c *gin.Context) {
 		})
 	}
 
-	c.JSON(http.StatusOK, DriversListResponse{Success: true, Data: out})
+	c.JSON(http.StatusOK, DriversListResponse{Success: true, Data: out, Total: total, Limit: limit, Offset: offset})
 }
 
 // GetByID godoc

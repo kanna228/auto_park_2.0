@@ -214,9 +214,17 @@ func (h *TripsheetTripHandler) GetByID(c *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        tripsheet_id query int false "Tripsheet ID"
+// @Param        vehicle_id query int false "Vehicle ID"
+// @Param        driver_id query int false "Driver ID"
 // @Param        status_id query int false "Status ID"
 // @Param        date_from query string false "Date from (YYYY-MM-DD)"
 // @Param        date_to query string false "Date to (YYYY-MM-DD)"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size" default(50)
+// @Param        sort_by query string false "Sort by: id, tripsheet_id, vehicle_id, driver_id, status_id, start_time, created_at"
+// @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} TripsheetTripListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -240,10 +248,21 @@ func (h *TripsheetTripHandler) GetAll(c *gin.Context) {
 		return
 	}
 
+	limit := filter.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"items":   items,
 		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
 	})
 }
 
@@ -257,6 +276,12 @@ func (h *TripsheetTripHandler) GetAll(c *gin.Context) {
 // @Param        status_id query int false "Status ID"
 // @Param        date_from query string false "Date from (YYYY-MM-DD)"
 // @Param        date_to query string false "Date to (YYYY-MM-DD)"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size" default(50)
+// @Param        sort_by query string false "Sort by: id, tripsheet_id, vehicle_id, driver_id, status_id, start_time, created_at"
+// @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} TripsheetTripListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -289,9 +314,20 @@ func (h *TripsheetTripHandler) GetAllByTripsheetID(c *gin.Context) {
 		return
 	}
 
+	limit := filter.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"items":   items,
 		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
 	})
 }

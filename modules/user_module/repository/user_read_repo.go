@@ -15,7 +15,7 @@ var (
 
 type UsersReadRepo interface {
 	GetUserPublicByID(ctx context.Context, id int64) (*models.UserPublic, error)
-	ListUsersForRole(ctx context.Context, requesterRole int64, requesterID int64) ([]models.UserPublic, error)
+	ListUsersForRole(ctx context.Context, requesterRole int64, requesterID int64, limit int, offset int) ([]models.UserPublic, int64, error)
 }
 
 func (r *UserRepo) GetUserPublicByID(ctx context.Context, id int64) (*models.UserPublic, error) {
@@ -44,33 +44,47 @@ func (r *UserRepo) GetUserPublicByID(ctx context.Context, id int64) (*models.Use
 // role=1 → все
 // role=2 → только (2,3)
 // role=3 → только сам себя
-func (r *UserRepo) ListUsersForRole(ctx context.Context, requesterRole int64, requesterID int64) ([]models.UserPublic, error) {
-	var (
-		q    string
-		args []any
-	)
+func (r *UserRepo) ListUsersForRole(ctx context.Context, requesterRole int64, requesterID int64, limit int, offset int) ([]models.UserPublic, int64, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
 
-	baseSelect := fmt.Sprintf(`
-		SELECT id, email, first_name, last_name, middle_name, iin, phone, role_id, last_seen, created_at, updated_at
-		FROM %s
-	`, r.usersTable())
+	where := ""
+	args := make([]any, 0, 4)
 
 	switch requesterRole {
 	case 1:
-		q = baseSelect + ` ORDER BY id ASC;`
+		where = ""
 	case 2:
-		q = baseSelect + ` WHERE role_id IN (2,3) ORDER BY id ASC;`
+		where = " WHERE role_id IN (2,3)"
 	case 3:
-		q = baseSelect + ` WHERE id = $1 ORDER BY id ASC;`
+		where = " WHERE id = $1"
 		args = append(args, requesterID)
 	default:
-		// неизвестная роль — ничего
-		return []models.UserPublic{}, nil
+		return []models.UserPublic{}, 0, nil
 	}
+
+	countQ := fmt.Sprintf(`SELECT COUNT(*) FROM %s%s;`, r.usersTable(), where)
+	var total int64
+	if err := r.DB.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count users: %w", err)
+	}
+
+	args = append(args, limit, offset)
+	q := fmt.Sprintf(`
+		SELECT id, email, first_name, last_name, middle_name, iin, phone, role_id, last_seen, created_at, updated_at
+		FROM %s
+		%s
+		ORDER BY id ASC
+		LIMIT $%d OFFSET $%d;
+	`, r.usersTable(), where, len(args)-1, len(args))
 
 	rows, err := r.DB.QueryContext(ctx, q, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list users: %w", err)
+		return nil, 0, fmt.Errorf("list users: %w", err)
 	}
 	defer rows.Close()
 
@@ -81,15 +95,15 @@ func (r *UserRepo) ListUsersForRole(ctx context.Context, requesterRole int64, re
 			&u.ID, &u.Email, &u.FirstName, &u.LastName, &u.MiddleName,
 			&u.IIN, &u.Phone, &u.RoleID, &u.LastSeen, &u.CreatedAt, &u.UpdatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
+			return nil, 0, fmt.Errorf("scan user: %w", err)
 		}
 		out = append(out, u)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows error: %w", err)
+		return nil, 0, fmt.Errorf("rows error: %w", err)
 	}
 
-	return out, nil
+	return out, total, nil
 }
 
 // (опционально) если у тебя где-то есть rolesTable и т.п.

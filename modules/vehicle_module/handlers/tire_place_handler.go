@@ -92,17 +92,49 @@ func (h *TirePlaceHandler) GetTirePlaceByID(c *gin.Context) {
 
 // ListTirePlaces godoc
 // @Summary      List tire places
-// @Description  Returns all tire places.
+// @Description  Returns tire places with filters, pagination and sorting.
 // @Tags         Tire Places
 // @Produce      json
 // @Security     BearerAuth
+// @Param        name query string false "Filter by tire place name"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        sort_by query string false "Sort by: id, name"
+// @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} TirePlaceListResponseWrap
+// @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
 // @Router       /api/vehicles/tire-places [get]
 func (h *TirePlaceHandler) ListTirePlaces(c *gin.Context) {
-	resp, err := h.svc.List(c.Request.Context())
+	q := dto.TirePlaceListQuery{
+		Name:   c.Query("name"),
+		SortBy: c.Query("sort_by"),
+		Order:  c.Query("order"),
+	}
+
+	if s := strings.TrimSpace(c.Query("limit")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid limit"})
+			return
+		}
+		q.Limit = n
+	} else {
+		q.Limit = 50
+	}
+
+	if s := strings.TrimSpace(c.Query("offset")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid offset"})
+			return
+		}
+		q.Offset = n
+	}
+
+	resp, err := h.svc.List(c.Request.Context(), q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return

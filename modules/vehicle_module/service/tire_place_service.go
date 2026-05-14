@@ -13,7 +13,7 @@ import (
 type TirePlaceService interface {
 	Create(ctx context.Context, req dto.TirePlaceCreateRequest) (int64, error)
 	GetByID(ctx context.Context, id int64) (*dto.TirePlaceResponse, error)
-	List(ctx context.Context) (*dto.TirePlaceListResponse, error)
+	List(ctx context.Context, q dto.TirePlaceListQuery) (*dto.TirePlaceListResponse, error)
 	UpdateByID(ctx context.Context, id int64, req dto.TirePlaceUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
 }
@@ -52,8 +52,14 @@ func (s *tirePlaceService) GetByID(ctx context.Context, id int64) (*dto.TirePlac
 	return &resp, nil
 }
 
-func (s *tirePlaceService) List(ctx context.Context) (*dto.TirePlaceListResponse, error) {
-	items, total, err := s.repo.List(ctx)
+func (s *tirePlaceService) List(ctx context.Context, q dto.TirePlaceListQuery) (*dto.TirePlaceListResponse, error) {
+	items, total, err := s.repo.List(ctx, repository.ListTirePlacesParams{
+		Name:   q.Name,
+		Limit:  q.Limit,
+		Offset: q.Offset,
+		SortBy: q.SortBy,
+		Order:  q.Order,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -63,9 +69,20 @@ func (s *tirePlaceService) List(ctx context.Context) (*dto.TirePlaceListResponse
 		out = append(out, mapTirePlaceToDTO(item))
 	}
 
+	limit := q.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := q.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
 	return &dto.TirePlaceListResponse{
-		Items: out,
-		Total: total,
+		Items:  out,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
 	}, nil
 }
 

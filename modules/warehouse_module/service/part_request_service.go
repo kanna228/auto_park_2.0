@@ -34,8 +34,8 @@ type PartRequestService interface {
 	UpdateByID(ctx context.Context, id int64, changedByUserID int64, roleID int64, req dto.PartRequestUpdateRequest) (bool, error)
 	UpdateStatusByID(ctx context.Context, id int64, changedByUserID int64, roleID int64, req dto.PartRequestStatusUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64, changedByUserID int64) (bool, error)
-	ListStatuses(ctx context.Context) ([]dto.PartRequestStatusResponse, error)
-	ListHistoryByRequestID(ctx context.Context, id int64) (*dto.PartRequestHistoryListResponse, error)
+	ListStatuses(ctx context.Context, limit int, offset int) (*dto.PartRequestStatusListResponse, error)
+	ListHistoryByRequestID(ctx context.Context, id int64, limit int, offset int) (*dto.PartRequestHistoryListResponse, error)
 	ListHistory(ctx context.Context, q dto.PartRequestHistoryListQuery) (*dto.PartRequestHistoryListResponse, error)
 }
 
@@ -95,7 +95,7 @@ func (s *partRequestService) GetByID(ctx context.Context, id int64) (*dto.PartRe
 		return nil, nil
 	}
 
-	history, err := s.repo.ListHistoryByRequestID(ctx, id)
+	history, _, err := s.repo.ListHistoryByRequestID(ctx, id, 50, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -344,19 +344,43 @@ func (s *partRequestService) DeleteByID(ctx context.Context, id int64, changedBy
 	})
 }
 
-func (s *partRequestService) ListStatuses(ctx context.Context) ([]dto.PartRequestStatusResponse, error) {
+func (s *partRequestService) ListStatuses(ctx context.Context, limit int, offset int) (*dto.PartRequestStatusListResponse, error) {
 	items, err := s.repo.ListStatuses(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]dto.PartRequestStatusResponse, 0, len(items))
-	for _, item := range items {
+
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	total := int64(len(items))
+	start := offset
+	if start > len(items) {
+		start = len(items)
+	}
+	end := start + limit
+	if end > len(items) {
+		end = len(items)
+	}
+
+	out := make([]dto.PartRequestStatusResponse, 0, end-start)
+	for _, item := range items[start:end] {
 		out = append(out, mapPartRequestStatusToDTO(item))
 	}
-	return out, nil
+
+	return &dto.PartRequestStatusListResponse{
+		Items:  out,
+		Total:  total,
+		Limit:  limit,
+		Offset: offset,
+	}, nil
 }
 
-func (s *partRequestService) ListHistoryByRequestID(ctx context.Context, id int64) (*dto.PartRequestHistoryListResponse, error) {
+func (s *partRequestService) ListHistoryByRequestID(ctx context.Context, id int64, limit int, offset int) (*dto.PartRequestHistoryListResponse, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("invalid id")
 	}
@@ -369,18 +393,27 @@ func (s *partRequestService) ListHistoryByRequestID(ctx context.Context, id int6
 		return nil, nil
 	}
 
-	items, err := s.repo.ListHistoryByRequestID(ctx, id)
+	items, total, err := s.repo.ListHistoryByRequestID(ctx, id, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 
 	out := mapPartRequestHistoryListToDTO(items)
 
+	normalizedLimit := limit
+	if normalizedLimit <= 0 || normalizedLimit > 200 {
+		normalizedLimit = 50
+	}
+	normalizedOffset := offset
+	if normalizedOffset < 0 {
+		normalizedOffset = 0
+	}
+
 	return &dto.PartRequestHistoryListResponse{
 		Items:  out,
-		Total:  int64(len(out)),
-		Limit:  len(out),
-		Offset: 0,
+		Total:  total,
+		Limit:  normalizedLimit,
+		Offset: normalizedOffset,
 	}, nil
 }
 

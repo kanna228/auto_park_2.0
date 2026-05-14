@@ -10,6 +10,74 @@ import (
 )
 
 func (r *tripsheetRepo) GetAll(ctx context.Context, f dto.TripsheetFilter) ([]dto.TripsheetResponse, int, error) {
+	where := []string{"1=1"}
+	args := make([]any, 0, 16)
+	argPos := 1
+
+	add := func(condition string, value any) {
+		where = append(where, fmt.Sprintf(condition, argPos))
+		args = append(args, value)
+		argPos++
+	}
+
+	if f.VehicleID != nil {
+		add("vehicle_id = $%d", *f.VehicleID)
+	}
+	if f.DriverID != nil {
+		add("driver_id = $%d", *f.DriverID)
+	}
+	if f.StatusID != nil {
+		add("status_id = $%d", *f.StatusID)
+	}
+	if f.DateFrom != nil && strings.TrimSpace(*f.DateFrom) != "" {
+		add("tripsheet_date >= $%d", strings.TrimSpace(*f.DateFrom))
+	}
+	if f.DateTo != nil && strings.TrimSpace(*f.DateTo) != "" {
+		add("tripsheet_date <= $%d", strings.TrimSpace(*f.DateTo))
+	}
+	if f.TripsheetNumber != nil && strings.TrimSpace(*f.TripsheetNumber) != "" {
+		add("tripsheet_number ILIKE $%d", "%"+strings.TrimSpace(*f.TripsheetNumber)+"%")
+	}
+	if f.VehiclePlateNumber != nil && strings.TrimSpace(*f.VehiclePlateNumber) != "" {
+		add("vehicle_plate_number ILIKE $%d", "%"+strings.TrimSpace(*f.VehiclePlateNumber)+"%")
+	}
+	if f.VehicleBrand != nil && strings.TrimSpace(*f.VehicleBrand) != "" {
+		add("vehicle_brand ILIKE $%d", "%"+strings.TrimSpace(*f.VehicleBrand)+"%")
+	}
+	if f.DriverLastName != nil && strings.TrimSpace(*f.DriverLastName) != "" {
+		add("driver_last_name ILIKE $%d", "%"+strings.TrimSpace(*f.DriverLastName)+"%")
+	}
+	if f.DriverFirstName != nil && strings.TrimSpace(*f.DriverFirstName) != "" {
+		add("driver_first_name ILIKE $%d", "%"+strings.TrimSpace(*f.DriverFirstName)+"%")
+	}
+	if f.DriverMiddleName != nil && strings.TrimSpace(*f.DriverMiddleName) != "" {
+		add("driver_middle_name ILIKE $%d", "%"+strings.TrimSpace(*f.DriverMiddleName)+"%")
+	}
+
+	whereSQL := strings.Join(where, " AND ")
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM %s
+		WHERE %s;
+	`, r.tripsheetsTable(), whereSQL)
+
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count tripsheets: %w", err)
+	}
+
+	limit := f.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := f.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	sortBy := normalizeTripsheetSortBy(f.SortBy)
+	order := normalizeTripsheetOrder(f.Order)
+
 	query := fmt.Sprintf(`
 		SELECT
 			id,
@@ -34,70 +102,12 @@ func (r *tripsheetRepo) GetAll(ctx context.Context, f dto.TripsheetFilter) ([]dt
 			created_at,
 			updated_at
 		FROM %s
-		WHERE 1=1
-	`, r.tripsheetsTable())
+		WHERE %s
+		ORDER BY %s %s, id DESC
+		LIMIT $%d OFFSET $%d;
+	`, r.tripsheetsTable(), whereSQL, sortBy, order, argPos, argPos+1)
 
-	var args []any
-	i := 1
-
-	if f.VehicleID != nil {
-		query += fmt.Sprintf(" AND vehicle_id = $%d", i)
-		args = append(args, *f.VehicleID)
-		i++
-	}
-	if f.DriverID != nil {
-		query += fmt.Sprintf(" AND driver_id = $%d", i)
-		args = append(args, *f.DriverID)
-		i++
-	}
-	if f.StatusID != nil {
-		query += fmt.Sprintf(" AND status_id = $%d", i)
-		args = append(args, *f.StatusID)
-		i++
-	}
-	if f.DateFrom != nil && strings.TrimSpace(*f.DateFrom) != "" {
-		query += fmt.Sprintf(" AND tripsheet_date >= $%d", i)
-		args = append(args, strings.TrimSpace(*f.DateFrom))
-		i++
-	}
-	if f.DateTo != nil && strings.TrimSpace(*f.DateTo) != "" {
-		query += fmt.Sprintf(" AND tripsheet_date <= $%d", i)
-		args = append(args, strings.TrimSpace(*f.DateTo))
-		i++
-	}
-	if f.TripsheetNumber != nil && strings.TrimSpace(*f.TripsheetNumber) != "" {
-		query += fmt.Sprintf(" AND tripsheet_number ILIKE $%d", i)
-		args = append(args, "%"+strings.TrimSpace(*f.TripsheetNumber)+"%")
-		i++
-	}
-	if f.VehiclePlateNumber != nil && strings.TrimSpace(*f.VehiclePlateNumber) != "" {
-		query += fmt.Sprintf(" AND vehicle_plate_number ILIKE $%d", i)
-		args = append(args, "%"+strings.TrimSpace(*f.VehiclePlateNumber)+"%")
-		i++
-	}
-	if f.VehicleBrand != nil && strings.TrimSpace(*f.VehicleBrand) != "" {
-		query += fmt.Sprintf(" AND vehicle_brand ILIKE $%d", i)
-		args = append(args, "%"+strings.TrimSpace(*f.VehicleBrand)+"%")
-		i++
-	}
-	if f.DriverLastName != nil && strings.TrimSpace(*f.DriverLastName) != "" {
-		query += fmt.Sprintf(" AND driver_last_name ILIKE $%d", i)
-		args = append(args, "%"+strings.TrimSpace(*f.DriverLastName)+"%")
-		i++
-	}
-	if f.DriverFirstName != nil && strings.TrimSpace(*f.DriverFirstName) != "" {
-		query += fmt.Sprintf(" AND driver_first_name ILIKE $%d", i)
-		args = append(args, "%"+strings.TrimSpace(*f.DriverFirstName)+"%")
-		i++
-	}
-	if f.DriverMiddleName != nil && strings.TrimSpace(*f.DriverMiddleName) != "" {
-		query += fmt.Sprintf(" AND driver_middle_name ILIKE $%d", i)
-		args = append(args, "%"+strings.TrimSpace(*f.DriverMiddleName)+"%")
-		i++
-	}
-
-	query += " ORDER BY id DESC"
-
+	args = append(args, limit, offset)
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, err
@@ -159,8 +169,39 @@ func (r *tripsheetRepo) GetAll(ctx context.Context, f dto.TripsheetFilter) ([]dt
 
 		result = append(result, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
 
-	return result, len(result), nil
+	return result, total, nil
+}
+
+func normalizeTripsheetSortBy(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "id":
+		return "id"
+	case "tripsheet_number":
+		return "tripsheet_number"
+	case "vehicle_id":
+		return "vehicle_id"
+	case "driver_id":
+		return "driver_id"
+	case "status_id":
+		return "status_id"
+	case "created_at":
+		return "created_at"
+	case "updated_at":
+		return "updated_at"
+	default:
+		return "tripsheet_date"
+	}
+}
+
+func normalizeTripsheetOrder(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "asc") {
+		return "ASC"
+	}
+	return "DESC"
 }
 
 func (r *tripsheetRepo) GetByID(ctx context.Context, id int64) (*dto.TripsheetResponse, error) {

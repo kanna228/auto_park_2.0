@@ -49,8 +49,8 @@ type PartRequestListResponseWrap struct {
 }
 
 type PartRequestStatusListResponseWrap struct {
-	Success bool                            `json:"success" example:"true"`
-	Data    []dto.PartRequestStatusResponse `json:"data"`
+	Success bool                              `json:"success" example:"true"`
+	Data    dto.PartRequestStatusListResponse `json:"data"`
 }
 
 type PartRequestHistoryListResponseWrap struct {

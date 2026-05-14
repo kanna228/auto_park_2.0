@@ -193,8 +193,10 @@ type VehicleStatusResponse struct {
 }
 
 type VehicleStatusListResponse struct {
-	Items []VehicleStatusResponse `json:"items"`
-	Total int64                   `json:"total"`
+	Items  []VehicleStatusResponse `json:"items"`
+	Total  int64                   `json:"total"`
+	Limit  int                     `json:"limit"`
+	Offset int                     `json:"offset"`
 }
 
 type VehicleDriverInfo struct {

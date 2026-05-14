@@ -83,7 +83,7 @@ type PartRequestRepository interface {
 	StatusExists(ctx context.Context, statusID int64) (bool, error)
 	GetStatusByID(ctx context.Context, statusID int64) (*models.PartRequestStatus, error)
 	ListStatuses(ctx context.Context) ([]models.PartRequestStatus, error)
-	ListHistoryByRequestID(ctx context.Context, partRequestID int64) ([]models.PartRequestHistory, error)
+	ListHistoryByRequestID(ctx context.Context, partRequestID int64, limit int, offset int) ([]models.PartRequestHistory, int64, error)
 	ListHistory(ctx context.Context, p ListPartRequestHistoryParams) ([]models.PartRequestHistory, int64, error)
 }
 
@@ -473,7 +473,24 @@ func (r *partRequestRepo) ListStatuses(ctx context.Context) ([]models.PartReques
 	return items, nil
 }
 
-func (r *partRequestRepo) ListHistoryByRequestID(ctx context.Context, partRequestID int64) ([]models.PartRequestHistory, error) {
+func (r *partRequestRepo) ListHistoryByRequestID(ctx context.Context, partRequestID int64, limit int, offset int) ([]models.PartRequestHistory, int64, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	const countQ = `
+		SELECT COUNT(*)
+		FROM part_request_history
+		WHERE part_request_id = $1;
+	`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ, partRequestID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("list part request history count: %w", err)
+	}
+
 	const q = `
 		SELECT
 			h.id,
@@ -490,12 +507,13 @@ func (r *partRequestRepo) ListHistoryByRequestID(ctx context.Context, partReques
 		INNER JOIN part_request_statuses s ON s.id = h.status_id
 		LEFT JOIN users u ON u.id = h.changed_by_user_id
 		WHERE h.part_request_id = $1
-		ORDER BY h.changed_at ASC, h.id ASC;
+		ORDER BY h.changed_at ASC, h.id ASC
+		LIMIT $2 OFFSET $3;
 	`
 
-	rows, err := r.db.QueryContext(ctx, q, partRequestID)
+	rows, err := r.db.QueryContext(ctx, q, partRequestID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list part request history: %w", err)
+		return nil, 0, fmt.Errorf("list part request history: %w", err)
 	}
 	defer rows.Close()
 
@@ -503,15 +521,15 @@ func (r *partRequestRepo) ListHistoryByRequestID(ctx context.Context, partReques
 	for rows.Next() {
 		item, err := scanPartRequestHistoryRows(rows)
 		if err != nil {
-			return nil, fmt.Errorf("list part request history scan: %w", err)
+			return nil, 0, fmt.Errorf("list part request history scan: %w", err)
 		}
 		items = append(items, *item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("list part request history rows: %w", err)
+		return nil, 0, fmt.Errorf("list part request history rows: %w", err)
 	}
 
-	return items, nil
+	return items, total, nil
 }
 
 func (r *partRequestRepo) ListHistory(ctx context.Context, p ListPartRequestHistoryParams) ([]models.PartRequestHistory, int64, error) {

@@ -97,6 +97,10 @@ type IncidentListQuery struct {
 	TripsheetID     *int64 `form:"tripsheet_id"`
 	DateFrom        string `form:"date_from"`
 	DateTo          string `form:"date_to"`
+	Limit           int    `form:"limit"`
+	Offset          int    `form:"offset"`
+	SortBy          string `form:"sort_by"`
+	Order           string `form:"order"`
 }
 
 type IncidentTypeResponse struct {

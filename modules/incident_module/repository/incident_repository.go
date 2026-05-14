@@ -387,55 +387,77 @@ func (r *incidentRepo) GetByID(ctx context.Context, id int64) (*models.Incident,
 }
 
 func (r *incidentRepo) GetAll(ctx context.Context, filter dto.IncidentListQuery) ([]models.Incident, int, error) {
-	query := incidentSelect + `
-		WHERE 1=1
-	`
-
-	args := make([]any, 0, 9)
+	where := []string{"1=1"}
+	args := make([]any, 0, 12)
 	idx := 1
 
-	if filter.IncidentTypeID != nil {
-		query += fmt.Sprintf(" AND i.incident_type_id = $%d", idx)
-		args = append(args, *filter.IncidentTypeID)
-		idx++
-	}
-	if filter.VehicleID != nil {
-		query += fmt.Sprintf(" AND i.vehicle_id = $%d", idx)
-		args = append(args, *filter.VehicleID)
-		idx++
-	}
-	if filter.DriverID != nil {
-		query += fmt.Sprintf(" AND i.driver_id = $%d", idx)
-		args = append(args, *filter.DriverID)
-		idx++
-	}
-	if filter.MechanicID != nil {
-		query += fmt.Sprintf(" AND i.mechanic_id = $%d", idx)
-		args = append(args, *filter.MechanicID)
-		idx++
-	}
-	if filter.MechanicShiftID != nil {
-		query += fmt.Sprintf(" AND i.mechanic_shift_id = $%d", idx)
-		args = append(args, *filter.MechanicShiftID)
-		idx++
-	}
-	if filter.TripsheetID != nil {
-		query += fmt.Sprintf(" AND i.tripsheet_id = $%d", idx)
-		args = append(args, *filter.TripsheetID)
-		idx++
-	}
-	if s := strings.TrimSpace(filter.DateFrom); s != "" {
-		query += fmt.Sprintf(" AND i.incident_date >= $%d", idx)
-		args = append(args, s)
-		idx++
-	}
-	if s := strings.TrimSpace(filter.DateTo); s != "" {
-		query += fmt.Sprintf(" AND i.incident_date <= $%d", idx)
-		args = append(args, s)
+	add := func(condition string, value any) {
+		where = append(where, fmt.Sprintf(condition, idx))
+		args = append(args, value)
 		idx++
 	}
 
-	query += " ORDER BY i.id DESC"
+	if filter.IncidentTypeID != nil {
+		add("i.incident_type_id = $%d", *filter.IncidentTypeID)
+	}
+	if filter.VehicleID != nil {
+		add("i.vehicle_id = $%d", *filter.VehicleID)
+	}
+	if filter.DriverID != nil {
+		add("i.driver_id = $%d", *filter.DriverID)
+	}
+	if filter.MechanicID != nil {
+		add("i.mechanic_id = $%d", *filter.MechanicID)
+	}
+	if filter.MechanicShiftID != nil {
+		add("i.mechanic_shift_id = $%d", *filter.MechanicShiftID)
+	}
+	if filter.TripsheetID != nil {
+		add("i.tripsheet_id = $%d", *filter.TripsheetID)
+	}
+	if s := strings.TrimSpace(filter.DateFrom); s != "" {
+		add("i.incident_date >= $%d", s)
+	}
+	if s := strings.TrimSpace(filter.DateTo); s != "" {
+		add("i.incident_date <= $%d", s)
+	}
+
+	whereSQL := strings.Join(where, " AND ")
+	countQuery := `
+		SELECT COUNT(*)
+		FROM incidents i
+		JOIN incident_types it ON it.id = i.incident_type_id
+		JOIN vehicles v ON v.id = i.vehicle_id
+		JOIN drivers d ON d.id = i.driver_id
+		JOIN users u ON u.id = i.mechanic_id
+		LEFT JOIN mechanic_shifts ms ON ms.id = i.mechanic_shift_id
+		LEFT JOIN users ms_u ON ms_u.id = ms.user_id
+		LEFT JOIN tripsheets t ON t.id = i.tripsheet_id
+		LEFT JOIN tripsheet_statuses ts ON ts.id = t.status_id
+		WHERE ` + whereSQL + `;`
+
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count incidents: %w", err)
+	}
+
+	limit := filter.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	sortBy := normalizeIncidentSortBy(filter.SortBy)
+	order := normalizeIncidentOrder(filter.Order)
+
+	query := incidentSelect + `
+		WHERE ` + whereSQL + fmt.Sprintf(`
+		ORDER BY %s %s, i.id DESC
+		LIMIT $%d OFFSET $%d;
+	`, sortBy, order, idx, idx+1)
+	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -456,7 +478,39 @@ func (r *incidentRepo) GetAll(ctx context.Context, filter dto.IncidentListQuery)
 		return nil, 0, err
 	}
 
-	return items, len(items), nil
+	return items, total, nil
+}
+
+func normalizeIncidentSortBy(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "id":
+		return "i.id"
+	case "incident_type_id":
+		return "i.incident_type_id"
+	case "vehicle_id":
+		return "i.vehicle_id"
+	case "driver_id":
+		return "i.driver_id"
+	case "mechanic_id":
+		return "i.mechanic_id"
+	case "mechanic_shift_id":
+		return "i.mechanic_shift_id"
+	case "tripsheet_id":
+		return "i.tripsheet_id"
+	case "created_at":
+		return "i.created_at"
+	case "updated_at":
+		return "i.updated_at"
+	default:
+		return "i.incident_date"
+	}
+}
+
+func normalizeIncidentOrder(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "asc") {
+		return "ASC"
+	}
+	return "DESC"
 }
 
 func (r *incidentRepo) Update(ctx context.Context, input models.UpdateIncidentInput) (*models.Incident, error) {

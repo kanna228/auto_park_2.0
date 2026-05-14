@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,6 +24,12 @@ import (
 // @Param        tripsheet_id query int false "Tripsheet ID"
 // @Param        date_from query string false "Date from (YYYY-MM-DD)"
 // @Param        date_to query string false "Date to (YYYY-MM-DD)"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size" default(50)
+// @Param        sort_by query string false "Sort by: incident_date, created_at, vehicle_id, driver_id, mechanic_id, tripsheet_id"
+// @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} IncidentListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -41,7 +48,16 @@ func (h *IncidentHandler) GetAll(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "items": items, "total": total})
+	limit := filter.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "items": items, "total": total, "limit": limit, "offset": offset})
 }
 
 // GetByID godoc
@@ -79,20 +95,43 @@ func (h *IncidentHandler) GetByID(c *gin.Context) {
 
 // ListIncidentTypes godoc
 // @Summary      List incident types
-// @Description  Returns all available incident types.
+// @Description  Returns incident types with pagination.
 // @Tags         Incidents
 // @Produce      json
 // @Security     BearerAuth
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
 // @Success      200 {object} IncidentTypeListResponseWrap
+// @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
 // @Router       /api/incidents/types [get]
 func (h *IncidentHandler) ListIncidentTypes(c *gin.Context) {
-	items, total, err := h.svc.ListIncidentTypes(c.Request.Context())
+	limit := 50
+	if s := strings.TrimSpace(c.Query("limit")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid limit"})
+			return
+		}
+		limit = n
+	}
+
+	offset := 0
+	if s := strings.TrimSpace(c.Query("offset")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid offset"})
+			return
+		}
+		offset = n
+	}
+
+	items, total, limit, offset, err := h.svc.ListIncidentTypes(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "items": items, "total": total})
+	c.JSON(http.StatusOK, gin.H{"success": true, "items": items, "total": total, "limit": limit, "offset": offset})
 }

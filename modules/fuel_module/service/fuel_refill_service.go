@@ -17,8 +17,8 @@ type FuelRefillService interface {
 	Delete(ctx context.Context, id int64) error
 	GetByID(ctx context.Context, id int64) (*dto.FuelRefillResponse, error)
 	GetAll(ctx context.Context, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error)
-	GetAllByTripsheetID(ctx context.Context, tripsheetID int64) ([]dto.FuelRefillResponse, int, error)
-	GetAllByVehicleID(ctx context.Context, vehicleID int64) ([]dto.FuelRefillResponse, int, error)
+	GetAllByTripsheetID(ctx context.Context, tripsheetID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error)
+	GetAllByVehicleID(ctx context.Context, vehicleID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error)
 }
 
 type fuelRefillService struct {
@@ -79,18 +79,18 @@ func (s *fuelRefillService) GetAll(ctx context.Context, filter dto.FuelRefillFil
 	return s.repo.GetAll(ctx, filter)
 }
 
-func (s *fuelRefillService) GetAllByTripsheetID(ctx context.Context, tripsheetID int64) ([]dto.FuelRefillResponse, int, error) {
+func (s *fuelRefillService) GetAllByTripsheetID(ctx context.Context, tripsheetID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error) {
 	if tripsheetID <= 0 {
 		return nil, 0, fmt.Errorf("invalid tripsheet_id")
 	}
-	return s.repo.GetAllByTripsheetID(ctx, tripsheetID)
+	return s.repo.GetAllByTripsheetID(ctx, tripsheetID, filter)
 }
 
-func (s *fuelRefillService) GetAllByVehicleID(ctx context.Context, vehicleID int64) ([]dto.FuelRefillResponse, int, error) {
+func (s *fuelRefillService) GetAllByVehicleID(ctx context.Context, vehicleID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error) {
 	if vehicleID <= 0 {
 		return nil, 0, fmt.Errorf("invalid vehicle_id")
 	}
-	return s.repo.GetAllByVehicleID(ctx, vehicleID)
+	return s.repo.GetAllByVehicleID(ctx, vehicleID, filter)
 }
 
 func validateAndMapCreate(req dto.CreateFuelRefillRequest) (models.CreateFuelRefillInput, error) {

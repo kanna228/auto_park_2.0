@@ -179,62 +179,63 @@ func (r *tripsheetTripRepo) GetByID(ctx context.Context, id int64) (*dto.Tripshe
 		WHERE id = $1
 	`, r.table())
 
-	var (
-		item      dto.TripsheetTripResponse
-		startTime sql.NullTime
-		endTime   sql.NullTime
-		createdAt time.Time
-		updatedAt time.Time
-	)
-
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&item.ID,
-		&item.TripsheetID,
-		&item.RouteDescription,
-		&startTime,
-		&endTime,
-		&item.DistancePassed,
-		&item.StatusID,
-		&createdAt,
-		&updatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if startTime.Valid {
-		v := startTime.Time.Format(time.RFC3339)
-		item.StartTime = &v
-	}
-	if endTime.Valid {
-		v := endTime.Time.Format(time.RFC3339)
-		item.EndTime = &v
-	}
-
-	item.CreatedAt = createdAt.Format(time.RFC3339)
-	item.UpdatedAt = updatedAt.Format(time.RFC3339)
-
-	return &item, nil
+	return r.scanOneTrip(ctx, query, id)
 }
 
 func (r *tripsheetTripRepo) GetAll(ctx context.Context, filter dto.TripsheetTripFilter) ([]dto.TripsheetTripResponse, int, error) {
-	baseQuery := fmt.Sprintf(`
-		SELECT
-			id,
-			tripsheet_id,
-			route_description,
-			start_time,
-			end_time,
-			distance_passed,
-			status_id,
-			created_at,
-			updated_at
-		FROM %s
-		WHERE 1=1
-	`, r.table())
+	whereSQL, args := r.buildTripsheetTripWhere(filter, 1, false)
+	return r.listTripsheetTrips(ctx, whereSQL, args, filter)
+}
 
-	query, args := r.applyTripsheetTripFilters(baseQuery, filter)
-	query += " ORDER BY id DESC"
+func (r *tripsheetTripRepo) GetAllByTripsheetID(ctx context.Context, tripsheetID int64, filter dto.TripsheetTripFilter) ([]dto.TripsheetTripResponse, int, error) {
+	filter.TripsheetID = &tripsheetID
+	whereSQL, args := r.buildTripsheetTripWhere(filter, 1, true)
+	return r.listTripsheetTrips(ctx, whereSQL, args, filter)
+}
+
+func (r *tripsheetTripRepo) listTripsheetTrips(ctx context.Context, whereSQL string, args []any, filter dto.TripsheetTripFilter) ([]dto.TripsheetTripResponse, int, error) {
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM %s tt
+		LEFT JOIN tripsheets t ON t.id = tt.tripsheet_id
+		WHERE %s;
+	`, r.table(), whereSQL)
+
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count tripsheet trips: %w", err)
+	}
+
+	limit := filter.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	sortBy := normalizeTripsheetTripSortBy(filter.SortBy)
+	order := normalizeTripsheetTripOrder(filter.Order)
+	args = append(args, limit, offset)
+
+	query := fmt.Sprintf(`
+		SELECT
+			tt.id,
+			tt.tripsheet_id,
+			tt.route_description,
+			tt.start_time,
+			tt.end_time,
+			tt.distance_passed,
+			tt.status_id,
+			tt.created_at,
+			tt.updated_at
+		FROM %s tt
+		LEFT JOIN tripsheets t ON t.id = tt.tripsheet_id
+		WHERE %s
+		ORDER BY %s %s, tt.id DESC
+		LIMIT $%d OFFSET $%d;
+	`, r.table(), whereSQL, sortBy, order, len(args)-1, len(args))
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -242,153 +243,140 @@ func (r *tripsheetTripRepo) GetAll(ctx context.Context, filter dto.TripsheetTrip
 	}
 	defer rows.Close()
 
-	items := make([]dto.TripsheetTripResponse, 0)
-
-	for rows.Next() {
-		var (
-			item      dto.TripsheetTripResponse
-			startTime sql.NullTime
-			endTime   sql.NullTime
-			createdAt time.Time
-			updatedAt time.Time
-		)
-
-		err := rows.Scan(
-			&item.ID,
-			&item.TripsheetID,
-			&item.RouteDescription,
-			&startTime,
-			&endTime,
-			&item.DistancePassed,
-			&item.StatusID,
-			&createdAt,
-			&updatedAt,
-		)
-		if err != nil {
-			return nil, 0, fmt.Errorf("scan tripsheet trip row: %w", err)
-		}
-
-		if startTime.Valid {
-			v := startTime.Time.Format(time.RFC3339)
-			item.StartTime = &v
-		}
-		if endTime.Valid {
-			v := endTime.Time.Format(time.RFC3339)
-			item.EndTime = &v
-		}
-
-		item.CreatedAt = createdAt.Format(time.RFC3339)
-		item.UpdatedAt = updatedAt.Format(time.RFC3339)
-
-		items = append(items, item)
-	}
-
-	return items, len(items), nil
-}
-
-func (r *tripsheetTripRepo) GetAllByTripsheetID(ctx context.Context, tripsheetID int64, filter dto.TripsheetTripFilter) ([]dto.TripsheetTripResponse, int, error) {
-	baseQuery := fmt.Sprintf(`
-		SELECT
-			id,
-			tripsheet_id,
-			route_description,
-			start_time,
-			end_time,
-			distance_passed,
-			status_id,
-			created_at,
-			updated_at
-		FROM %s
-		WHERE tripsheet_id = $1
-	`, r.table())
-
-	args := []any{tripsheetID}
-	query, extraArgs := r.applyTripsheetTripFiltersWithOffset(baseQuery, filter, 2)
-	args = append(args, extraArgs...)
-	query += " ORDER BY id DESC"
-
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	items, err := scanTripRows(rows)
 	if err != nil {
-		return nil, 0, fmt.Errorf("get all tripsheet trips by tripsheet_id: %w", err)
-	}
-	defer rows.Close()
-
-	items := make([]dto.TripsheetTripResponse, 0)
-
-	for rows.Next() {
-		var (
-			item      dto.TripsheetTripResponse
-			startTime sql.NullTime
-			endTime   sql.NullTime
-			createdAt time.Time
-			updatedAt time.Time
-		)
-
-		err := rows.Scan(
-			&item.ID,
-			&item.TripsheetID,
-			&item.RouteDescription,
-			&startTime,
-			&endTime,
-			&item.DistancePassed,
-			&item.StatusID,
-			&createdAt,
-			&updatedAt,
-		)
-		if err != nil {
-			return nil, 0, fmt.Errorf("scan tripsheet trip row by tripsheet_id: %w", err)
-		}
-
-		if startTime.Valid {
-			v := startTime.Time.Format(time.RFC3339)
-			item.StartTime = &v
-		}
-		if endTime.Valid {
-			v := endTime.Time.Format(time.RFC3339)
-			item.EndTime = &v
-		}
-
-		item.CreatedAt = createdAt.Format(time.RFC3339)
-		item.UpdatedAt = updatedAt.Format(time.RFC3339)
-
-		items = append(items, item)
+		return nil, 0, err
 	}
 
-	return items, len(items), nil
+	return items, total, nil
 }
 
-func (r *tripsheetTripRepo) applyTripsheetTripFilters(baseQuery string, filter dto.TripsheetTripFilter) (string, []any) {
-	return r.applyTripsheetTripFiltersWithOffset(baseQuery, filter, 1)
-}
-
-func (r *tripsheetTripRepo) applyTripsheetTripFiltersWithOffset(baseQuery string, filter dto.TripsheetTripFilter, startIndex int) (string, []any) {
-	query := baseQuery
-	args := make([]any, 0)
+func (r *tripsheetTripRepo) buildTripsheetTripWhere(filter dto.TripsheetTripFilter, startIndex int, forceTripsheet bool) (string, []any) {
+	where := []string{"1=1"}
+	args := make([]any, 0, 8)
 	i := startIndex
 
-	if filter.TripsheetID != nil && startIndex == 1 {
-		query += fmt.Sprintf(" AND tripsheet_id = $%d", i)
+	if filter.TripsheetID != nil && (forceTripsheet || startIndex == 1) {
+		where = append(where, fmt.Sprintf("tt.tripsheet_id = $%d", i))
 		args = append(args, *filter.TripsheetID)
 		i++
 	}
-
+	if filter.VehicleID != nil {
+		where = append(where, fmt.Sprintf("t.vehicle_id = $%d", i))
+		args = append(args, *filter.VehicleID)
+		i++
+	}
+	if filter.DriverID != nil {
+		where = append(where, fmt.Sprintf("t.driver_id = $%d", i))
+		args = append(args, *filter.DriverID)
+		i++
+	}
 	if filter.StatusID != nil {
-		query += fmt.Sprintf(" AND status_id = $%d", i)
+		where = append(where, fmt.Sprintf("tt.status_id = $%d", i))
 		args = append(args, *filter.StatusID)
 		i++
 	}
-
 	if filter.DateFrom != nil && strings.TrimSpace(*filter.DateFrom) != "" {
-		query += fmt.Sprintf(" AND created_at >= $%d", i)
+		where = append(where, fmt.Sprintf("tt.created_at::date >= $%d", i))
 		args = append(args, strings.TrimSpace(*filter.DateFrom))
 		i++
 	}
-
 	if filter.DateTo != nil && strings.TrimSpace(*filter.DateTo) != "" {
-		query += fmt.Sprintf(" AND created_at <= $%d", i)
+		where = append(where, fmt.Sprintf("tt.created_at::date <= $%d", i))
 		args = append(args, strings.TrimSpace(*filter.DateTo))
 		i++
 	}
 
-	return query, args
+	return strings.Join(where, " AND "), args
+}
+
+func (r *tripsheetTripRepo) scanOneTrip(ctx context.Context, query string, args ...any) (*dto.TripsheetTripResponse, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	items, err := scanTripRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, sql.ErrNoRows
+	}
+	return &items[0], nil
+}
+
+func scanTripRows(rows *sql.Rows) ([]dto.TripsheetTripResponse, error) {
+	items := make([]dto.TripsheetTripResponse, 0)
+	for rows.Next() {
+		var (
+			item      dto.TripsheetTripResponse
+			startTime sql.NullTime
+			endTime   sql.NullTime
+			createdAt time.Time
+			updatedAt time.Time
+		)
+
+		if err := rows.Scan(
+			&item.ID,
+			&item.TripsheetID,
+			&item.RouteDescription,
+			&startTime,
+			&endTime,
+			&item.DistancePassed,
+			&item.StatusID,
+			&createdAt,
+			&updatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan tripsheet trip row: %w", err)
+		}
+
+		if startTime.Valid {
+			v := startTime.Time.Format(time.RFC3339)
+			item.StartTime = &v
+		}
+		if endTime.Valid {
+			v := endTime.Time.Format(time.RFC3339)
+			item.EndTime = &v
+		}
+
+		item.CreatedAt = createdAt.Format(time.RFC3339)
+		item.UpdatedAt = updatedAt.Format(time.RFC3339)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate tripsheet trip rows: %w", err)
+	}
+	return items, nil
+}
+
+func normalizeTripsheetTripSortBy(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "tripsheet_id":
+		return "tt.tripsheet_id"
+	case "vehicle_id":
+		return "t.vehicle_id"
+	case "driver_id":
+		return "t.driver_id"
+	case "status_id":
+		return "tt.status_id"
+	case "start_time":
+		return "tt.start_time"
+	case "end_time":
+		return "tt.end_time"
+	case "created_at":
+		return "tt.created_at"
+	case "updated_at":
+		return "tt.updated_at"
+	default:
+		return "tt.id"
+	}
+}
+
+func normalizeTripsheetTripOrder(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "asc") {
+		return "ASC"
+	}
+	return "DESC"
 }

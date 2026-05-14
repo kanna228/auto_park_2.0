@@ -348,7 +348,8 @@ func (r *vehicleRepo) ListIncidentsByVehicleID(ctx context.Context, vehicleID in
 		JOIN roles r ON r.id = u.role_id
 		LEFT JOIN tripsheets t ON t.id = i.tripsheet_id
 		WHERE i.vehicle_id = $1
-		ORDER BY i.incident_date DESC, i.incident_time DESC, i.id DESC;
+		ORDER BY i.incident_date DESC, i.incident_time DESC, i.id DESC
+		LIMIT 8;
 	`
 
 	rows, err := r.db.QueryContext(ctx, q, vehicleID)
@@ -567,7 +568,8 @@ func (r *vehicleRepo) ListInstalledPartsByVehicleID(ctx context.Context, vehicle
 		JOIN parts_catalog p ON p.id = vpi.part_id
 		LEFT JOIN users u ON u.id = vpi.installed_by_user_id
 		WHERE vpi.vehicle_id = $1
-		ORDER BY vpi.installed_at DESC, vpi.id DESC;
+		ORDER BY vpi.installed_at DESC, vpi.id DESC
+		LIMIT 8;
 	`
 
 	rows, err := r.db.QueryContext(ctx, q, vehicleID)
@@ -716,7 +718,8 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 			   FROM vehicles
 			   WHERE id = $1
 		   )
-		ORDER BY t.tripsheet_date DESC, t.id DESC;
+		ORDER BY t.tripsheet_date DESC, t.id DESC
+		LIMIT 8;
 	`
 
 	rows, err := r.db.QueryContext(ctx, q, vehicleID)
@@ -915,7 +918,8 @@ func (r *vehicleRepo) ListVehicleServicesByVehicleID(ctx context.Context, vehicl
 		INNER JOIN service_types st ON st.id = vs.type_id
 		INNER JOIN parts_collection pc ON pc.id = vs.part_id
 		WHERE vs.vehicle_id = $1
-		ORDER BY vs.service_date DESC, vs.id DESC;
+		ORDER BY vs.service_date DESC, vs.id DESC
+		LIMIT 8;
 	`
 
 	rows, err := r.db.QueryContext(ctx, q, vehicleID)

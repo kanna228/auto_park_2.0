@@ -17,8 +17,8 @@ type FuelRefillRepository interface {
 	Delete(ctx context.Context, id int64) error
 	GetByID(ctx context.Context, id int64) (*dto.FuelRefillResponse, error)
 	GetAll(ctx context.Context, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error)
-	GetAllByTripsheetID(ctx context.Context, tripsheetID int64) ([]dto.FuelRefillResponse, int, error)
-	GetAllByVehicleID(ctx context.Context, vehicleID int64) ([]dto.FuelRefillResponse, int, error)
+	GetAllByTripsheetID(ctx context.Context, tripsheetID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error)
+	GetAllByVehicleID(ctx context.Context, vehicleID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error)
 }
 
 type fuelRefillRepository struct {
@@ -162,72 +162,119 @@ func (r *fuelRefillRepository) GetByID(ctx context.Context, id int64) (*dto.Fuel
 }
 
 func (r *fuelRefillRepository) GetAll(ctx context.Context, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error) {
-	baseQuery := fmt.Sprintf(`
-		SELECT id, tripsheet_id, vehicle_id, fuel_amount, date, time, location, created_at, updated_at
-		FROM %s
-	`, r.table())
+	return r.listFuelRefills(ctx, filter)
+}
 
-	conditions := make([]string, 0)
-	args := make([]interface{}, 0)
+func (r *fuelRefillRepository) GetAllByTripsheetID(ctx context.Context, tripsheetID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error) {
+	filter.TripsheetID = &tripsheetID
+	return r.listFuelRefills(ctx, filter)
+}
+
+func (r *fuelRefillRepository) GetAllByVehicleID(ctx context.Context, vehicleID int64, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error) {
+	filter.VehicleID = &vehicleID
+	return r.listFuelRefills(ctx, filter)
+}
+
+func (r *fuelRefillRepository) listFuelRefills(ctx context.Context, filter dto.FuelRefillFilter) ([]dto.FuelRefillResponse, int, error) {
+	where := []string{"1=1"}
+	args := make([]any, 0, 10)
 	argPos := 1
 
-	if filter.TripsheetID != nil && *filter.TripsheetID > 0 {
-		conditions = append(conditions, fmt.Sprintf("tripsheet_id = $%d", argPos))
-		args = append(args, *filter.TripsheetID)
+	add := func(condition string, value any) {
+		where = append(where, fmt.Sprintf(condition, argPos))
+		args = append(args, value)
 		argPos++
 	}
+
+	if filter.TripsheetID != nil && *filter.TripsheetID > 0 {
+		add("fr.tripsheet_id = $%d", *filter.TripsheetID)
+	}
 	if filter.VehicleID != nil && *filter.VehicleID > 0 {
-		conditions = append(conditions, fmt.Sprintf("vehicle_id = $%d", argPos))
-		args = append(args, *filter.VehicleID)
-		argPos++
+		add("fr.vehicle_id = $%d", *filter.VehicleID)
+	}
+	if filter.DriverID != nil && *filter.DriverID > 0 {
+		add("t.driver_id = $%d", *filter.DriverID)
 	}
 	if filter.DateFrom != nil && strings.TrimSpace(*filter.DateFrom) != "" {
 		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*filter.DateFrom))
 		if err != nil {
 			return nil, 0, fmt.Errorf("invalid date_from format, expected YYYY-MM-DD")
 		}
-		conditions = append(conditions, fmt.Sprintf("date >= $%d", argPos))
-		args = append(args, parsed)
-		argPos++
+		add("fr.date >= $%d", parsed)
 	}
 	if filter.DateTo != nil && strings.TrimSpace(*filter.DateTo) != "" {
 		parsed, err := time.Parse("2006-01-02", strings.TrimSpace(*filter.DateTo))
 		if err != nil {
 			return nil, 0, fmt.Errorf("invalid date_to format, expected YYYY-MM-DD")
 		}
-		conditions = append(conditions, fmt.Sprintf("date <= $%d", argPos))
-		args = append(args, parsed)
-		argPos++
+		add("fr.date <= $%d", parsed)
 	}
 
-	if len(conditions) > 0 {
-		baseQuery += " WHERE " + strings.Join(conditions, " AND ")
+	whereSQL := strings.Join(where, " AND ")
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM %s fr
+		LEFT JOIN tripsheets t ON t.id = fr.tripsheet_id
+		WHERE %s;
+	`, r.table(), whereSQL)
+
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count fuel refills: %w", err)
 	}
-	baseQuery += " ORDER BY date DESC, time DESC, id DESC"
 
-	return r.scanMany(ctx, baseQuery, args...)
+	limit := filter.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	sortBy := normalizeFuelRefillSortBy(filter.SortBy)
+	order := normalizeFuelRefillOrder(filter.Order)
+	args = append(args, limit, offset)
+
+	query := fmt.Sprintf(`
+		SELECT fr.id, fr.tripsheet_id, fr.vehicle_id, fr.fuel_amount, fr.date, fr.time, fr.location, fr.created_at, fr.updated_at
+		FROM %s fr
+		LEFT JOIN tripsheets t ON t.id = fr.tripsheet_id
+		WHERE %s
+		ORDER BY %s %s, fr.id DESC
+		LIMIT $%d OFFSET $%d;
+	`, r.table(), whereSQL, sortBy, order, len(args)-1, len(args))
+
+	return r.scanMany(ctx, total, query, args...)
 }
 
-func (r *fuelRefillRepository) GetAllByTripsheetID(ctx context.Context, tripsheetID int64) ([]dto.FuelRefillResponse, int, error) {
-	query := fmt.Sprintf(`
-		SELECT id, tripsheet_id, vehicle_id, fuel_amount, date, time, location, created_at, updated_at
-		FROM %s
-		WHERE tripsheet_id = $1
-		ORDER BY date DESC, time DESC, id DESC
-	`, r.table())
-
-	return r.scanMany(ctx, query, tripsheetID)
+func normalizeFuelRefillSortBy(value string) string {
+	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "id":
+		return "fr.id"
+	case "tripsheet_id":
+		return "fr.tripsheet_id"
+	case "vehicle_id":
+		return "fr.vehicle_id"
+	case "driver_id":
+		return "t.driver_id"
+	case "fuel_amount":
+		return "fr.fuel_amount"
+	case "time":
+		return "fr.time"
+	case "created_at":
+		return "fr.created_at"
+	case "updated_at":
+		return "fr.updated_at"
+	default:
+		return "fr.date"
+	}
 }
 
-func (r *fuelRefillRepository) GetAllByVehicleID(ctx context.Context, vehicleID int64) ([]dto.FuelRefillResponse, int, error) {
-	query := fmt.Sprintf(`
-		SELECT id, tripsheet_id, vehicle_id, fuel_amount, date, time, location, created_at, updated_at
-		FROM %s
-		WHERE vehicle_id = $1
-		ORDER BY date DESC, time DESC, id DESC
-	`, r.table())
-
-	return r.scanMany(ctx, query, vehicleID)
+func normalizeFuelRefillOrder(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "asc") {
+		return "ASC"
+	}
+	return "DESC"
 }
 
 func (r *fuelRefillRepository) scanOne(ctx context.Context, query string, args ...interface{}) (*dto.FuelRefillResponse, error) {
@@ -266,7 +313,7 @@ func (r *fuelRefillRepository) scanOne(ctx context.Context, query string, args .
 	return &item, nil
 }
 
-func (r *fuelRefillRepository) scanMany(ctx context.Context, query string, args ...interface{}) ([]dto.FuelRefillResponse, int, error) {
+func (r *fuelRefillRepository) scanMany(ctx context.Context, total int, query string, args ...interface{}) ([]dto.FuelRefillResponse, int, error) {
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query fuel refills: %w", err)
@@ -313,5 +360,5 @@ func (r *fuelRefillRepository) scanMany(ctx context.Context, query string, args 
 		return nil, 0, fmt.Errorf("iterate fuel refills: %w", err)
 	}
 
-	return items, len(items), nil
+	return items, total, nil
 }

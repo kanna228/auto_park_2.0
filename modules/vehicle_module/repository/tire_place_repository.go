@@ -12,9 +12,17 @@ import (
 type TirePlaceRepository interface {
 	Create(ctx context.Context, name string) (int64, error)
 	GetByID(ctx context.Context, id int64) (*models.TirePlace, error)
-	List(ctx context.Context) ([]models.TirePlace, int64, error)
+	List(ctx context.Context, p ListTirePlacesParams) ([]models.TirePlace, int64, error)
 	UpdateByID(ctx context.Context, id int64, name string) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
+}
+
+type ListTirePlacesParams struct {
+	Name   string
+	Limit  int
+	Offset int
+	SortBy string
+	Order  string
 }
 
 type tirePlaceRepo struct {
@@ -60,21 +68,53 @@ func (r *tirePlaceRepo) GetByID(ctx context.Context, id int64) (*models.TirePlac
 	return &item, nil
 }
 
-func (r *tirePlaceRepo) List(ctx context.Context) ([]models.TirePlace, int64, error) {
-	const countQ = `SELECT COUNT(*) FROM tire_places;`
+func (r *tirePlaceRepo) List(ctx context.Context, p ListTirePlacesParams) ([]models.TirePlace, int64, error) {
+	limit := p.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+
+	offset := p.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
+	conds := make([]string, 0, 1)
+	args := make([]any, 0, 4)
+	argPos := 1
+
+	if v := strings.TrimSpace(p.Name); v != "" {
+		conds = append(conds, fmt.Sprintf("name ILIKE '%%' || $%d || '%%'", argPos))
+		args = append(args, v)
+		argPos++
+	}
+
+	whereSQL := ""
+	if len(conds) > 0 {
+		whereSQL = " WHERE " + strings.Join(conds, " AND ")
+	}
+
+	countQ := `SELECT COUNT(*) FROM tire_places` + whereSQL
 
 	var total int64
-	if err := r.db.QueryRowContext(ctx, countQ).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("list tire places count: %w", err)
 	}
 
-	const q = `
+	sortBy := normalizeTirePlaceSortBy(p.SortBy)
+	order := normalizeOrder(p.Order)
+
+	q := fmt.Sprintf(`
 		SELECT id, name
 		FROM tire_places
-		ORDER BY id ASC;
-	`
+		%s
+		ORDER BY %s %s, id ASC
+		LIMIT $%d OFFSET $%d;
+	`, whereSQL, sortBy, order, argPos, argPos+1)
 
-	rows, err := r.db.QueryContext(ctx, q)
+	args = append(args, limit, offset)
+
+	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list tire places: %w", err)
 	}
@@ -130,4 +170,24 @@ func (r *tirePlaceRepo) DeleteByID(ctx context.Context, id int64) (bool, error) 
 	}
 
 	return aff > 0, nil
+}
+
+func normalizeTirePlaceSortBy(v string) string {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "name":
+		return "name"
+	case "id":
+		return "id"
+	default:
+		return "id"
+	}
+}
+
+func normalizeOrder(v string) string {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "asc":
+		return "ASC"
+	default:
+		return "DESC"
+	}
 }

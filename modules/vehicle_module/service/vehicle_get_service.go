@@ -119,7 +119,7 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 
 	statusHistory, _, err := s.repo.ListVehicleStatusHistory(ctx, repository.ListVehicleStatusHistoryParams{
 		VehicleID: v.ID,
-		Limit:     1000,
+		Limit:     8,
 		Offset:    0,
 		SortBy:    "start_date",
 		Order:     "desc",

@@ -36,7 +36,7 @@ func (s *DriversService) GetByID(ctx context.Context, id int64) (*models.Driver,
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *DriversService) List(ctx context.Context, limit, offset int) ([]models.Driver, error) {
+func (s *DriversService) List(ctx context.Context, limit, offset int) ([]models.Driver, int64, error) {
 	return s.repo.List(ctx, limit, offset)
 }
 

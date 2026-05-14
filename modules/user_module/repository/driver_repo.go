@@ -86,12 +86,18 @@ func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, err
 	return out, nil
 }
 
-func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driver, error) {
-	if limit <= 0 {
+func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driver, int64, error) {
+	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
 	if offset < 0 {
 		offset = 0
+	}
+
+	countQ := fmt.Sprintf(`SELECT COUNT(*) FROM %s;`, r.table())
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ).Scan(&total); err != nil {
+		return nil, 0, err
 	}
 
 	q := fmt.Sprintf(`
@@ -103,7 +109,7 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 
 	rows, err := r.db.QueryContext(ctx, q, limit, offset)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -116,7 +122,7 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 			&middlename, &phone, &mail, &photoPath,
 			&d.CreatedAt, &d.UpdatedAt,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		d.Middlename = middlename.String
 		d.Phone = phone.String
@@ -124,7 +130,10 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 		d.PhotoPath = photoPath.String
 		res = append(res, d)
 	}
-	return res, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	return res, total, nil
 }
 
 func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (*models.Driver, error) {

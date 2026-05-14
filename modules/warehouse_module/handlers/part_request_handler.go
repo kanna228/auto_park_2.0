@@ -225,11 +225,13 @@ func (h *PartRequestHandler) ListAllPartRequestHistory(c *gin.Context) {
 
 // ListPartRequestHistory godoc
 // @Summary      List part request history
-// @Description  Returns immutable history records for a part request: status, who changed it, change date and comment.
+// @Description  Returns immutable history records for a part request with pagination.
 // @Tags         Warehouse Part Requests
 // @Produce      json
 // @Security     BearerAuth
 // @Param        id path int true "Part request ID"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
 // @Success      200 {object} PartRequestHistoryListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -243,7 +245,16 @@ func (h *PartRequestHandler) ListPartRequestHistory(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.ListHistoryByRequestID(c.Request.Context(), id)
+	limit, ok := parseIntQuery(c, "limit", false)
+	if !ok {
+		return
+	}
+	offset, ok := parseIntQuery(c, "offset", true)
+	if !ok {
+		return
+	}
+
+	resp, err := h.svc.ListHistoryByRequestID(c.Request.Context(), id, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
@@ -400,22 +411,34 @@ func (h *PartRequestHandler) DeletePartRequest(c *gin.Context) {
 
 // ListPartRequestStatuses godoc
 // @Summary      List part request statuses
-// @Description  Returns available statuses for warehouse part requests: new, rejected and approved.
+// @Description  Returns available statuses for warehouse part requests with pagination.
 // @Tags         Warehouse Part Requests
 // @Produce      json
 // @Security     BearerAuth
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
 // @Success      200 {object} PartRequestStatusListResponseWrap
+// @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      403 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
 // @Router       /api/warehouse/part-request-statuses [get]
 func (h *PartRequestHandler) ListPartRequestStatuses(c *gin.Context) {
-	items, err := h.svc.ListStatuses(c.Request.Context())
+	limit, ok := parseIntQuery(c, "limit", false)
+	if !ok {
+		return
+	}
+	offset, ok := parseIntQuery(c, "offset", true)
+	if !ok {
+		return
+	}
+
+	resp, err := h.svc.ListStatuses(c.Request.Context(), limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": items})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 }
 
 func getUserIDFromContext(c *gin.Context) (int64, bool) {

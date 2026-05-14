@@ -36,13 +36,21 @@ type TripsheetTripResponse struct {
 // TripsheetTripFilter represents filters for listing tripsheet trips.
 type TripsheetTripFilter struct {
 	TripsheetID *int64  `form:"tripsheet_id" example:"1"`
+	VehicleID   *int64  `form:"vehicle_id" example:"12"`
+	DriverID    *int64  `form:"driver_id" example:"55"`
 	StatusID    *int64  `form:"status_id" example:"1"`
 	DateFrom    *string `form:"date_from" example:"2026-03-01"`
 	DateTo      *string `form:"date_to" example:"2026-03-31"`
+	Limit       int     `form:"limit" example:"50"`
+	Offset      int     `form:"offset" example:"0"`
+	SortBy      string  `form:"sort_by" example:"created_at"`
+	Order       string  `form:"order" example:"desc"`
 }
 
 // TripsheetTripListResponse represents list response for tripsheet trips.
 type TripsheetTripListResponse struct {
-	Items []TripsheetTripResponse `json:"items"`
-	Total int                     `json:"total" example:"1"`
+	Items  []TripsheetTripResponse `json:"items"`
+	Total  int                     `json:"total" example:"1"`
+	Limit  int                     `json:"limit" example:"50"`
+	Offset int                     `json:"offset" example:"0"`
 }

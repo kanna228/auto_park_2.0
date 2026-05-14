@@ -55,6 +55,13 @@ type PartRequestStatusResponse struct {
 	Name string `json:"name" example:"Новая"`
 }
 
+type PartRequestStatusListResponse struct {
+	Items  []PartRequestStatusResponse `json:"items"`
+	Total  int64                       `json:"total" example:"3"`
+	Limit  int                         `json:"limit" example:"50"`
+	Offset int                         `json:"offset" example:"0"`
+}
+
 type PartRequestPartBriefResponse struct {
 	ID            int64  `json:"id" example:"1"`
 	CatalogPartID string `json:"catalog_part_id" example:"BRK-PAD-001"`

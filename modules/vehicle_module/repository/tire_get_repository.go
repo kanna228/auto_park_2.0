@@ -162,7 +162,20 @@ func (r *tireRepoImpl) List(ctx context.Context, q ListTiresParams) ([]models.Ti
 	return items, total, nil
 }
 
-func (r *tireRepoImpl) GetByVehicleID(ctx context.Context, vehicleID int64) ([]models.Tire, error) {
+func (r *tireRepoImpl) GetByVehicleID(ctx context.Context, vehicleID int64, limit int, offset int) ([]models.Tire, int64, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	const countQ = `SELECT COUNT(*) FROM tires WHERE vehicle_id = $1;`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ, vehicleID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("get tires by vehicle id count: %w", err)
+	}
+
 	const q = `
 		SELECT
 			t.id,
@@ -177,12 +190,13 @@ func (r *tireRepoImpl) GetByVehicleID(ctx context.Context, vehicleID int64) ([]m
 		FROM tires t
 		JOIN tire_places tp ON tp.id = t.place_id
 		WHERE t.vehicle_id = $1
-		ORDER BY t.place_id ASC, t.id ASC;
+		ORDER BY t.place_id ASC, t.id ASC
+		LIMIT $2 OFFSET $3;
 	`
 
-	rows, err := r.db.QueryContext(ctx, q, vehicleID)
+	rows, err := r.db.QueryContext(ctx, q, vehicleID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("get tires by vehicle id: %w", err)
+		return nil, 0, fmt.Errorf("get tires by vehicle id: %w", err)
 	}
 	defer rows.Close()
 
@@ -200,14 +214,14 @@ func (r *tireRepoImpl) GetByVehicleID(ctx context.Context, vehicleID int64) ([]m
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("get tires by vehicle id scan: %w", err)
+			return nil, 0, fmt.Errorf("get tires by vehicle id scan: %w", err)
 		}
 		items = append(items, item)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("get tires by vehicle id rows: %w", err)
+		return nil, 0, fmt.Errorf("get tires by vehicle id rows: %w", err)
 	}
 
-	return items, nil
+	return items, total, nil
 }

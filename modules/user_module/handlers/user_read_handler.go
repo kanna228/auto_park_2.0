@@ -27,6 +27,10 @@ func NewUsersReadHandler(svc *service.UsersReadService) *UsersReadHandler {
 // @Tags         Users
 // @Produce      json
 // @Security     BearerAuth
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size" default(50)
 // @Success      200 {object} models.UsersListResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
@@ -38,13 +42,22 @@ func (h *UsersReadHandler) ListUsers(c *gin.Context) {
 		return
 	}
 
-	users, err := h.svc.ListUsers(c.Request.Context(), roleID, userID)
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	users, total, err := h.svc.ListUsers(c.Request.Context(), roleID, userID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": users})
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": users, "total": total, "limit": limit, "offset": offset})
 }
 
 // GET /api/users/:id

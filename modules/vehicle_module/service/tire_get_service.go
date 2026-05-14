@@ -83,12 +83,12 @@ func mapTireToDTO(item models.Tire) dto.TireResponse {
 	}
 }
 
-func (s *tireService) GetByVehicleID(ctx context.Context, vehicleID int64) (*dto.TireListResponse, error) {
+func (s *tireService) GetByVehicleID(ctx context.Context, vehicleID int64, limit int, offset int) (*dto.TireListResponse, error) {
 	if vehicleID <= 0 {
 		return nil, fmt.Errorf("invalid vehicle_id")
 	}
 
-	items, err := s.repo.GetByVehicleID(ctx, vehicleID)
+	items, total, err := s.repo.GetByVehicleID(ctx, vehicleID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -98,10 +98,20 @@ func (s *tireService) GetByVehicleID(ctx context.Context, vehicleID int64) (*dto
 		out = append(out, mapTireToDTO(item))
 	}
 
+	normalizedLimit := limit
+	if normalizedLimit <= 0 || normalizedLimit > 200 {
+		normalizedLimit = 50
+	}
+
+	normalizedOffset := offset
+	if normalizedOffset < 0 {
+		normalizedOffset = 0
+	}
+
 	return &dto.TireListResponse{
 		Items:  out,
-		Total:  int64(len(out)),
-		Limit:  len(out),
-		Offset: 0,
+		Total:  total,
+		Limit:  normalizedLimit,
+		Offset: normalizedOffset,
 	}, nil
 }

@@ -20,8 +20,8 @@ func NewUsersReadService(repo repository.UsersReadRepo) *UsersReadService {
 	return &UsersReadService{repo: repo}
 }
 
-func (s *UsersReadService) ListUsers(ctx context.Context, requesterRoleID int64, requesterUserID int64) ([]models.UserPublic, error) {
-	return s.repo.ListUsersForRole(ctx, requesterRoleID, requesterUserID)
+func (s *UsersReadService) ListUsers(ctx context.Context, requesterRoleID int64, requesterUserID int64, limit int, offset int) ([]models.UserPublic, int64, error) {
+	return s.repo.ListUsersForRole(ctx, requesterRoleID, requesterUserID, limit, offset)
 }
 
 // role=1 → может смотреть любого

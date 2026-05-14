@@ -32,4 +32,6 @@ type IncidentTypeListResponseWrap struct {
 	Success bool                       `json:"success" example:"true"`
 	Items   []dto.IncidentTypeResponse `json:"items"`
 	Total   int                        `json:"total" example:"3"`
+	Limit   int                        `json:"limit" example:"50"`
+	Offset  int                        `json:"offset" example:"0"`
 }

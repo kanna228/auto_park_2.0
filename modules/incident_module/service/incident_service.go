@@ -17,7 +17,7 @@ type IncidentService interface {
 	GetAll(ctx context.Context, filter dto.IncidentListQuery) ([]dto.IncidentResponse, int, error)
 	Update(ctx context.Context, id int64, req dto.IncidentUpdateRequest) (*dto.IncidentResponse, error)
 	Delete(ctx context.Context, id int64) error
-	ListIncidentTypes(ctx context.Context) ([]dto.IncidentTypeResponse, int, error)
+	ListIncidentTypes(ctx context.Context, limit int, offset int) ([]dto.IncidentTypeResponse, int, int, int, error)
 }
 
 type incidentService struct {
@@ -288,19 +288,36 @@ func (s *incidentService) Delete(ctx context.Context, id int64) error {
 	return s.repo.Delete(ctx, id)
 }
 
-func (s *incidentService) ListIncidentTypes(ctx context.Context) ([]dto.IncidentTypeResponse, int, error) {
+func (s *incidentService) ListIncidentTypes(ctx context.Context, limit int, offset int) ([]dto.IncidentTypeResponse, int, int, int, error) {
 	items, err := s.repo.ListIncidentTypes(ctx)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, 0, 0, err
 	}
 
-	out := make([]dto.IncidentTypeResponse, 0, len(items))
-	for i := range items {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	total := len(items)
+	start := offset
+	if start > total {
+		start = total
+	}
+	end := start + limit
+	if end > total {
+		end = total
+	}
+
+	out := make([]dto.IncidentTypeResponse, 0, end-start)
+	for i := range items[start:end] {
 		out = append(out, dto.IncidentTypeResponse{
-			ID:   items[i].ID,
-			Name: items[i].Name,
+			ID:   items[start+i].ID,
+			Name: items[start+i].Name,
 		})
 	}
 
-	return out, len(out), nil
+	return out, total, limit, offset, nil
 }

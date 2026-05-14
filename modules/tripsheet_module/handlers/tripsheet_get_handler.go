@@ -26,6 +26,12 @@ import (
 // @Param        driver_last_name query string false "Driver last name"
 // @Param        driver_first_name query string false "Driver first name"
 // @Param        driver_middle_name query string false "Driver middle name"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size" default(50)
+// @Param        sort_by query string false "Sort by: tripsheet_date, created_at, updated_at, id, vehicle_id, driver_id, status_id"
+// @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} TripsheetListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -50,10 +56,21 @@ func (h *TripsheetHandler) GetAll(c *gin.Context) {
 		return
 	}
 
+	limit := filter.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"items":   data,
 		"total":   total,
+		"limit":   limit,
+		"offset":  offset,
 	})
 }
 

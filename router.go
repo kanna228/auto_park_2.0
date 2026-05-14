@@ -36,6 +36,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	// Важно: CORS должен быть ДО всех модулей и ДО JWT middleware.
 	// Иначе preflight OPTIONS запросы от фронта будут падать на авторизации.
 	r.Use(middleware.CORSMiddleware())
+	r.Use(middleware.PaginationAliasMiddleware())
 
 	_ = os.MkdirAll(cfg.Uploads.RootDir, 0o755)
 

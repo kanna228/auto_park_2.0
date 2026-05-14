@@ -33,6 +33,11 @@ type FuelRefillResponse struct {
 type FuelRefillFilter struct {
 	TripsheetID *int64  `form:"tripsheet_id" example:"1"`
 	VehicleID   *int64  `form:"vehicle_id" example:"12"`
+	DriverID    *int64  `form:"driver_id" example:"55"`
 	DateFrom    *string `form:"date_from" example:"2026-04-01"`
 	DateTo      *string `form:"date_to" example:"2026-04-30"`
+	Limit       int     `form:"limit" example:"50"`
+	Offset      int     `form:"offset" example:"0"`
+	SortBy      string  `form:"sort_by" example:"date"`
+	Order       string  `form:"order" example:"desc"`
 }

@@ -90,6 +90,10 @@ type TripsheetFilter struct {
 	DriverLastName     *string `form:"driver_last_name" example:"Ivanov"`
 	DriverFirstName    *string `form:"driver_first_name" example:"Ivan"`
 	DriverMiddleName   *string `form:"driver_middle_name" example:"Ivanovich"`
+	Limit              int     `form:"limit" example:"50"`
+	Offset             int     `form:"offset" example:"0"`
+	SortBy             string  `form:"sort_by" example:"tripsheet_date"`
+	Order              string  `form:"order" example:"desc"`
 }
 
 // TripsheetResponse represents tripsheet response.

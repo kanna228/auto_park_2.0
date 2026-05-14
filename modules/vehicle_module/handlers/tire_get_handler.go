@@ -132,6 +132,8 @@ func (h *TireHandler) ListTires(c *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        vehicle_id path int true "Vehicle ID"
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
 // @Success      200 {object} TireListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -149,7 +151,27 @@ func (h *TireHandler) GetTiresByVehicleID(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.svc.GetByVehicleID(c.Request.Context(), vehicleID)
+	limit := 50
+	if s := strings.TrimSpace(c.Query("limit")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid limit"})
+			return
+		}
+		limit = n
+	}
+
+	offset := 0
+	if s := strings.TrimSpace(c.Query("offset")); s != "" {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid offset"})
+			return
+		}
+		offset = n
+	}
+
+	resp, err := h.svc.GetByVehicleID(c.Request.Context(), vehicleID, limit, offset)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,

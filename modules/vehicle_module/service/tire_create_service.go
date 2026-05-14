@@ -15,7 +15,7 @@ type TireService interface {
 	List(ctx context.Context, q dto.TireListQuery) (*dto.TireListResponse, error)
 	UpdateByID(ctx context.Context, id int64, req dto.TireUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
-	GetByVehicleID(ctx context.Context, vehicleID int64) (*dto.TireListResponse, error)
+	GetByVehicleID(ctx context.Context, vehicleID int64, limit int, offset int) (*dto.TireListResponse, error)
 }
 
 type tireService struct {
