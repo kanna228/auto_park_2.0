@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"auto_park/internal/config"
@@ -25,19 +26,21 @@ func AuthJWT(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := ""
 
-		if cookie, err := c.Cookie("session_token"); err == nil && cookie != "" {
-			tokenStr = cookie
+		// ВАЖНО:
+		// Authorization Bearer должен быть приоритетнее cookie.
+		// Иначе в тестах и в браузере cookie может перебивать нужный token.
+		auth := c.GetHeader("Authorization")
+		if strings.HasPrefix(auth, "Bearer ") {
+			tokenStr = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
 		}
 
 		if tokenStr == "" {
-			auth := c.GetHeader("Authorization")
-			if strings.HasPrefix(auth, "Bearer ") {
-				tokenStr = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+			if cookie, err := c.Cookie("session_token"); err == nil && cookie != "" {
+				tokenStr = cookie
 			}
 		}
 
-		// Useful for browser WebSocket clients because native WebSocket API
-		// cannot set Authorization header. Prefer cookie/Bearer for normal HTTP.
+		// Для WebSocket, где нельзя поставить Authorization header.
 		if tokenStr == "" {
 			tokenStr = strings.TrimSpace(c.Query("access_token"))
 		}
@@ -71,6 +74,7 @@ func AuthJWT(cfg *config.Config) gin.HandlerFunc {
 		c.Set(ContextRoleIDKey, claims.RoleID)
 		c.Set(ContextEmailKey, claims.Email)
 		c.Set(ContextIINKey, claims.IIN)
+
 		c.Next()
 	}
 }
@@ -88,9 +92,15 @@ func RequireRoles(allowedRoles ...int64) gin.HandlerFunc {
 			return
 		}
 
-		roleID, ok := roleVal.(int64)
-		if !ok {
+		roleID, ok := roleIDFromAny(roleVal)
+		if !ok || roleID <= 0 {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"success": false, "error": "invalid role type"})
+			return
+		}
+
+		// Администратор всегда имеет полный доступ.
+		if roleID == 1 {
+			c.Next()
 			return
 		}
 
@@ -100,5 +110,37 @@ func RequireRoles(allowedRoles ...int64) gin.HandlerFunc {
 		}
 
 		c.Next()
+	}
+}
+
+func roleIDFromAny(value any) (int64, bool) {
+	switch v := value.(type) {
+	case int64:
+		return v, true
+	case int:
+		return int64(v), true
+	case int32:
+		return int64(v), true
+	case uint:
+		if uint64(v) > uint64(^uint64(0)>>1) {
+			return 0, false
+		}
+		return int64(v), true
+	case uint64:
+		if v > uint64(^uint64(0)>>1) {
+			return 0, false
+		}
+		return int64(v), true
+	case float64:
+		roleID := int64(v)
+		if v != float64(roleID) {
+			return 0, false
+		}
+		return roleID, true
+	case string:
+		roleID, err := strconv.ParseInt(strings.TrimSpace(v), 10, 64)
+		return roleID, err == nil
+	default:
+		return 0, false
 	}
 }

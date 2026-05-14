@@ -1,0 +1,3349 @@
+{
+  "base_url": "http://localhost:8080",
+  "db": {
+    "host": "localhost",
+    "port": 5433,
+    "dbname": "auto_park",
+    "user": "autopark_user",
+    "password": "***"
+  },
+  "suffix": "wv0bhm7c",
+  "ids": {
+    "created_user_delete_id": 12,
+    "driver_id": 1,
+    "mechanic_shift_id": 1,
+    "vehicle_status_active_id": 1,
+    "vehicle_status_second_id": 4,
+    "vehicle_id": 1,
+    "vehicle_plate": "777WV001",
+    "vehicle_brand": "Toyota Camry",
+    "vehicle_status_history_id": 2,
+    "tire_place_id": 7,
+    "tire_id": 1,
+    "insurance_id": 1,
+    "technical_inspection_id": 1,
+    "tripsheet_id": 1,
+    "tripsheet_trip_id": 1,
+    "incident_id": 1,
+    "fuel_refill_id": 1,
+    "notification_id": 2,
+    "warehouse_part_id": 3,
+    "part_request_id": 1,
+    "vehicle_part_installation_id": 1,
+    "service_part_id": 21,
+    "service_type_id": 11,
+    "vehicle_service_id": 1
+  },
+  "users": {
+    "admin": 2,
+    "manager": 3,
+    "dispatcher": 4,
+    "mechanic": 5,
+    "warehouse": 6
+  },
+  "total_checks": 152,
+  "passed_checks": 151,
+  "failed_checks": 0,
+  "skipped_checks": 1,
+  "expected_routes": [
+    [
+      "DELETE",
+      "/api/fuel/refills/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/incidents/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/tripsheet/trips/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/tripsheet/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/users/drivers/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/users/drivers/{id}/photo"
+    ],
+    [
+      "DELETE",
+      "/api/users/mechanic-shifts/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/users/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/insurance/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/insurance/{id}/file"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/technical-inspections/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/technical-inspections/{id}/file"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/tire-places/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/tires/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/{id}/photo"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/part-requests/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/parts/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/service-parts/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/service-types/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/vehicle-part-installations/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/vehicle-services/{id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/health"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills/by-tripsheet/{tripsheet_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills/by-vehicle/{vehicle_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills/{id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/reports/driver/{driver_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/reports/tripsheet/{tripsheet_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/reports/vehicle/{vehicle_id}"
+    ],
+    [
+      "GET",
+      "/api/incidents"
+    ],
+    [
+      "GET",
+      "/api/incidents/types"
+    ],
+    [
+      "GET",
+      "/api/incidents/{id}"
+    ],
+    [
+      "GET",
+      "/api/notifications"
+    ],
+    [
+      "GET",
+      "/api/notifications/unread"
+    ],
+    [
+      "GET",
+      "/api/notifications/unread/count"
+    ],
+    [
+      "GET",
+      "/api/notifications/ws"
+    ],
+    [
+      "GET",
+      "/api/tripsheet"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/health"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/trips"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/trips/by-tripsheet/{tripsheet_id}"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/trips/{id}"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/{id}"
+    ],
+    [
+      "GET",
+      "/api/users"
+    ],
+    [
+      "GET",
+      "/api/users/drivers"
+    ],
+    [
+      "GET",
+      "/api/users/drivers/{id}"
+    ],
+    [
+      "GET",
+      "/api/users/mechanic-shifts"
+    ],
+    [
+      "GET",
+      "/api/users/mechanic-shifts/{id}"
+    ],
+    [
+      "GET",
+      "/api/users/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles"
+    ],
+    [
+      "GET",
+      "/api/vehicles/insurance"
+    ],
+    [
+      "GET",
+      "/api/vehicles/insurance/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/status-history"
+    ],
+    [
+      "GET",
+      "/api/vehicles/status-history/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/statuses"
+    ],
+    [
+      "GET",
+      "/api/vehicles/technical-inspections"
+    ],
+    [
+      "GET",
+      "/api/vehicles/technical-inspections/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tire-places"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tire-places/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tires"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tires/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/vehicle-tires/{vehicle_id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-request-history"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-request-statuses"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-requests"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-requests/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-requests/{id}/history"
+    ],
+    [
+      "GET",
+      "/api/warehouse/parts"
+    ],
+    [
+      "GET",
+      "/api/warehouse/parts/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-parts"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-parts/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-types"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-types/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-part-installations"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-part-installations/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-services"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-services/{id}"
+    ],
+    [
+      "GET",
+      "/healthz"
+    ],
+    [
+      "PATCH",
+      "/api/notifications/read-all"
+    ],
+    [
+      "PATCH",
+      "/api/notifications/{id}/read"
+    ],
+    [
+      "PATCH",
+      "/api/users/mechanic-shifts/{id}/activity"
+    ],
+    [
+      "PATCH",
+      "/api/warehouse/part-requests/{id}/status"
+    ],
+    [
+      "PATCH",
+      "/api/warehouse/vehicle-part-installations/{id}/activity"
+    ],
+    [
+      "POST",
+      "/api/fuel/refills"
+    ],
+    [
+      "POST",
+      "/api/incidents"
+    ],
+    [
+      "POST",
+      "/api/tripsheet"
+    ],
+    [
+      "POST",
+      "/api/tripsheet/trips"
+    ],
+    [
+      "POST",
+      "/api/users"
+    ],
+    [
+      "POST",
+      "/api/users/drivers"
+    ],
+    [
+      "POST",
+      "/api/users/drivers/{id}/photo"
+    ],
+    [
+      "POST",
+      "/api/users/login"
+    ],
+    [
+      "POST",
+      "/api/users/mechanic-shifts"
+    ],
+    [
+      "POST",
+      "/api/vehicles"
+    ],
+    [
+      "POST",
+      "/api/vehicles/insurance"
+    ],
+    [
+      "POST",
+      "/api/vehicles/insurance/{id}/file"
+    ],
+    [
+      "POST",
+      "/api/vehicles/technical-inspections"
+    ],
+    [
+      "POST",
+      "/api/vehicles/technical-inspections/{id}/file"
+    ],
+    [
+      "POST",
+      "/api/vehicles/tire-places"
+    ],
+    [
+      "POST",
+      "/api/vehicles/tires"
+    ],
+    [
+      "POST",
+      "/api/vehicles/{id}/photo"
+    ],
+    [
+      "POST",
+      "/api/warehouse/part-requests"
+    ],
+    [
+      "POST",
+      "/api/warehouse/parts"
+    ],
+    [
+      "POST",
+      "/api/warehouse/service-parts"
+    ],
+    [
+      "POST",
+      "/api/warehouse/service-types"
+    ],
+    [
+      "POST",
+      "/api/warehouse/vehicle-part-installations"
+    ],
+    [
+      "POST",
+      "/api/warehouse/vehicle-services"
+    ],
+    [
+      "PUT",
+      "/api/fuel/refills/{id}"
+    ],
+    [
+      "PUT",
+      "/api/incidents/{id}"
+    ],
+    [
+      "PUT",
+      "/api/tripsheet/trips/{id}"
+    ],
+    [
+      "PUT",
+      "/api/tripsheet/{id}"
+    ],
+    [
+      "PUT",
+      "/api/users/drivers/{id}"
+    ],
+    [
+      "PUT",
+      "/api/users/drivers/{id}/photo"
+    ],
+    [
+      "PUT",
+      "/api/users/mechanic-shifts/{id}"
+    ],
+    [
+      "PUT",
+      "/api/users/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/insurance/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/technical-inspections/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/tire-places/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/tires/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/{id}/photo"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/part-requests/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/parts/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/service-parts/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/service-types/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/vehicle-part-installations/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/vehicle-services/{id}"
+    ]
+  ],
+  "tested_routes": [
+    [
+      "DELETE",
+      "/api/fuel/refills/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/incidents/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/tripsheet/trips/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/tripsheet/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/users/drivers/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/users/drivers/{id}/photo"
+    ],
+    [
+      "DELETE",
+      "/api/users/mechanic-shifts/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/users/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/insurance/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/insurance/{id}/file"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/technical-inspections/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/technical-inspections/{id}/file"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/tire-places/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/tires/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/vehicles/{id}/photo"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/part-requests/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/parts/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/service-parts/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/service-types/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/vehicle-part-installations/{id}"
+    ],
+    [
+      "DELETE",
+      "/api/warehouse/vehicle-services/{id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/health"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills/by-tripsheet/{tripsheet_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills/by-vehicle/{vehicle_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/refills/{id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/reports/driver/{driver_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/reports/tripsheet/{tripsheet_id}"
+    ],
+    [
+      "GET",
+      "/api/fuel/reports/vehicle/{vehicle_id}"
+    ],
+    [
+      "GET",
+      "/api/incidents"
+    ],
+    [
+      "GET",
+      "/api/incidents/types"
+    ],
+    [
+      "GET",
+      "/api/incidents/{id}"
+    ],
+    [
+      "GET",
+      "/api/notifications"
+    ],
+    [
+      "GET",
+      "/api/notifications/unread"
+    ],
+    [
+      "GET",
+      "/api/notifications/unread/count"
+    ],
+    [
+      "GET",
+      "/api/notifications/ws"
+    ],
+    [
+      "GET",
+      "/api/tripsheet"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/health"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/trips"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/trips/by-tripsheet/{tripsheet_id}"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/trips/{id}"
+    ],
+    [
+      "GET",
+      "/api/tripsheet/{id}"
+    ],
+    [
+      "GET",
+      "/api/users"
+    ],
+    [
+      "GET",
+      "/api/users/drivers"
+    ],
+    [
+      "GET",
+      "/api/users/drivers/{id}"
+    ],
+    [
+      "GET",
+      "/api/users/mechanic-shifts"
+    ],
+    [
+      "GET",
+      "/api/users/mechanic-shifts/{id}"
+    ],
+    [
+      "GET",
+      "/api/users/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles"
+    ],
+    [
+      "GET",
+      "/api/vehicles/insurance"
+    ],
+    [
+      "GET",
+      "/api/vehicles/insurance/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/status-history"
+    ],
+    [
+      "GET",
+      "/api/vehicles/status-history/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/statuses"
+    ],
+    [
+      "GET",
+      "/api/vehicles/technical-inspections"
+    ],
+    [
+      "GET",
+      "/api/vehicles/technical-inspections/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tire-places"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tire-places/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tires"
+    ],
+    [
+      "GET",
+      "/api/vehicles/tires/{id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/vehicle-tires/{vehicle_id}"
+    ],
+    [
+      "GET",
+      "/api/vehicles/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-request-history"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-request-statuses"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-requests"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-requests/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/part-requests/{id}/history"
+    ],
+    [
+      "GET",
+      "/api/warehouse/parts"
+    ],
+    [
+      "GET",
+      "/api/warehouse/parts/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-parts"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-parts/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-types"
+    ],
+    [
+      "GET",
+      "/api/warehouse/service-types/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-part-installations"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-part-installations/{id}"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-services"
+    ],
+    [
+      "GET",
+      "/api/warehouse/vehicle-services/{id}"
+    ],
+    [
+      "GET",
+      "/healthz"
+    ],
+    [
+      "PATCH",
+      "/api/notifications/read-all"
+    ],
+    [
+      "PATCH",
+      "/api/notifications/{id}/read"
+    ],
+    [
+      "PATCH",
+      "/api/users/mechanic-shifts/{id}/activity"
+    ],
+    [
+      "PATCH",
+      "/api/warehouse/part-requests/{id}/status"
+    ],
+    [
+      "PATCH",
+      "/api/warehouse/vehicle-part-installations/{id}/activity"
+    ],
+    [
+      "POST",
+      "/api/fuel/refills"
+    ],
+    [
+      "POST",
+      "/api/incidents"
+    ],
+    [
+      "POST",
+      "/api/tripsheet"
+    ],
+    [
+      "POST",
+      "/api/tripsheet/trips"
+    ],
+    [
+      "POST",
+      "/api/users"
+    ],
+    [
+      "POST",
+      "/api/users/drivers"
+    ],
+    [
+      "POST",
+      "/api/users/drivers/{id}/photo"
+    ],
+    [
+      "POST",
+      "/api/users/login"
+    ],
+    [
+      "POST",
+      "/api/users/mechanic-shifts"
+    ],
+    [
+      "POST",
+      "/api/vehicles"
+    ],
+    [
+      "POST",
+      "/api/vehicles/insurance"
+    ],
+    [
+      "POST",
+      "/api/vehicles/insurance/{id}/file"
+    ],
+    [
+      "POST",
+      "/api/vehicles/technical-inspections"
+    ],
+    [
+      "POST",
+      "/api/vehicles/technical-inspections/{id}/file"
+    ],
+    [
+      "POST",
+      "/api/vehicles/tire-places"
+    ],
+    [
+      "POST",
+      "/api/vehicles/tires"
+    ],
+    [
+      "POST",
+      "/api/vehicles/{id}/photo"
+    ],
+    [
+      "POST",
+      "/api/warehouse/part-requests"
+    ],
+    [
+      "POST",
+      "/api/warehouse/parts"
+    ],
+    [
+      "POST",
+      "/api/warehouse/service-parts"
+    ],
+    [
+      "POST",
+      "/api/warehouse/service-types"
+    ],
+    [
+      "POST",
+      "/api/warehouse/vehicle-part-installations"
+    ],
+    [
+      "POST",
+      "/api/warehouse/vehicle-services"
+    ],
+    [
+      "PUT",
+      "/api/fuel/refills/{id}"
+    ],
+    [
+      "PUT",
+      "/api/incidents/{id}"
+    ],
+    [
+      "PUT",
+      "/api/tripsheet/trips/{id}"
+    ],
+    [
+      "PUT",
+      "/api/tripsheet/{id}"
+    ],
+    [
+      "PUT",
+      "/api/users/drivers/{id}"
+    ],
+    [
+      "PUT",
+      "/api/users/drivers/{id}/photo"
+    ],
+    [
+      "PUT",
+      "/api/users/mechanic-shifts/{id}"
+    ],
+    [
+      "PUT",
+      "/api/users/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/insurance/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/technical-inspections/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/tire-places/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/tires/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/{id}"
+    ],
+    [
+      "PUT",
+      "/api/vehicles/{id}/photo"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/part-requests/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/parts/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/service-parts/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/service-types/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/vehicle-part-installations/{id}"
+    ],
+    [
+      "PUT",
+      "/api/warehouse/vehicle-services/{id}"
+    ]
+  ],
+  "missing_routes": [],
+  "results": [
+    {
+      "name": "wait healthz",
+      "method": "GET",
+      "path": "/healthz",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 9,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"ok\":true,\"port\":\"8080\",\"service\":\"auto_park\"}",
+      "skipped": false
+    },
+    {
+      "name": "login admin",
+      "method": "POST",
+      "path": "/api/users/login",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 258,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjIsImVtYWlsIjoiYXBpdGVzdC5hZG1pbkBhdXRvcGFyay5sb2NhbCIsInJvbGVfaWQiOjEsImlpbiI6IjkwMDAwMDAwMDAwMSIsInN1YiI6IjIiLCJleHAiOjE3Nzg4MjU0OTYsImlhdCI6MTc3ODczOTA5Nn0.XElmp7roVbky_mm1Jtk4j5r7WR7Nn36-S6A2YV2ib-U\",\"user_id\":2,\"email\":\"apitest.admin@autopark.local\",\"role_id\":1,\"last_seen\":\"2026-05-14T06:11:36.326271411Z\",\"expires_at\":1778825496},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "login manager",
+      "method": "POST",
+      "path": "/api/users/login",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 209,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjMsImVtYWlsIjoiYXBpdGVzdC5tYW5hZ2VyQGF1dG9wYXJrLmxvY2FsIiwicm9sZV9pZCI6MiwiaWluIjoiOTAwMDAwMDAwMDAyIiwic3ViIjoiMyIsImV4cCI6MTc3ODgyNTQ5NiwiaWF0IjoxNzc4NzM5MDk2fQ.JIQ3t26BeSXzltTTxJKvxyQ1kBPI6pFUl_P-R01ixNA\",\"user_id\":3,\"email\":\"apitest.manager@autopark.local\",\"role_id\":2,\"last_seen\":\"2026-05-14T06:11:36.548030536Z\",\"expires_at\":1778825496},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "login dispatcher",
+      "method": "POST",
+      "path": "/api/users/login",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 200,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjQsImVtYWlsIjoiYXBpdGVzdC5kaXNwYXRjaGVyQGF1dG9wYXJrLmxvY2FsIiwicm9sZV9pZCI6MywiaWluIjoiOTAwMDAwMDAwMDAzIiwic3ViIjoiNCIsImV4cCI6MTc3ODgyNTQ5NiwiaWF0IjoxNzc4NzM5MDk2fQ.MNw9Tf8BFK2VJAMnu7Ey6PlFK-AMahuZDgPMC7Q7Byc\",\"user_id\":4,\"email\":\"apitest.dispatcher@autopark.local\",\"role_id\":3,\"last_seen\":\"2026-05-14T06:11:36.747568967Z\",\"expires_at\":1778825496},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "login mechanic",
+      "method": "POST",
+      "path": "/api/users/login",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 198,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjUsImVtYWlsIjoiYXBpdGVzdC5tZWNoYW5pY0BhdXRvcGFyay5sb2NhbCIsInJvbGVfaWQiOjQsImlpbiI6IjkwMDAwMDAwMDAwNCIsInN1YiI6IjUiLCJleHAiOjE3Nzg4MjU0OTYsImlhdCI6MTc3ODczOTA5Nn0.m4r3Nn6IBqb1J-JiMOVpvm04x4o4ZGJ44q0Kqd2h9Rw\",\"user_id\":5,\"email\":\"apitest.mechanic@autopark.local\",\"role_id\":4,\"last_seen\":\"2026-05-14T06:11:36.946716779Z\",\"expires_at\":1778825496},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "login warehouse",
+      "method": "POST",
+      "path": "/api/users/login",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 206,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOjYsImVtYWlsIjoiYXBpdGVzdC53YXJlaG91c2VAYXV0b3BhcmsubG9jYWwiLCJyb2xlX2lkIjo1LCJpaW4iOiI5MDAwMDAwMDAwMDUiLCJzdWIiOiI2IiwiZXhwIjoxNzc4ODI1NDk3LCJpYXQiOjE3Nzg3MzkwOTd9.3gO13frK3x6EYRrY-2F8bMtG467GBfbz_Jr4lf8Sg64\",\"user_id\":6,\"email\":\"apitest.warehouse@autopark.local\",\"role_id\":5,\"last_seen\":\"2026-05-14T06:11:37.152579822Z\",\"expires_at\":1778825497},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "healthz",
+      "method": "GET",
+      "path": "/healthz",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 1,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"ok\":true,\"port\":\"8080\",\"service\":\"auto_park\"}",
+      "skipped": false
+    },
+    {
+      "name": "tripsheet health",
+      "method": "GET",
+      "path": "/api/tripsheet/health",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 1,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"db\":\"up\",\"service\":\"tripsheet_module\",\"status\":\"ok\"}",
+      "skipped": false
+    },
+    {
+      "name": "fuel health",
+      "method": "GET",
+      "path": "/api/fuel/health",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"db\":\"up\",\"service\":\"fuel_module\",\"status\":\"ok\"}",
+      "skipped": false
+    },
+    {
+      "name": "list users",
+      "method": "GET",
+      "path": "/api/users",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":[{\"id\":1,\"email\":\"admin@autopark.local\",\"first_name\":\"Admin\",\"last_name\":\"Autopark\",\"iin\":\"000000000000\",\"role_id\":1,\"created_at\":\"2026-05-14T06:02:55.492033Z\",\"updated_at\":\"2026-05-14T06:02:55.492033Z\"},{\"id\":2,\"email\":\"apitest.admin@autopark.local\",\"first_name\":\"ApiTest\",\"last_name\":\"Admin\",\"iin\":\"900000000001\",\"phone\":\"+77000000000\",\"role_id\":1,\"last_seen\":\"2026-05-14T06:11:36.326271Z\",\"created_at\":\"2026-05-14T06:03:18.972285Z\",\"updated_at\":\"2026-05-14T06:11:36.326271Z\"},{\"id\":3,\"email\":\"apitest.manager@autopark.local\",\"first_name\":\"ApiTest\",\"last_name\":\"Manager\",\"iin\":\"900000000002\",\"phone\":\"+77000000000\",\"role_id\":2,\"last_seen\":\"2026-05-14T06:11:36.548031Z\",\"created_at\":\"2026-05",
+      "skipped": false
+    },
+    {
+      "name": "get test admin user",
+      "method": "GET",
+      "path": "/api/users/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2,\"email\":\"apitest.admin@autopark.local\",\"first_name\":\"ApiTest\",\"last_name\":\"Admin\",\"iin\":\"900000000001\",\"phone\":\"+77000000000\",\"role_id\":1,\"last_seen\":\"2026-05-14T06:11:36.326271Z\",\"created_at\":\"2026-05-14T06:03:18.972285Z\",\"updated_at\":\"2026-05-14T06:11:36.326271Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable user",
+      "method": "POST",
+      "path": "/api/users",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 101,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":12,\"email\":\"api.created.wv0bhm7c@example.com\",\"role_id\":2,\"created_at\":\"2026-05-14T06:11:37Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update disposable user",
+      "method": "PUT",
+      "path": "/api/users/12",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 6,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":12,\"email\":\"api.created.wv0bhm7c@example.com\",\"first_name\":\"ApiUpdated\",\"last_name\":\"Created\",\"middle_name\":\"Test\",\"iin\":\"929143225928\",\"phone\":\"+77009998877\",\"role_id\":2,\"created_at\":\"2026-05-14T06:11:37.260954Z\",\"updated_at\":\"2026-05-14T06:11:37.268609Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable user",
+      "method": "DELETE",
+      "path": "/api/users/12",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 9,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"id\":12,\"message\":\"user deleted successfully\",\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list drivers",
+      "method": "GET",
+      "path": "/api/users/drivers",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":[]}",
+      "skipped": false
+    },
+    {
+      "name": "create main driver",
+      "method": "POST",
+      "path": "/api/users/drivers",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":1,\"iin\":\"939960621591\",\"name\":\"Main\",\"surname\":\"Driverwv0bhm7c\",\"middlename\":\"Smoke\",\"phone\":\"+77001112233\",\"mail\":\"main.driver.wv0bhm7c@example.com\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"}}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable driver",
+      "method": "POST",
+      "path": "/api/users/drivers",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 47,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":2,\"iin\":\"941237937206\",\"name\":\"Delete\",\"surname\":\"Driverwv0bhm7c\",\"middlename\":\"Smoke\",\"phone\":\"+77002223344\",\"mail\":\"delete.driver.wv0bhm7c@example.com\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"}}",
+      "skipped": false
+    },
+    {
+      "name": "get driver",
+      "method": "GET",
+      "path": "/api/users/drivers/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":1,\"iin\":\"939960621591\",\"name\":\"Main\",\"surname\":\"Driverwv0bhm7c\",\"middlename\":\"Smoke\",\"phone\":\"+77001112233\",\"mail\":\"main.driver.wv0bhm7c@example.com\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"}}",
+      "skipped": false
+    },
+    {
+      "name": "update driver",
+      "method": "PUT",
+      "path": "/api/users/drivers/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 49,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":1,\"iin\":\"939960621591\",\"name\":\"Main\",\"surname\":\"Driverwv0bhm7c\",\"middlename\":\"Smoke\",\"phone\":\"+77007776655\",\"mail\":\"main.driver.updated.wv0bhm7c@example.com\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"}}",
+      "skipped": false
+    },
+    {
+      "name": "upload driver photo",
+      "method": "POST",
+      "path": "/api/users/drivers/1/photo",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 59,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":1,\"iin\":\"939960621591\",\"name\":\"Main\",\"surname\":\"Driverwv0bhm7c\",\"middlename\":\"Smoke\",\"phone\":\"+77007776655\",\"mail\":\"main.driver.updated.wv0bhm7c@example.com\",\"photo_path\":\"drivers/driver_1_1778739097486504174.jpg\",\"photo_url\":\"http://localhost:8080/static/drivers/driver_1_1778739097486504174.jpg\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"}}",
+      "skipped": false
+    },
+    {
+      "name": "update driver photo",
+      "method": "PUT",
+      "path": "/api/users/drivers/1/photo",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 53,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":1,\"iin\":\"939960621591\",\"name\":\"Main\",\"surname\":\"Driverwv0bhm7c\",\"middlename\":\"Smoke\",\"phone\":\"+77007776655\",\"mail\":\"main.driver.updated.wv0bhm7c@example.com\",\"photo_path\":\"drivers/driver_1_1778739097537985910.jpg\",\"photo_url\":\"http://localhost:8080/static/drivers/driver_1_1778739097537985910.jpg\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"}}",
+      "skipped": false
+    },
+    {
+      "name": "delete driver photo",
+      "method": "DELETE",
+      "path": "/api/users/drivers/1/photo",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 7,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":1,\"iin\":\"939960621591\",\"name\":\"Main\",\"surname\":\"Driverwv0bhm7c\",\"middlename\":\"Smoke\",\"phone\":\"+77007776655\",\"mail\":\"main.driver.updated.wv0bhm7c@example.com\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"}}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable driver",
+      "method": "DELETE",
+      "path": "/api/users/drivers/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 6,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"success\":true,\"data\":{\"id\":2}}",
+      "skipped": false
+    },
+    {
+      "name": "create mechanic shift",
+      "method": "POST",
+      "path": "/api/users/mechanic-shifts",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 47,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list mechanic shifts",
+      "method": "GET",
+      "path": "/api/users/mechanic-shifts",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"user_id\":5,\"user\":{\"id\":5,\"email\":\"apitest.mechanic@autopark.local\",\"first_name\":\"ApiTest\",\"last_name\":\"Mechanic\",\"role_id\":4,\"role_name\":\"duty_mechanic\"},\"shift_date\":\"2026-05-14\",\"time_from\":\"08:00\",\"time_to\":\"20:00\",\"comment\":\"API test shift wv0bhm7c\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:37.601753Z\",\"updated_at\":\"2026-05-14T06:11:37.601753Z\"}],\"total\":1,\"limit\":50,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get mechanic shift",
+      "method": "GET",
+      "path": "/api/users/mechanic-shifts/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"user_id\":5,\"user\":{\"id\":5,\"email\":\"apitest.mechanic@autopark.local\",\"first_name\":\"ApiTest\",\"last_name\":\"Mechanic\",\"role_id\":4,\"role_name\":\"duty_mechanic\"},\"shift_date\":\"2026-05-14\",\"time_from\":\"08:00\",\"time_to\":\"20:00\",\"comment\":\"API test shift wv0bhm7c\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:37.601753Z\",\"updated_at\":\"2026-05-14T06:11:37.601753Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update mechanic shift",
+      "method": "PUT",
+      "path": "/api/users/mechanic-shifts/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 52,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update mechanic shift activity",
+      "method": "PATCH",
+      "path": "/api/users/mechanic-shifts/1/activity",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 47,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable mechanic shift",
+      "method": "POST",
+      "path": "/api/users/mechanic-shifts",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 47,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable mechanic shift",
+      "method": "DELETE",
+      "path": "/api/users/mechanic-shifts/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 8,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list vehicle statuses",
+      "method": "GET",
+      "path": "/api/vehicles/statuses",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"name\":\"В использовании\"},{\"id\":2,\"name\":\"На ТО\"},{\"id\":3,\"name\":\"Не используется\"},{\"id\":4,\"name\":\"На ремонте\"},{\"id\":5,\"name\":\"Списан\"}],\"total\":5},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create vehicle",
+      "method": "POST",
+      "path": "/api/vehicles",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 49,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list vehicles",
+      "method": "GET",
+      "path": "/api/vehicles",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 15,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"board_number\":\"B-IJU3\",\"technical_passport_number\":\"TP-7G5IJF8O\",\"state_number\":\"777WV001\",\"vin\":\"VINWV0BHM7C000001\",\"brand_model\":\"Toyota Camry\",\"manufacture_year\":2022,\"received_date\":\"2026-05-14T00:00:00Z\",\"empty_weight_kg\":1500,\"max_weight_kg\":2200,\"engine_volume_cc\":2500,\"insurance_policy_number\":\"POL-WUHQGY\",\"insurance_expiry_date\":\"2027-05-14T00:00:00Z\",\"mileage\":12000,\"current_fuel\":35.5,\"status_id\":1,\"status_name\":\"В использовании\",\"drivers_ids\":[1],\"drivers\":[{\"id\":1,\"iin\":\"939960621591\",\"first_name\":\"Main\",\"last_name\":\"Driverwv0bhm7c\",\"middle_name\":\"Smoke\",\"phone\":\"+77007776655\",\"email\":\"main.driver.updated.wv0bhm7c@example.com\"}],\"insurances\":[],\"techni",
+      "skipped": false
+    },
+    {
+      "name": "get vehicle passport",
+      "method": "GET",
+      "path": "/api/vehicles/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 10,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"board_number\":\"B-IJU3\",\"technical_passport_number\":\"TP-7G5IJF8O\",\"state_number\":\"777WV001\",\"vin\":\"VINWV0BHM7C000001\",\"brand_model\":\"Toyota Camry\",\"manufacture_year\":2022,\"received_date\":\"2026-05-14T00:00:00Z\",\"empty_weight_kg\":1500,\"max_weight_kg\":2200,\"engine_volume_cc\":2500,\"insurance_policy_number\":\"POL-WUHQGY\",\"insurance_expiry_date\":\"2027-05-14T00:00:00Z\",\"mileage\":12000,\"current_fuel\":35.5,\"status_id\":1,\"status_name\":\"В использовании\",\"drivers_ids\":[1],\"drivers\":[{\"id\":1,\"iin\":\"939960621591\",\"first_name\":\"Main\",\"last_name\":\"Driverwv0bhm7c\",\"middle_name\":\"Smoke\",\"phone\":\"+77007776655\",\"email\":\"main.driver.updated.wv0bhm7c@example.com\"}],\"insurances\":[],\"technical_inspec",
+      "skipped": false
+    },
+    {
+      "name": "update vehicle",
+      "method": "PUT",
+      "path": "/api/vehicles/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 47,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "upload vehicle photo",
+      "method": "POST",
+      "path": "/api/vehicles/1/photo",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 52,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"board_number\":\"B-IJU3\",\"technical_passport_number\":\"TP-7G5IJF8O\",\"state_number\":\"777WV001\",\"vin\":\"VINWV0BHM7C000001\",\"brand_model\":\"Toyota Camry Restyled\",\"manufacture_year\":2022,\"received_date\":\"2026-05-14T00:00:00Z\",\"empty_weight_kg\":1500,\"max_weight_kg\":2200,\"engine_volume_cc\":2500,\"insurance_policy_number\":\"POL-WUHQGY\",\"insurance_expiry_date\":\"2027-05-14T00:00:00Z\",\"mileage\":13000,\"current_fuel\":35.5,\"status_id\":4,\"status_name\":\"На ремонте\",\"drivers_ids\":[1],\"drivers\":[],\"photo_path\":\"vehicles/vehicle_1_1778739097938694952.jpg\",\"photo_url\":\"http://localhost:8080/static/vehicles/vehicle_1_1778739097938694952.jpg\",\"insurances\":[],\"technical_inspections\":[],\"incidents\":[],\"",
+      "skipped": false
+    },
+    {
+      "name": "update vehicle photo",
+      "method": "PUT",
+      "path": "/api/vehicles/1/photo",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 54,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"board_number\":\"B-IJU3\",\"technical_passport_number\":\"TP-7G5IJF8O\",\"state_number\":\"777WV001\",\"vin\":\"VINWV0BHM7C000001\",\"brand_model\":\"Toyota Camry Restyled\",\"manufacture_year\":2022,\"received_date\":\"2026-05-14T00:00:00Z\",\"empty_weight_kg\":1500,\"max_weight_kg\":2200,\"engine_volume_cc\":2500,\"insurance_policy_number\":\"POL-WUHQGY\",\"insurance_expiry_date\":\"2027-05-14T00:00:00Z\",\"mileage\":13000,\"current_fuel\":35.5,\"status_id\":4,\"status_name\":\"На ремонте\",\"drivers_ids\":[1],\"drivers\":[],\"photo_path\":\"vehicles/vehicle_1_1778739097990852322.jpg\",\"photo_url\":\"http://localhost:8080/static/vehicles/vehicle_1_1778739097990852322.jpg\",\"insurances\":[],\"technical_inspections\":[],\"incidents\":[],\"",
+      "skipped": false
+    },
+    {
+      "name": "delete vehicle photo",
+      "method": "DELETE",
+      "path": "/api/vehicles/1/photo",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 8,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"board_number\":\"B-IJU3\",\"technical_passport_number\":\"TP-7G5IJF8O\",\"state_number\":\"777WV001\",\"vin\":\"VINWV0BHM7C000001\",\"brand_model\":\"Toyota Camry Restyled\",\"manufacture_year\":2022,\"received_date\":\"2026-05-14T00:00:00Z\",\"empty_weight_kg\":1500,\"max_weight_kg\":2200,\"engine_volume_cc\":2500,\"insurance_policy_number\":\"POL-WUHQGY\",\"insurance_expiry_date\":\"2027-05-14T00:00:00Z\",\"mileage\":13000,\"current_fuel\":35.5,\"status_id\":4,\"status_name\":\"На ремонте\",\"drivers_ids\":[1],\"drivers\":[],\"insurances\":[],\"technical_inspections\":[],\"incidents\":[],\"installed_parts\":[],\"status_history\":[],\"tripsheets\":[],\"services\":[],\"created_at\":\"2026-05-14T06:11:37.817293Z\",\"updated_at\":\"2026-05-14T06:11:",
+      "skipped": false
+    },
+    {
+      "name": "list vehicle status history",
+      "method": "GET",
+      "path": "/api/vehicles/status-history",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":2,\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"status_id\":4,\"status\":{\"id\":4,\"name\":\"На ремонте\"},\"start_date\":\"2026-05-14T06:11:37.889415Z\",\"end_date_display\":\"По настоящее время\",\"is_current\":true,\"created_at\":\"2026-05-14T06:11:37.889415Z\",\"updated_at\":\"2026-05-14T06:11:37.889415Z\"},{\"id\":1,\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"status_id\":1,\"status\":{\"id\":1,\"name\":\"В использовании\"},\"start_date\":\"2026-05-14T06:11:37.817293Z\",\"end_date\":\"2026-05-14T06:11:37.889415Z\",\"end_date_display\":\"2026-05-14 06:11:37\",\"is_current\":false,\"created_at\":\"2026-05-14T06:1",
+      "skipped": false
+    },
+    {
+      "name": "list vehicle status history find id",
+      "method": "GET",
+      "path": "/api/vehicles/status-history",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":2,\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"status_id\":4,\"status\":{\"id\":4,\"name\":\"На ремонте\"},\"start_date\":\"2026-05-14T06:11:37.889415Z\",\"end_date_display\":\"По настоящее время\",\"is_current\":true,\"created_at\":\"2026-05-14T06:11:37.889415Z\",\"updated_at\":\"2026-05-14T06:11:37.889415Z\"}],\"total\":2,\"limit\":1,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get vehicle status history",
+      "method": "GET",
+      "path": "/api/vehicles/status-history/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2,\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"status_id\":4,\"status\":{\"id\":4,\"name\":\"На ремонте\"},\"start_date\":\"2026-05-14T06:11:37.889415Z\",\"end_date_display\":\"По настоящее время\",\"is_current\":true,\"created_at\":\"2026-05-14T06:11:37.889415Z\",\"updated_at\":\"2026-05-14T06:11:37.889415Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable vehicle",
+      "method": "POST",
+      "path": "/api/vehicles",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 46,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable vehicle",
+      "method": "DELETE",
+      "path": "/api/vehicles/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 9,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list tire places",
+      "method": "GET",
+      "path": "/api/vehicles/tire-places",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"name\":\"передняя левая\"},{\"id\":2,\"name\":\"передняя правая\"},{\"id\":3,\"name\":\"задняя левая\"},{\"id\":4,\"name\":\"задняя правая\"},{\"id\":5,\"name\":\"запасная шина\"},{\"id\":6,\"name\":\"на складе\"}],\"total\":6},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create tire place",
+      "method": "POST",
+      "path": "/api/vehicles/tire-places",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":7},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get tire place",
+      "method": "GET",
+      "path": "/api/vehicles/tire-places/7",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":7,\"name\":\"API tire place wv0bhm7c\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update tire place",
+      "method": "PUT",
+      "path": "/api/vehicles/tire-places/7",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 46,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":7},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable tire place",
+      "method": "POST",
+      "path": "/api/vehicles/tire-places",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":8},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable tire place",
+      "method": "DELETE",
+      "path": "/api/vehicles/tire-places/8",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 6,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":8},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create tire",
+      "method": "POST",
+      "path": "/api/vehicles/tires",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 47,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list tires",
+      "method": "GET",
+      "path": "/api/vehicles/tires",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"place_id\":7,\"place_name\":\"API tire place updated wv0bhm7c\",\"vehicle_id\":1,\"tire\":\"Michelin API wv0bhm7c\",\"mileage\":1000,\"max_usage\":60000,\"remaining_usage\":59000,\"created_at\":\"2026-05-14T06:11:38.269864Z\",\"updated_at\":\"2026-05-14T06:11:38.269864Z\"}],\"total\":1,\"limit\":50,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get tire",
+      "method": "GET",
+      "path": "/api/vehicles/tires/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"place_id\":7,\"place_name\":\"API tire place updated wv0bhm7c\",\"vehicle_id\":1,\"tire\":\"Michelin API wv0bhm7c\",\"mileage\":1000,\"max_usage\":60000,\"remaining_usage\":59000,\"created_at\":\"2026-05-14T06:11:38.269864Z\",\"updated_at\":\"2026-05-14T06:11:38.269864Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update tire",
+      "method": "PUT",
+      "path": "/api/vehicles/tires/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 48,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get vehicle tires",
+      "method": "GET",
+      "path": "/api/vehicles/vehicle-tires/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"place_id\":7,\"place_name\":\"API tire place updated wv0bhm7c\",\"vehicle_id\":1,\"tire\":\"Michelin API Updated wv0bhm7c\",\"mileage\":1500,\"max_usage\":60000,\"remaining_usage\":58500,\"created_at\":\"2026-05-14T06:11:38.269864Z\",\"updated_at\":\"2026-05-14T06:11:38.325323Z\"}],\"total\":1,\"limit\":1,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable tire",
+      "method": "POST",
+      "path": "/api/vehicles/tires",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 49,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable tire",
+      "method": "DELETE",
+      "path": "/api/vehicles/tires/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 8,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create insurance",
+      "method": "POST",
+      "path": "/api/vehicles/insurance",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list insurance",
+      "method": "GET",
+      "path": "/api/vehicles/insurance",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"vehicle_id\":1,\"name\":\"Insurance API wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.433151Z\",\"updated_at\":\"2026-05-14T06:11:38.433151Z\"}],\"total\":1,\"limit\":50,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get insurance",
+      "method": "GET",
+      "path": "/api/vehicles/insurance/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"vehicle_id\":1,\"name\":\"Insurance API wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.433151Z\",\"updated_at\":\"2026-05-14T06:11:38.433151Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update insurance",
+      "method": "PUT",
+      "path": "/api/vehicles/insurance/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 53,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "upload insurance file",
+      "method": "POST",
+      "path": "/api/vehicles/insurance/1/file",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 68,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"vehicle_id\":1,\"name\":\"Insurance API Updated wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"file_path\":\"vehicle-documents/insurance/insurance_1_1778739098557363533.pdf\",\"file_url\":\"http://localhost:8080/static/vehicle-documents/insurance/insurance_1_1778739098557363533.pdf\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.433151Z\",\"updated_at\":\"2026-05-14T06:11:38.561251Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete insurance file",
+      "method": "DELETE",
+      "path": "/api/vehicles/insurance/1/file",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 43,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"vehicle_id\":1,\"name\":\"Insurance API Updated wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.433151Z\",\"updated_at\":\"2026-05-14T06:11:38.571604Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable insurance",
+      "method": "POST",
+      "path": "/api/vehicles/insurance",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 49,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable insurance",
+      "method": "DELETE",
+      "path": "/api/vehicles/insurance/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 6,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create technical inspection",
+      "method": "POST",
+      "path": "/api/vehicles/technical-inspections",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 45,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list technical inspections",
+      "method": "GET",
+      "path": "/api/vehicles/technical-inspections",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"vehicle_id\":1,\"name\":\"TechInspection API wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.705211Z\",\"updated_at\":\"2026-05-14T06:11:38.705211Z\"}],\"total\":1,\"limit\":50,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get technical inspection",
+      "method": "GET",
+      "path": "/api/vehicles/technical-inspections/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"vehicle_id\":1,\"name\":\"TechInspection API wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.705211Z\",\"updated_at\":\"2026-05-14T06:11:38.705211Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update technical inspection",
+      "method": "PUT",
+      "path": "/api/vehicles/technical-inspections/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 46,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "upload technical inspection file",
+      "method": "POST",
+      "path": "/api/vehicles/technical-inspections/1/file",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 52,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"vehicle_id\":1,\"name\":\"TechInspection API Updated wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"file_path\":\"vehicle-documents/technical-inspection/technical-inspection_1_1778739098807057035.pdf\",\"file_url\":\"http://localhost:8080/static/vehicle-documents/technical-inspection/technical-inspection_1_1778739098807057035.pdf\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.705211Z\",\"updated_at\":\"2026-05-14T06:11:38.809665Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete technical inspection file",
+      "method": "DELETE",
+      "path": "/api/vehicles/technical-inspections/1/file",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 12,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"vehicle_id\":1,\"name\":\"TechInspection API Updated wv0bhm7c\",\"start_date\":\"2026-05-14T00:00:00Z\",\"end_date\":\"2027-05-14T00:00:00Z\",\"is_active\":true,\"created_at\":\"2026-05-14T06:11:38.705211Z\",\"updated_at\":\"2026-05-14T06:11:38.820588Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable technical inspection",
+      "method": "POST",
+      "path": "/api/vehicles/technical-inspections",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable technical inspection",
+      "method": "DELETE",
+      "path": "/api/vehicles/technical-inspections/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 7,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create tripsheet",
+      "method": "POST",
+      "path": "/api/tripsheet",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 50,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_number\":\"TS-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_id\":1,\"vehicle_brand\":\"Toyota Camry\",\"vehicle_plate_number\":\"777WV001\",\"driver_last_name\":\"Driverwv0bhm7c\",\"driver_first_name\":\"Main\",\"driver_middle_name\":\"Smoke\",\"driver_id\":1,\"start_time\":\"2026-05-14T08:00:00Z\",\"end_time\":\"2026-05-14T18:00:00Z\",\"mileage_start\":13000,\"mileage_end\":13120,\"fuel_start\":30,\"fuel_issued\":15,\"fuel_consumption_theoretical\":10,\"fuel_consumption_actual\":11,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:38Z\",\"updated_at\":\"2026-05-14T06:11:38Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list tripsheets",
+      "method": "GET",
+      "path": "/api/tripsheet",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"tripsheet_number\":\"TS-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_id\":1,\"vehicle_brand\":\"Toyota Camry\",\"vehicle_plate_number\":\"777WV001\",\"driver_last_name\":\"Driverwv0bhm7c\",\"driver_first_name\":\"Main\",\"driver_middle_name\":\"Smoke\",\"driver_id\":1,\"start_time\":\"2026-05-14T08:00:00Z\",\"end_time\":\"2026-05-14T18:00:00Z\",\"mileage_start\":13000,\"mileage_end\":13120,\"fuel_start\":30,\"fuel_issued\":15,\"fuel_consumption_theoretical\":10,\"fuel_consumption_actual\":11,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:38Z\",\"updated_at\":\"2026-05-14T06:11:38Z\"}],\"success\":true,\"total\":1}",
+      "skipped": false
+    },
+    {
+      "name": "get tripsheet",
+      "method": "GET",
+      "path": "/api/tripsheet/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_number\":\"TS-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_id\":1,\"vehicle_brand\":\"Toyota Camry\",\"vehicle_plate_number\":\"777WV001\",\"driver_last_name\":\"Driverwv0bhm7c\",\"driver_first_name\":\"Main\",\"driver_middle_name\":\"Smoke\",\"driver_id\":1,\"start_time\":\"2026-05-14T08:00:00Z\",\"end_time\":\"2026-05-14T18:00:00Z\",\"mileage_start\":13000,\"mileage_end\":13120,\"fuel_start\":30,\"fuel_issued\":15,\"fuel_consumption_theoretical\":10,\"fuel_consumption_actual\":11,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:38Z\",\"updated_at\":\"2026-05-14T06:11:38Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update tripsheet",
+      "method": "PUT",
+      "path": "/api/tripsheet/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 46,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_number\":\"TS-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_id\":1,\"vehicle_brand\":\"Toyota Camry\",\"vehicle_plate_number\":\"777WV001\",\"driver_last_name\":\"Driverwv0bhm7c\",\"driver_first_name\":\"Main\",\"driver_middle_name\":\"Smoke\",\"driver_id\":1,\"start_time\":\"2026-05-14T08:00:00Z\",\"end_time\":\"2026-05-14T18:00:00Z\",\"mileage_start\":13000,\"mileage_end\":13120,\"fuel_start\":30,\"fuel_issued\":15,\"fuel_consumption_theoretical\":10,\"fuel_consumption_actual\":12,\"status_id\":2,\"created_at\":\"2026-05-14T06:11:38Z\",\"updated_at\":\"2026-05-14T06:11:38Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable tripsheet",
+      "method": "POST",
+      "path": "/api/tripsheet",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 49,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2,\"tripsheet_number\":\"TS-DEL-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_id\":1,\"vehicle_brand\":\"Toyota Camry\",\"vehicle_plate_number\":\"777WV001\",\"driver_last_name\":\"Driverwv0bhm7c\",\"driver_first_name\":\"Main\",\"driver_middle_name\":\"Smoke\",\"driver_id\":1,\"start_time\":\"2026-05-14T08:00:00Z\",\"end_time\":\"2026-05-14T18:00:00Z\",\"mileage_start\":13000,\"mileage_end\":13120,\"fuel_start\":30,\"fuel_issued\":15,\"fuel_consumption_theoretical\":10,\"fuel_consumption_actual\":11,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable tripsheet",
+      "method": "DELETE",
+      "path": "/api/tripsheet/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 8,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"message\":\"tripsheet and related trips deleted successfully\",\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create tripsheet trip",
+      "method": "POST",
+      "path": "/api/tripsheet/trips",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_id\":1,\"route_description\":\"Garage -\\u003e Warehouse -\\u003e Garage wv0bhm7c\",\"start_time\":\"2026-05-14T09:00:00Z\",\"end_time\":\"2026-05-14T10:30:00Z\",\"distance_passed\":42,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list tripsheet trips",
+      "method": "GET",
+      "path": "/api/tripsheet/trips",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"tripsheet_id\":1,\"route_description\":\"Garage -\\u003e Warehouse -\\u003e Garage wv0bhm7c\",\"start_time\":\"2026-05-14T09:00:00Z\",\"end_time\":\"2026-05-14T10:30:00Z\",\"distance_passed\":42,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"}],\"success\":true,\"total\":1}",
+      "skipped": false
+    },
+    {
+      "name": "list trips by tripsheet",
+      "method": "GET",
+      "path": "/api/tripsheet/trips/by-tripsheet/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"tripsheet_id\":1,\"route_description\":\"Garage -\\u003e Warehouse -\\u003e Garage wv0bhm7c\",\"start_time\":\"2026-05-14T09:00:00Z\",\"end_time\":\"2026-05-14T10:30:00Z\",\"distance_passed\":42,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"}],\"success\":true,\"total\":1}",
+      "skipped": false
+    },
+    {
+      "name": "get tripsheet trip",
+      "method": "GET",
+      "path": "/api/tripsheet/trips/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_id\":1,\"route_description\":\"Garage -\\u003e Warehouse -\\u003e Garage wv0bhm7c\",\"start_time\":\"2026-05-14T09:00:00Z\",\"end_time\":\"2026-05-14T10:30:00Z\",\"distance_passed\":42,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update tripsheet trip",
+      "method": "PUT",
+      "path": "/api/tripsheet/trips/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 49,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_id\":1,\"route_description\":\"Garage -\\u003e Warehouse -\\u003e Garage wv0bhm7c\",\"start_time\":\"2026-05-14T09:00:00Z\",\"end_time\":\"2026-05-14T10:30:00Z\",\"distance_passed\":55,\"status_id\":2,\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable tripsheet trip",
+      "method": "POST",
+      "path": "/api/tripsheet/trips",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 47,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2,\"tripsheet_id\":1,\"route_description\":\"Delete trip wv0bhm7c\",\"start_time\":\"2026-05-14T09:00:00Z\",\"end_time\":\"2026-05-14T10:30:00Z\",\"distance_passed\":42,\"status_id\":1,\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable tripsheet trip",
+      "method": "DELETE",
+      "path": "/api/tripsheet/trips/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"message\":\"tripsheet trip deleted successfully\",\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list incident types",
+      "method": "GET",
+      "path": "/api/incidents/types",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"name\":\"ДТП\"},{\"id\":2,\"name\":\"Поломка\"},{\"id\":3,\"name\":\"Повреждение\"}],\"success\":true,\"total\":3}",
+      "skipped": false
+    },
+    {
+      "name": "lookup incident type",
+      "method": "GET",
+      "path": "/api/incidents/types",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"name\":\"ДТП\"},{\"id\":2,\"name\":\"Поломка\"},{\"id\":3,\"name\":\"Повреждение\"}],\"success\":true,\"total\":3}",
+      "skipped": false
+    },
+    {
+      "name": "create incident",
+      "method": "POST",
+      "path": "/api/incidents",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 51,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list incidents",
+      "method": "GET",
+      "path": "/api/incidents",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"incident_type_id\":1,\"incident_type_name\":\"ДТП\",\"vehicle_id\":1,\"vehicle_state_number\":\"777WV001\",\"driver_id\":1,\"driver_full_name\":\"Driverwv0bhm7c Main Smoke\",\"mechanic_id\":5,\"mechanic_full_name\":\"Mechanic ApiTest\",\"mechanic_shift_id\":1,\"mechanic_shift\":{\"id\":1,\"user_id\":5,\"shift_date\":\"2026-05-14\",\"time_from\":\"08:00:00\",\"time_to\":\"21:00:00\",\"comment\":\"updated shift wv0bhm7c\",\"is_active\":true,\"mechanic_email\":\"apitest.mechanic@autopark.local\",\"mechanic_full_name\":\"Mechanic ApiTest\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"},\"tripsheet_id\":1,\"tripsheet\":{\"id\":1,\"tripsheet_number\":\"TS-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_brand\":\"Toyota",
+      "skipped": false
+    },
+    {
+      "name": "get incident",
+      "method": "GET",
+      "path": "/api/incidents/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"incident_type_id\":1,\"incident_type_name\":\"ДТП\",\"vehicle_id\":1,\"vehicle_state_number\":\"777WV001\",\"driver_id\":1,\"driver_full_name\":\"Driverwv0bhm7c Main Smoke\",\"mechanic_id\":5,\"mechanic_full_name\":\"Mechanic ApiTest\",\"mechanic_shift_id\":1,\"mechanic_shift\":{\"id\":1,\"user_id\":5,\"shift_date\":\"2026-05-14\",\"time_from\":\"08:00:00\",\"time_to\":\"21:00:00\",\"comment\":\"updated shift wv0bhm7c\",\"is_active\":true,\"mechanic_email\":\"apitest.mechanic@autopark.local\",\"mechanic_full_name\":\"Mechanic ApiTest\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"},\"tripsheet_id\":1,\"tripsheet\":{\"id\":1,\"tripsheet_number\":\"TS-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_brand\":\"Toyota C",
+      "skipped": false
+    },
+    {
+      "name": "update incident",
+      "method": "PUT",
+      "path": "/api/incidents/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 52,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"incident_type_id\":1,\"incident_type_name\":\"ДТП\",\"vehicle_id\":1,\"vehicle_state_number\":\"777WV001\",\"driver_id\":1,\"driver_full_name\":\"Driverwv0bhm7c Main Smoke\",\"mechanic_id\":5,\"mechanic_full_name\":\"Mechanic ApiTest\",\"mechanic_shift_id\":1,\"mechanic_shift\":{\"id\":1,\"user_id\":5,\"shift_date\":\"2026-05-14\",\"time_from\":\"08:00:00\",\"time_to\":\"21:00:00\",\"comment\":\"updated shift wv0bhm7c\",\"is_active\":true,\"mechanic_email\":\"apitest.mechanic@autopark.local\",\"mechanic_full_name\":\"Mechanic ApiTest\",\"created_at\":\"2026-05-14T06:11:37Z\",\"updated_at\":\"2026-05-14T06:11:37Z\"},\"tripsheet_id\":1,\"tripsheet\":{\"id\":1,\"tripsheet_number\":\"TS-WV0BHM7C\",\"tripsheet_date\":\"2026-05-14\",\"vehicle_brand\":\"Toyota C",
+      "skipped": false
+    },
+    {
+      "name": "create disposable incident",
+      "method": "POST",
+      "path": "/api/incidents",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 67,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable incident",
+      "method": "DELETE",
+      "path": "/api/incidents/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 31,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"message\":\"incident deleted successfully\",\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create fuel refill",
+      "method": "POST",
+      "path": "/api/fuel/refills",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 52,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_id\":1,\"vehicle_id\":1,\"fuel_amount\":25.5,\"date\":\"2026-05-14\",\"time\":\"14:30:00\",\"location\":\"API Test Fuel Station\",\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list fuel refills",
+      "method": "GET",
+      "path": "/api/fuel/refills",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"tripsheet_id\":1,\"vehicle_id\":1,\"fuel_amount\":25.5,\"date\":\"2026-05-14\",\"time\":\"14:30:00\",\"location\":\"API Test Fuel Station\",\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"}],\"success\":true,\"total\":1}",
+      "skipped": false
+    },
+    {
+      "name": "fuel by tripsheet",
+      "method": "GET",
+      "path": "/api/fuel/refills/by-tripsheet/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"tripsheet_id\":1,\"vehicle_id\":1,\"fuel_amount\":25.5,\"date\":\"2026-05-14\",\"time\":\"14:30:00\",\"location\":\"API Test Fuel Station\",\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"}],\"success\":true,\"total\":1}",
+      "skipped": false
+    },
+    {
+      "name": "fuel by vehicle",
+      "method": "GET",
+      "path": "/api/fuel/refills/by-vehicle/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"items\":[{\"id\":1,\"tripsheet_id\":1,\"vehicle_id\":1,\"fuel_amount\":25.5,\"date\":\"2026-05-14\",\"time\":\"14:30:00\",\"location\":\"API Test Fuel Station\",\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"}],\"success\":true,\"total\":1}",
+      "skipped": false
+    },
+    {
+      "name": "get fuel refill",
+      "method": "GET",
+      "path": "/api/fuel/refills/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_id\":1,\"vehicle_id\":1,\"fuel_amount\":25.5,\"date\":\"2026-05-14\",\"time\":\"14:30:00\",\"location\":\"API Test Fuel Station\",\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update fuel refill",
+      "method": "PUT",
+      "path": "/api/fuel/refills/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 49,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"tripsheet_id\":1,\"vehicle_id\":1,\"fuel_amount\":30,\"date\":\"2026-05-14\",\"time\":\"14:30:00\",\"location\":\"Updated Fuel Station\",\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable fuel refill",
+      "method": "POST",
+      "path": "/api/fuel/refills",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 51,
+      "expected": [
+        201
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2,\"tripsheet_id\":1,\"vehicle_id\":1,\"fuel_amount\":3,\"date\":\"2026-05-14\",\"time\":\"14:30:00\",\"location\":\"API Test Fuel Station\",\"created_at\":\"2026-05-14T06:11:39Z\",\"updated_at\":\"2026-05-14T06:11:39Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable fuel refill",
+      "method": "DELETE",
+      "path": "/api/fuel/refills/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 6,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"message\":\"fuel refill deleted successfully\",\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "fuel report by driver",
+      "method": "GET",
+      "path": "/api/fuel/reports/driver/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "%PDF-1.3\n3 0 obj\n<</Type /Page\n/Parent 1 0 R\n/Resources 2 0 R\n/Contents 4 0 R>>\nendobj\n4 0 obj\n<</Filter /FlateDecode /Length 1059>>\nstream\nx\u0001�V�n�H\u0013��)\u001a�.\t>��=�\u001c�6q��b\u0013\u000417{Ʌ\u0016G1\u0013�\u00184�@�\u001f~1��4�\u0005��=\t6P����=$�cF�mF�-��\u0011\u0012\u0011�M�_g/Kx�f�kQ{���e�\\�Օ�\u000b��y#jrެ���\u00016H\u0004�\n^�\u0001)\u0019�\u0000�\t����go~�5��f�vp���m�|\u000b����7��\u0017o��ƒ��𤜪k��W�J�eUQU,-�_:\u0007LH\u0004�\n^����PL*d�\u0017���\u0017\u0010�����.�}�l�r����\u001e޽��\u0000'�3d\u0004k�p\u000f\u001f�w[���[Kd�5F룾�\u0012\u0017����G�6�z\u0001���������\u000f�\u0000I\u001c�\u000ef��[�V����Fx2\u000b�tG�SF�'\\QֆI���?6�������qQ�Ԡ,�6��B�a�\u0016���p\t��(�t_��_5�5,w?��\u00028i\u0010,��y*�\u001a�̹�]W�a\u0015\u0002Um\"�$$J��\u0019,~��94.'���k���-���ňV\u0017��\u000b����TN\u001b���mWm�\u001e�<����|\u0001y���Bcz�/�f��.�s��x�\u0016�c�ҔE���9\u0014\fsvX�ÐM��@��p*��T��\r�8\u0007g#��\f\u001fC2(\u0017 �\u0003E\"�H\u0010!�:爆�p$%R+�r�QB\u0007�\u0013\u001a��ӑI)������nP����uy�#\u0015����e\t�u�V\u001e\u000fJ�!5��",
+      "skipped": false
+    },
+    {
+      "name": "fuel report by vehicle",
+      "method": "GET",
+      "path": "/api/fuel/reports/vehicle/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "%PDF-1.3\n3 0 obj\n<</Type /Page\n/Parent 1 0 R\n/Resources 2 0 R\n/Contents 4 0 R>>\nendobj\n4 0 obj\n<</Filter /FlateDecode /Length 1097>>\nstream\nx\u0001�V�n�H\u0013��)\u001a�.�A��\u000eo��$�`�\rbƹ�B����d\u001a\u0014�@�\u001f~1��4�����\r\u000b�����&\t��\b��\b���3B\"�����y\u0001/�,U�+���4L[[:yëL0c��\u0015Y��\u000bɸ\u0006��\b�%�.<R0d\u0019(Eh,\u0014\u0015�x��Vк����f\u000b��^�\u001c���\u0015��u1�Qi�!U�̑����\\�(#�\u0012eIe�0���Z`�DP,#2V\u0013\u0012��]\u0007�\u001c�f�t%�*��\u0016>�M�]�\n��+;\u0007\u001f�\u001c�1_��\u0018<�yS�\u0015�\u000f���>\u000bx���\u000f������xo^����-��\u0016����w�C�qnު�wo���v\rEY,C���>��n�\u001c8q='5g\u0012���\u0001��\u001f��ﭻsmٹ\n�n�'�3�\u000b�Ǿ����#6Jc��|ի���l�)��\u001a\u0011�P(��Pi`�D�`�\f\u0012���\u0015�\u0017\u0010���\"���'��W+X4\u000fw]\u000eCL8��4\u0015g\n�H���+W��\u0011,ׁP\u0010\u0012�Ƅ՘�J���mJ���o��޵��j�\u0011��\u0018�_hU�@+Sڠ��7]y�p��ŏ�׳\u001cT���<a!Q��勲^m���l�\u001b�&>{��>Aq�<C�`-r\u0006sf1��!�\f9���a�|�bYƍO�)8���N�!$�r�5\u001a3PD\u0004�C�R�`�\u000fGT\"�D!\u0006\u001aɕ\u0017=�Q��5�",
+      "skipped": false
+    },
+    {
+      "name": "fuel report by tripsheet",
+      "method": "GET",
+      "path": "/api/fuel/reports/tripsheet/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "%PDF-1.3\n3 0 obj\n<</Type /Page\n/Parent 1 0 R\n/Resources 2 0 R\n/Contents 4 0 R>>\nendobj\n4 0 obj\n<</Filter /FlateDecode /Length 1142>>\nstream\nx\u0001�VMo�H\u0012��W\u0014�\u0017��JU7oI�dw�Y\fbNrɅ\u0016[1\u0013�4(ځ\u0001��\u0001�M�E\u001b�3s\u0012D཮W��u\u0013�����\u0019���󌐈�C��v���W�׺\u0016u�kYY6�WA]��I�>\u0018Q�\u000ff�R,\f�A\"(��\u001c���\u001dhMh=�5���\u000b\u001b��m��p�\u0000}���C��_|Q~�w�Y<�*k,�] �U]\u000b���V\u0006-��*��La�=0!\u0011��L�I�l�y�t@\u0001����gz���-��v\u000b��Y�^��=|\u000e��j\u0013\n(ۇ���m��\u001e�\u0015Xk�|&b�òk�CW��k�C�󞮮�v\u0005\u001f��\u0006.��\u0000{��lB�-\u0014���\u0016,Y\u0010�!���U�\u0017 \u000f\u001f���.���Ax*_P\u0014U�9k���UWm\n`\u0001{(�Cۅ�Y�/�\bK\n\u0015G���i�\"��8��s�r\u0016\u0015E�p\u0013��\u000f5T�\t�L�\\Hľz�rkpTuj\red�Z����v[u\u000f9�߲�p(5(mP:`�PhX�Eb�\u0002\\\u0012�>+�й��SX7�\r�ڻ���Ɋ�\u0005\u001az�J�F%s����\r�\u0007�WۑP\u0012�4*�\r�_��=\u001a�����6Rކ\u000e�X��#�v���Z���UN;�Z7���Y\u0005�z�c���\u0000���\u001fOX\u0010���˪�<@?�g����\u0016��+�Ai�,�\u0019�\u001e\u0005Â=:u\u0018�q(\b\u00141\n\u0015������",
+      "skipped": false
+    },
+    {
+      "name": "list notifications",
+      "method": "GET",
+      "path": "/api/notifications",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":2,\"user_id\":2,\"notification_type_id\":1,\"type_code\":\"part_request_created\",\"type_name\":\"Создана заявка на деталь\",\"title\":\"API test notification\",\"message\":\"Smoke test notification wv0bhm7c\",\"context\":{\"source\":\"auto_park_all_routes_e2e_test\",\"suffix\":\"wv0bhm7c\"},\"is_readed\":false,\"created_at\":\"2026-05-14T06:11:39.743455Z\",\"updated_at\":\"2026-05-14T06:11:39.743455Z\"},{\"id\":1,\"user_id\":2,\"notification_type_id\":1,\"type_code\":\"part_request_created\",\"type_name\":\"Создана заявка на деталь\",\"title\":\"API test notification\",\"message\":\"Smoke test notification 9m21vprr\",\"context\":{\"source\":\"auto_park_all_routes_e2e_test\",\"suffix\":\"9m21vprr\"},\"is_readed\":false,\"created_at\":\"2026-05",
+      "skipped": false
+    },
+    {
+      "name": "list unread notifications",
+      "method": "GET",
+      "path": "/api/notifications/unread",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":2,\"user_id\":2,\"notification_type_id\":1,\"type_code\":\"part_request_created\",\"type_name\":\"Создана заявка на деталь\",\"title\":\"API test notification\",\"message\":\"Smoke test notification wv0bhm7c\",\"context\":{\"source\":\"auto_park_all_routes_e2e_test\",\"suffix\":\"wv0bhm7c\"},\"is_readed\":false,\"created_at\":\"2026-05-14T06:11:39.743455Z\",\"updated_at\":\"2026-05-14T06:11:39.743455Z\"},{\"id\":1,\"user_id\":2,\"notification_type_id\":1,\"type_code\":\"part_request_created\",\"type_name\":\"Создана заявка на деталь\",\"title\":\"API test notification\",\"message\":\"Smoke test notification 9m21vprr\",\"context\":{\"source\":\"auto_park_all_routes_e2e_test\",\"suffix\":\"9m21vprr\"},\"is_readed\":false,\"created_at\":\"2026-05",
+      "skipped": false
+    },
+    {
+      "name": "count unread notifications",
+      "method": "GET",
+      "path": "/api/notifications/unread/count",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 2,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"count\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "mark notification read",
+      "method": "PATCH",
+      "path": "/api/notifications/2/read",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 7,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "mark all notifications read",
+      "method": "PATCH",
+      "path": "/api/notifications/read-all",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"updated\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "SKIP GET /api/notifications/ws",
+      "method": "GET",
+      "path": "/api/notifications/ws",
+      "success": true,
+      "status_code": null,
+      "elapsed_ms": 0,
+      "expected": [],
+      "actor": "-",
+      "error": "WebSocket route is not tested by requests-based smoke script",
+      "response_preview": null,
+      "skipped": true
+    },
+    {
+      "name": "list warehouse parts",
+      "method": "GET",
+      "path": "/api/warehouse/parts",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":2,\"part_id\":\"API-PART-DEL-9M21VPRR\",\"name\":\"API Test Part Delete 9m21vprr\",\"quantity\":100,\"category\":\"api_test\",\"dimensions\":\"10x10\",\"manufacturer\":\"API\",\"is_consumable\":true,\"created_at\":\"2026-05-14T06:03:20.549274Z\",\"updated_at\":\"2026-05-14T06:03:20.549274Z\"},{\"id\":1,\"part_id\":\"API-PART-9M21VPRR\",\"name\":\"API Test Part Updated 9m21vprr\",\"quantity\":120,\"category\":\"api_test\",\"dimensions\":\"10x20\",\"manufacturer\":\"API\",\"is_consumable\":true,\"created_at\":\"2026-05-14T06:03:20.453606Z\",\"updated_at\":\"2026-05-14T06:03:20.501293Z\"}],\"total\":2,\"limit\":50,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create warehouse part",
+      "method": "POST",
+      "path": "/api/warehouse/parts",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 47,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":3},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get warehouse part",
+      "method": "GET",
+      "path": "/api/warehouse/parts/3",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":3,\"part_id\":\"API-PART-WV0BHM7C\",\"name\":\"API Test Part wv0bhm7c\",\"quantity\":100,\"category\":\"api_test\",\"dimensions\":\"10x10\",\"manufacturer\":\"API\",\"is_consumable\":true,\"created_at\":\"2026-05-14T06:11:39.8172Z\",\"updated_at\":\"2026-05-14T06:11:39.8172Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update warehouse part",
+      "method": "PUT",
+      "path": "/api/warehouse/parts/3",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 46,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":3},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable warehouse part",
+      "method": "POST",
+      "path": "/api/warehouse/parts",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":4},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable warehouse part",
+      "method": "DELETE",
+      "path": "/api/warehouse/parts/4",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 6,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":4},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list part request statuses",
+      "method": "GET",
+      "path": "/api/warehouse/part-request-statuses",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":[{\"id\":1,\"code\":\"new\",\"name\":\"Новая\"},{\"id\":2,\"code\":\"rejected\",\"name\":\"Отклонена\"},{\"id\":3,\"code\":\"approved\",\"name\":\"Утверждена\"}],\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list all part request history",
+      "method": "GET",
+      "path": "/api/warehouse/part-request-history",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[],\"total\":0,\"limit\":10,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create part request",
+      "method": "POST",
+      "path": "/api/warehouse/part-requests",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 59,
+      "expected": [
+        201
+      ],
+      "actor": "mechanic",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list part requests",
+      "method": "GET",
+      "path": "/api/warehouse/part-requests",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"part_id\":3,\"part\":{\"id\":3,\"catalog_part_id\":\"API-PART-WV0BHM7C\",\"name\":\"API Test Part Updated wv0bhm7c\",\"category\":\"api_test\"},\"quantity\":5,\"mechanic_comment\":\"Need part wv0bhm7c\",\"status_id\":1,\"status\":{\"id\":1,\"code\":\"new\",\"name\":\"Новая\"},\"author_user_id\":5,\"author_email\":\"apitest.mechanic@autopark.local\",\"author_full_name\":\"Mechanic ApiTest\",\"history\":[],\"created_at\":\"2026-05-14T06:11:39.973701Z\",\"updated_at\":\"2026-05-14T06:11:39.973701Z\"}],\"total\":1,\"limit\":50,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get part request",
+      "method": "GET",
+      "path": "/api/warehouse/part-requests/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"part_id\":3,\"part\":{\"id\":3,\"catalog_part_id\":\"API-PART-WV0BHM7C\",\"name\":\"API Test Part Updated wv0bhm7c\",\"category\":\"api_test\"},\"quantity\":5,\"mechanic_comment\":\"Need part wv0bhm7c\",\"status_id\":1,\"status\":{\"id\":1,\"code\":\"new\",\"name\":\"Новая\"},\"author_user_id\":5,\"author_email\":\"apitest.mechanic@autopark.local\",\"author_full_name\":\"Mechanic ApiTest\",\"history\":[{\"id\":1,\"part_request_id\":1,\"status_id\":1,\"status\":{\"id\":1,\"code\":\"new\",\"name\":\"Новая\"},\"changed_by_user_id\":5,\"changed_by_email\":\"apitest.mechanic@autopark.local\",\"changed_by_full_name\":\"Mechanic ApiTest\",\"comment\":\"Заявка создана\",\"changed_at\":\"2026-05-14T06:11:39.973701Z\"}],\"created_at\":\"2026-05-14T06:11:39.973701Z\",\"upda",
+      "skipped": false
+    },
+    {
+      "name": "update part request",
+      "method": "PUT",
+      "path": "/api/warehouse/part-requests/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 57,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update part request status",
+      "method": "PATCH",
+      "path": "/api/warehouse/part-requests/1/status",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 55,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get part request history",
+      "method": "GET",
+      "path": "/api/warehouse/part-requests/1/history",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"part_request_id\":1,\"status_id\":1,\"status\":{\"id\":1,\"code\":\"new\",\"name\":\"Новая\"},\"changed_by_user_id\":5,\"changed_by_email\":\"apitest.mechanic@autopark.local\",\"changed_by_full_name\":\"Mechanic ApiTest\",\"comment\":\"Заявка создана\",\"changed_at\":\"2026-05-14T06:11:39.973701Z\"},{\"id\":2,\"part_request_id\":1,\"status_id\":1,\"status\":{\"id\":1,\"code\":\"new\",\"name\":\"Новая\"},\"changed_by_user_id\":6,\"changed_by_email\":\"apitest.warehouse@autopark.local\",\"changed_by_full_name\":\"Warehouse ApiTest\",\"comment\":\"API test update\",\"changed_at\":\"2026-05-14T06:11:40.048581Z\"},{\"id\":3,\"part_request_id\":1,\"status_id\":3,\"status\":{\"id\":3,\"code\":\"approved\",\"name\":\"Утверждена\"},\"changed_by_user_id\":6,\"cha",
+      "skipped": false
+    },
+    {
+      "name": "create disposable part request",
+      "method": "POST",
+      "path": "/api/warehouse/part-requests",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 61,
+      "expected": [
+        201
+      ],
+      "actor": "mechanic",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable part request",
+      "method": "DELETE",
+      "path": "/api/warehouse/part-requests/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 8,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create vehicle part installation",
+      "method": "POST",
+      "path": "/api/warehouse/vehicle-part-installations",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 51,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list vehicle part installations",
+      "method": "GET",
+      "path": "/api/warehouse/vehicle-part-installations",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 7,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"part_id\":3,\"part\":{\"id\":3,\"catalog_part_id\":\"API-PART-WV0BHM7C\",\"name\":\"API Test Part Updated wv0bhm7c\",\"category\":\"api_test\",\"is_consumable\":true},\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"mechanic_shift_id\":1,\"mechanic_shift\":{\"id\":1,\"user_id\":5,\"shift_date\":\"2026-05-14\",\"time_from\":\"08:00:00\",\"time_to\":\"21:00:00\",\"mechanic_email\":\"apitest.mechanic@autopark.local\",\"mechanic_full_name\":\"Mechanic ApiTest\"},\"installed_at\":\"2026-05-14\",\"planned_replacement_at\":\"2026-08-12\",\"quantity\":2,\"installed_by_user_id\":6,\"installer_email\":\"apitest.warehouse@autopark.local\",\"installer_full_name\":\"Warehouse ApiTest\",\"is_act",
+      "skipped": false
+    },
+    {
+      "name": "get vehicle part installation",
+      "method": "GET",
+      "path": "/api/warehouse/vehicle-part-installations/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"part_id\":3,\"part\":{\"id\":3,\"catalog_part_id\":\"API-PART-WV0BHM7C\",\"name\":\"API Test Part Updated wv0bhm7c\",\"category\":\"api_test\",\"is_consumable\":true},\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"mechanic_shift_id\":1,\"mechanic_shift\":{\"id\":1,\"user_id\":5,\"shift_date\":\"2026-05-14\",\"time_from\":\"08:00:00\",\"time_to\":\"21:00:00\",\"mechanic_email\":\"apitest.mechanic@autopark.local\",\"mechanic_full_name\":\"Mechanic ApiTest\"},\"installed_at\":\"2026-05-14\",\"planned_replacement_at\":\"2026-08-12\",\"quantity\":2,\"installed_by_user_id\":6,\"installer_email\":\"apitest.warehouse@autopark.local\",\"installer_full_name\":\"Warehouse ApiTest\",\"is_active\":true,",
+      "skipped": false
+    },
+    {
+      "name": "update vehicle part installation",
+      "method": "PUT",
+      "path": "/api/warehouse/vehicle-part-installations/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 53,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update vehicle part installation activity",
+      "method": "PATCH",
+      "path": "/api/warehouse/vehicle-part-installations/1/activity",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 50,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable vehicle part installation",
+      "method": "POST",
+      "path": "/api/warehouse/vehicle-part-installations",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 49,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable vehicle part installation",
+      "method": "DELETE",
+      "path": "/api/warehouse/vehicle-part-installations/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 7,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list service parts",
+      "method": "GET",
+      "path": "/api/warehouse/service-parts",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"name\":\"Передний бампер\",\"description\":\"Передняя наружная часть кузова автомобиля\",\"created_at\":\"2026-05-14T06:02:57.363472Z\",\"updated_at\":\"2026-05-14T06:02:57.363472Z\"},{\"id\":2,\"name\":\"Задний бампер\",\"description\":\"Задняя наружная часть кузова автомобиля\",\"created_at\":\"2026-05-14T06:02:57.363472Z\",\"updated_at\":\"2026-05-14T06:02:57.363472Z\"},{\"id\":3,\"name\":\"Переднее левое крыло\",\"description\":\"Левая передняя часть кузова над колесом\",\"created_at\":\"2026-05-14T06:02:57.363472Z\",\"updated_at\":\"2026-05-14T06:02:57.363472Z\"},{\"id\":4,\"name\":\"Переднее правое крыло\",\"description\":\"Правая передняя часть кузова над колесом\",\"created_at\":\"2026-05-14T06:02:57.363472Z\",\"updated_a",
+      "skipped": false
+    },
+    {
+      "name": "create service part",
+      "method": "POST",
+      "path": "/api/warehouse/service-parts",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 57,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":21},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get service part",
+      "method": "GET",
+      "path": "/api/warehouse/service-parts/21",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":21,\"name\":\"API кузов часть wv0bhm7c\",\"description\":\"API test body part\",\"created_at\":\"2026-05-14T06:11:40.45748Z\",\"updated_at\":\"2026-05-14T06:11:40.45748Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update service part",
+      "method": "PUT",
+      "path": "/api/warehouse/service-parts/21",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 50,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":21},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable service part",
+      "method": "POST",
+      "path": "/api/warehouse/service-parts",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":22},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable service part",
+      "method": "DELETE",
+      "path": "/api/warehouse/service-parts/22",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 8,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":22},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list service types",
+      "method": "GET",
+      "path": "/api/warehouse/service-types",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"name\":\"Полировка\",\"description\":\"Восстановление блеска и удаление мелких дефектов поверхности\",\"created_at\":\"2026-05-14T06:02:57.363472Z\",\"updated_at\":\"2026-05-14T06:02:57.363472Z\"},{\"id\":2,\"name\":\"Тонировка\",\"description\":\"Нанесение тонировочной пленки на стекла\",\"created_at\":\"2026-05-14T06:02:57.363472Z\",\"updated_at\":\"2026-05-14T06:02:57.363472Z\"},{\"id\":3,\"name\":\"Нанесение защитной пленки\",\"description\":\"Оклейка части автомобиля защитной пленкой\",\"created_at\":\"2026-05-14T06:02:57.363472Z\",\"updated_at\":\"2026-05-14T06:02:57.363472Z\"},{\"id\":4,\"name\":\"Антигравийная защита\",\"description\":\"Защита кузовных элементов от сколов и повреждений\",\"created_at\":\"2026-05-14T06:0",
+      "skipped": false
+    },
+    {
+      "name": "create service type",
+      "method": "POST",
+      "path": "/api/warehouse/service-types",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 48,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":11},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get service type",
+      "method": "GET",
+      "path": "/api/warehouse/service-types/11",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 3,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":11,\"name\":\"API Полировка wv0bhm7c\",\"description\":\"API test service type\",\"created_at\":\"2026-05-14T06:11:40.621171Z\",\"updated_at\":\"2026-05-14T06:11:40.621171Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update service type",
+      "method": "PUT",
+      "path": "/api/warehouse/service-types/11",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 49,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":11},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable service type",
+      "method": "POST",
+      "path": "/api/warehouse/service-types",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 49,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":12},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable service type",
+      "method": "DELETE",
+      "path": "/api/warehouse/service-types/12",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":12},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create vehicle service",
+      "method": "POST",
+      "path": "/api/warehouse/vehicle-services",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 54,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "list vehicle services",
+      "method": "GET",
+      "path": "/api/warehouse/vehicle-services",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 6,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"items\":[{\"id\":1,\"type_id\":11,\"type\":{\"id\":11,\"name\":\"API Полировка updated wv0bhm7c\",\"description\":\"Updated\"},\"part_id\":21,\"part\":{\"id\":21,\"name\":\"API кузов часть updated wv0bhm7c\",\"description\":\"Updated\"},\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"date\":\"2026-05-14\",\"created_at\":\"2026-05-14T06:11:40.779462Z\",\"updated_at\":\"2026-05-14T06:11:40.779462Z\"}],\"total\":1,\"limit\":50,\"offset\":0},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "get vehicle service",
+      "method": "GET",
+      "path": "/api/warehouse/vehicle-services/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 4,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"type_id\":11,\"type\":{\"id\":11,\"name\":\"API Полировка updated wv0bhm7c\",\"description\":\"Updated\"},\"part_id\":21,\"part\":{\"id\":21,\"name\":\"API кузов часть updated wv0bhm7c\",\"description\":\"Updated\"},\"vehicle_id\":1,\"vehicle\":{\"id\":1,\"state_number\":\"777WV001\",\"brand_model\":\"Toyota Camry Restyled\"},\"date\":\"2026-05-14\",\"created_at\":\"2026-05-14T06:11:40.779462Z\",\"updated_at\":\"2026-05-14T06:11:40.779462Z\"},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "update vehicle service",
+      "method": "PUT",
+      "path": "/api/warehouse/vehicle-services/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 49,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "create disposable vehicle service",
+      "method": "POST",
+      "path": "/api/warehouse/vehicle-services",
+      "success": true,
+      "status_code": 201,
+      "elapsed_ms": 54,
+      "expected": [
+        201
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "delete disposable vehicle service",
+      "method": "DELETE",
+      "path": "/api/warehouse/vehicle-services/2",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 5,
+      "expected": [
+        200
+      ],
+      "actor": "warehouse",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":2},\"success\":true}",
+      "skipped": false
+    },
+    {
+      "name": "final vehicle passport with linked entities",
+      "method": "GET",
+      "path": "/api/vehicles/1",
+      "success": true,
+      "status_code": 200,
+      "elapsed_ms": 11,
+      "expected": [
+        200
+      ],
+      "actor": "admin",
+      "error": null,
+      "response_preview": "{\"data\":{\"id\":1,\"board_number\":\"B-IJU3\",\"technical_passport_number\":\"TP-7G5IJF8O\",\"state_number\":\"777WV001\",\"vin\":\"VINWV0BHM7C000001\",\"brand_model\":\"Toyota Camry Restyled\",\"manufacture_year\":2022,\"received_date\":\"2026-05-14T00:00:00Z\",\"empty_weight_kg\":1500,\"max_weight_kg\":2200,\"engine_volume_cc\":2500,\"insurance_policy_number\":\"POL-WUHQGY\",\"insurance_expiry_date\":\"2027-05-14T00:00:00Z\",\"mileage\":13000,\"current_fuel\":35.5,\"status_id\":2,\"status_name\":\"На ТО\",\"drivers_ids\":[1],\"drivers\":[{\"id\":1,\"iin\":\"939960621591\",\"first_name\":\"Main\",\"last_name\":\"Driverwv0bhm7c\",\"middle_name\":\"Smoke\",\"phone\":\"+77007776655\",\"email\":\"main.driver.updated.wv0bhm7c@example.com\"}],\"insurances\":[{\"id\":1,\"vehicle_id\"",
+      "skipped": false
+    }
+  ]
+}

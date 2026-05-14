@@ -48,7 +48,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		}
 
 		writeGroup := protected.Group("/parts")
-		writeGroup.Use(middleware.RequireRoles(roleWarehouseManager))
+		writeGroup.Use(middleware.RequireRoles(roleAdmin, roleWarehouseManager))
 		{
 			writeGroup.POST("", partHandler.CreatePart)
 			writeGroup.PUT("/:id", partHandler.UpdatePart)
@@ -73,7 +73,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		}
 
 		partRequestCreateGroup := protected.Group("/part-requests")
-		partRequestCreateGroup.Use(middleware.RequireRoles(roleDutyMechanic))
+		partRequestCreateGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic))
 		{
 			partRequestCreateGroup.POST("", partRequestHandler.CreatePartRequest)
 		}
@@ -134,7 +134,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		}
 
 		vehiclePartInstallationWriteGroup := protected.Group("/vehicle-part-installations")
-		vehiclePartInstallationWriteGroup.Use(middleware.RequireRoles(roleDutyMechanic, roleWarehouseManager))
+		vehiclePartInstallationWriteGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
 		{
 			vehiclePartInstallationWriteGroup.POST("", vehiclePartInstallationHandler.CreateVehiclePartInstallation)
 			vehiclePartInstallationWriteGroup.PUT("/:id", vehiclePartInstallationHandler.UpdateVehiclePartInstallation)
