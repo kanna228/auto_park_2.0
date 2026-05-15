@@ -14,6 +14,7 @@ type Tripsheet struct {
 	DriverFirstName  *string
 	DriverMiddleName *string
 	DriverID         *int64
+	DriverShiftID    *int64
 
 	StartTime *time.Time
 	EndTime   *time.Time
@@ -43,6 +44,7 @@ type CreateTripsheetInput struct {
 	DriverFirstName  *string
 	DriverMiddleName *string
 	DriverID         *int64
+	DriverShiftID    *int64
 
 	StartTime *time.Time
 	EndTime   *time.Time
@@ -70,6 +72,7 @@ type UpdateTripsheetInput struct {
 	DriverFirstName  *string
 	DriverMiddleName *string
 	DriverID         *int64
+	DriverShiftID    *int64
 
 	StartTime *time.Time
 	EndTime   *time.Time

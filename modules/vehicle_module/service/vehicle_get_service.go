@@ -315,6 +315,7 @@ func mapVehicleTripsheetToDTO(item repository.VehicleTripsheetHistoryRow) dto.Ve
 		VehicleBrand:               item.VehicleBrand,
 		VehiclePlateNumber:         item.VehiclePlateNumber,
 		DriverID:                   item.DriverID,
+		DriverShiftID:              item.DriverShiftID,
 		Driver:                     mapVehicleTripsheetDriverToDTO(item),
 		DriverLastName:             firstStringPtr(item.DriverLastName, item.DriverSnapshotLastName),
 		DriverFirstName:            firstStringPtr(item.DriverFirstName, item.DriverSnapshotFirstName),

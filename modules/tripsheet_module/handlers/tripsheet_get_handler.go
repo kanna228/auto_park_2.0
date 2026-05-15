@@ -17,6 +17,7 @@ import (
 // @Security     BearerAuth
 // @Param        vehicle_id query int false "Vehicle ID"
 // @Param        driver_id query int false "Driver ID"
+// @Param        driver_shift_id query int false "Driver shift ID"
 // @Param        date_from query string false "Date from (YYYY-MM-DD)"
 // @Param        date_to query string false "Date to (YYYY-MM-DD)"
 // @Param        status_id query int false "Status ID"

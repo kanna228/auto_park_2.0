@@ -26,6 +26,9 @@ func (r *tripsheetRepo) GetAll(ctx context.Context, f dto.TripsheetFilter) ([]dt
 	if f.DriverID != nil {
 		add("driver_id = $%d", *f.DriverID)
 	}
+	if f.DriverShiftID != nil {
+		add("driver_shift_id = $%d", *f.DriverShiftID)
+	}
 	if f.StatusID != nil {
 		add("status_id = $%d", *f.StatusID)
 	}
@@ -90,6 +93,7 @@ func (r *tripsheetRepo) GetAll(ctx context.Context, f dto.TripsheetFilter) ([]dt
 			driver_first_name,
 			driver_middle_name,
 			driver_id,
+			driver_shift_id,
 			start_time,
 			end_time,
 			mileage_start,
@@ -117,57 +121,11 @@ func (r *tripsheetRepo) GetAll(ctx context.Context, f dto.TripsheetFilter) ([]dt
 	var result []dto.TripsheetResponse
 
 	for rows.Next() {
-		var (
-			t         dto.TripsheetResponse
-			dateVal   time.Time
-			startTime sql.NullTime
-			endTime   sql.NullTime
-			createdAt time.Time
-			updatedAt time.Time
-		)
-
-		err := rows.Scan(
-			&t.ID,
-			&t.TripsheetNumber,
-			&dateVal,
-			&t.VehicleID,
-			&t.VehicleBrand,
-			&t.VehiclePlateNumber,
-			&t.DriverLastName,
-			&t.DriverFirstName,
-			&t.DriverMiddleName,
-			&t.DriverID,
-			&startTime,
-			&endTime,
-			&t.MileageStart,
-			&t.MileageEnd,
-			&t.FuelStart,
-			&t.FuelIssued,
-			&t.FuelConsumptionTheoretical,
-			&t.FuelConsumptionActual,
-			&t.StatusID,
-			&createdAt,
-			&updatedAt,
-		)
+		t, err := scanTripsheetResponse(rows)
 		if err != nil {
 			return nil, 0, err
 		}
-
-		t.TripsheetDate = dateVal.Format("2006-01-02")
-
-		if startTime.Valid {
-			v := startTime.Time.Format(time.RFC3339)
-			t.StartTime = &v
-		}
-		if endTime.Valid {
-			v := endTime.Time.Format(time.RFC3339)
-			t.EndTime = &v
-		}
-
-		t.CreatedAt = createdAt.Format(time.RFC3339)
-		t.UpdatedAt = updatedAt.Format(time.RFC3339)
-
-		result = append(result, t)
+		result = append(result, *t)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, 0, err
@@ -186,6 +144,8 @@ func normalizeTripsheetSortBy(value string) string {
 		return "vehicle_id"
 	case "driver_id":
 		return "driver_id"
+	case "driver_shift_id":
+		return "driver_shift_id"
 	case "status_id":
 		return "status_id"
 	case "created_at":
@@ -217,6 +177,7 @@ func (r *tripsheetRepo) GetByID(ctx context.Context, id int64) (*dto.TripsheetRe
 			driver_first_name,
 			driver_middle_name,
 			driver_id,
+			driver_shift_id,
 			start_time,
 			end_time,
 			mileage_start,
@@ -232,6 +193,14 @@ func (r *tripsheetRepo) GetByID(ctx context.Context, id int64) (*dto.TripsheetRe
 		WHERE id = $1
 	`, r.tripsheetsTable())
 
+	return scanTripsheetResponse(r.db.QueryRowContext(ctx, query, id))
+}
+
+type tripsheetResponseScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanTripsheetResponse(scanner tripsheetResponseScanner) (*dto.TripsheetResponse, error) {
 	var (
 		t         dto.TripsheetResponse
 		dateVal   time.Time
@@ -241,7 +210,7 @@ func (r *tripsheetRepo) GetByID(ctx context.Context, id int64) (*dto.TripsheetRe
 		updatedAt time.Time
 	)
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+	if err := scanner.Scan(
 		&t.ID,
 		&t.TripsheetNumber,
 		&dateVal,
@@ -252,6 +221,7 @@ func (r *tripsheetRepo) GetByID(ctx context.Context, id int64) (*dto.TripsheetRe
 		&t.DriverFirstName,
 		&t.DriverMiddleName,
 		&t.DriverID,
+		&t.DriverShiftID,
 		&startTime,
 		&endTime,
 		&t.MileageStart,
@@ -263,8 +233,7 @@ func (r *tripsheetRepo) GetByID(ctx context.Context, id int64) (*dto.TripsheetRe
 		&t.StatusID,
 		&createdAt,
 		&updatedAt,
-	)
-	if err != nil {
+	); err != nil {
 		return nil, err
 	}
 
