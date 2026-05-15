@@ -66,6 +66,12 @@ func (s *tripsheetService) Update(ctx context.Context, id int64, req dto.UpdateT
 		return nil, fmt.Errorf("mileage_end cannot be less than mileage_start")
 	}
 
+	if req.DriverShiftID != nil && *req.DriverShiftID > 0 {
+		if err := s.repo.ValidateDriverShiftForTripsheet(ctx, *req.DriverShiftID, req.DriverID, tripsheetDate); err != nil {
+			return nil, err
+		}
+	}
+
 	statusID := req.StatusID
 	if statusID == nil {
 		current, err := s.repo.GetByID(ctx, id)
@@ -86,6 +92,7 @@ func (s *tripsheetService) Update(ctx context.Context, id int64, req dto.UpdateT
 		DriverFirstName:            req.DriverFirstName,
 		DriverMiddleName:           req.DriverMiddleName,
 		DriverID:                   req.DriverID,
+		DriverShiftID:              req.DriverShiftID,
 		StartTime:                  startTime,
 		EndTime:                    endTime,
 		MileageStart:               mileageStart,
@@ -117,6 +124,7 @@ func mapTripsheetModelToCreateResponse(item *models.Tripsheet) *dto.CreateTripsh
 		DriverFirstName:            item.DriverFirstName,
 		DriverMiddleName:           item.DriverMiddleName,
 		DriverID:                   item.DriverID,
+		DriverShiftID:              item.DriverShiftID,
 		MileageStart:               item.MileageStart,
 		MileageEnd:                 item.MileageEnd,
 		FuelStart:                  item.FuelStart,

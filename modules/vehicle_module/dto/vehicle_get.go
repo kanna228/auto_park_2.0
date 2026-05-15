@@ -101,6 +101,7 @@ type VehicleTripsheetHistoryItem struct {
 	VehicleBrand               *string                           `json:"vehicle_brand,omitempty"`
 	VehiclePlateNumber         string                            `json:"vehicle_plate_number"`
 	DriverID                   *int64                            `json:"driver_id,omitempty"`
+	DriverShiftID              *int64                            `json:"driver_shift_id,omitempty"`
 	Driver                     *VehicleTripsheetDriverInfo       `json:"driver,omitempty"`
 	DriverLastName             *string                           `json:"driver_last_name,omitempty"`
 	DriverFirstName            *string                           `json:"driver_first_name,omitempty"`

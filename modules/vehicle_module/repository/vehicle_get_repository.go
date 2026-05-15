@@ -654,6 +654,7 @@ type VehicleTripsheetHistoryRow struct {
 	VehicleBrand               *string
 	VehiclePlateNumber         string
 	DriverID                   *int64
+	DriverShiftID              *int64
 	DriverIIN                  *string
 	DriverFirstName            *string
 	DriverLastName             *string
@@ -688,6 +689,7 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 			t.vehicle_brand,
 			t.vehicle_plate_number,
 			t.driver_id,
+			t.driver_shift_id,
 			d.iin AS driver_iin,
 			d.name AS driver_first_name,
 			d.surname AS driver_last_name,
@@ -738,6 +740,7 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 		var vehicleIDValue sql.NullInt64
 		var vehicleBrand sql.NullString
 		var driverID sql.NullInt64
+		var driverShiftID sql.NullInt64
 		var driverIIN sql.NullString
 		var driverFirstName sql.NullString
 		var driverLastName sql.NullString
@@ -758,6 +761,7 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 			&vehicleBrand,
 			&item.VehiclePlateNumber,
 			&driverID,
+			&driverShiftID,
 			&driverIIN,
 			&driverFirstName,
 			&driverLastName,
@@ -786,6 +790,7 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 		item.VehicleID = nullableInt64Ptr(vehicleIDValue)
 		item.VehicleBrand = nullableStringPtrVehicle(vehicleBrand)
 		item.DriverID = nullableInt64Ptr(driverID)
+		item.DriverShiftID = nullableInt64Ptr(driverShiftID)
 		item.DriverIIN = nullableStringPtrVehicle(driverIIN)
 		item.DriverFirstName = nullableStringPtrVehicle(driverFirstName)
 		item.DriverLastName = nullableStringPtrVehicle(driverLastName)

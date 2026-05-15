@@ -12,6 +12,7 @@ type CreateTripsheetRequest struct {
 	DriverFirstName  *string `json:"driver_first_name" example:"Ivan"`
 	DriverMiddleName *string `json:"driver_middle_name" example:"Ivanovich"`
 	DriverID         *int64  `json:"driver_id" example:"55"`
+	DriverShiftID    *int64  `json:"driver_shift_id" example:"1"`
 
 	StartTime *string `json:"start_time" example:"2026-03-18T08:00:00Z"`
 	EndTime   *string `json:"end_time" example:"2026-03-18T18:00:00Z"`
@@ -38,6 +39,7 @@ type UpdateTripsheetRequest struct {
 	DriverFirstName  *string `json:"driver_first_name" example:"Ivan"`
 	DriverMiddleName *string `json:"driver_middle_name" example:"Ivanovich"`
 	DriverID         *int64  `json:"driver_id" example:"55"`
+	DriverShiftID    *int64  `json:"driver_shift_id" example:"1"`
 
 	StartTime *string `json:"start_time" example:"2026-03-18T08:00:00Z"`
 	EndTime   *string `json:"end_time" example:"2026-03-18T18:00:00Z"`
@@ -64,6 +66,7 @@ type CreateTripsheetResponse struct {
 	DriverFirstName            *string `json:"driver_first_name,omitempty" example:"Ivan"`
 	DriverMiddleName           *string `json:"driver_middle_name,omitempty" example:"Ivanovich"`
 	DriverID                   *int64  `json:"driver_id,omitempty" example:"55"`
+	DriverShiftID              *int64  `json:"driver_shift_id,omitempty" example:"1"`
 	StartTime                  *string `json:"start_time,omitempty" example:"2026-03-18T08:00:00Z"`
 	EndTime                    *string `json:"end_time,omitempty" example:"2026-03-18T18:00:00Z"`
 	MileageStart               int     `json:"mileage_start" example:"125000"`
@@ -81,6 +84,7 @@ type CreateTripsheetResponse struct {
 type TripsheetFilter struct {
 	VehicleID          *int64  `form:"vehicle_id" example:"12"`
 	DriverID           *int64  `form:"driver_id" example:"55"`
+	DriverShiftID      *int64  `form:"driver_shift_id" example:"1"`
 	DateFrom           *string `form:"date_from" example:"2026-03-01"`
 	DateTo             *string `form:"date_to" example:"2026-03-31"`
 	StatusID           *int64  `form:"status_id" example:"1"`
@@ -108,6 +112,7 @@ type TripsheetResponse struct {
 	DriverFirstName            *string `json:"driver_first_name,omitempty" example:"Ivan"`
 	DriverMiddleName           *string `json:"driver_middle_name,omitempty" example:"Ivanovich"`
 	DriverID                   *int64  `json:"driver_id,omitempty" example:"55"`
+	DriverShiftID              *int64  `json:"driver_shift_id,omitempty" example:"1"`
 	StartTime                  *string `json:"start_time,omitempty" example:"2026-03-18T08:00:00Z"`
 	EndTime                    *string `json:"end_time,omitempty" example:"2026-03-18T18:00:00Z"`
 	MileageStart               int     `json:"mileage_start" example:"125000"`

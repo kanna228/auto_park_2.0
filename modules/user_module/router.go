@@ -16,6 +16,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	userRepo := repository.NewUserRepo(db, cfg.Schemas.User)
 	driverRepo := repository.NewDriverRepo(db, cfg.Schemas.User)
 	mechanicShiftRepo := repository.NewMechanicShiftRepo(db)
+	driverShiftRepo := repository.NewDriverShiftRepo(db)
 
 	mailer := service.NewSMTPMailer(cfg)
 	driverPhotoStorage := service.NewDriverPhotoStorage(cfg.Uploads.RootDir)
@@ -27,6 +28,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	delSvc := service.NewUsersDeleteService(userRepo)
 	driversSvc := service.NewDriversService(driverRepo, driverPhotoStorage)
 	mechanicShiftSvc := service.NewMechanicShiftService(mechanicShiftRepo)
+	driverShiftSvc := service.NewDriverShiftService(driverShiftRepo)
 
 	authH := handlers.NewAuthHandler(cfg, authSvc)
 	usersH := handlers.NewUsersHandler(cfg, userSvc)
@@ -35,6 +37,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	delH := handlers.NewUsersDeleteHandler(delSvc)
 	driversH := handlers.NewDriversHandler(driversSvc)
 	mechanicShiftH := handlers.NewMechanicShiftHandler(mechanicShiftSvc)
+	driverShiftH := handlers.NewDriverShiftHandler(driverShiftSvc)
 
 	api := r.Group("/api/users")
 	api.POST("/login", authH.Login)
@@ -59,6 +62,17 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			mechanicShifts.PUT("/:id", mechanicShiftH.Update)
 			mechanicShifts.PATCH("/:id/activity", mechanicShiftH.UpdateActivity)
 			mechanicShifts.DELETE("/:id", mechanicShiftH.Delete)
+		}
+
+		driverShifts := protected.Group("/driver-shifts")
+		driverShifts.Use(middleware.RequireRoles(1, 2, 3))
+		{
+			driverShifts.POST("", driverShiftH.Create)
+			driverShifts.GET("", driverShiftH.List)
+			driverShifts.GET("/:id", driverShiftH.GetByID)
+			driverShifts.PUT("/:id", driverShiftH.Update)
+			driverShifts.PATCH("/:id/activity", driverShiftH.UpdateActivity)
+			driverShifts.DELETE("/:id", driverShiftH.Delete)
 		}
 
 		drivers := protected.Group("/drivers")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"auto_park/modules/tripsheet_module/dto"
 	"auto_park/modules/tripsheet_module/models"
@@ -17,6 +18,7 @@ type TripsheetRepo interface {
 	Update(ctx context.Context, input models.UpdateTripsheetInput) (*models.Tripsheet, error)
 	Delete(ctx context.Context, id int64) error
 	DeleteTripsWithTripsheet(ctx context.Context, id int64) error
+	ValidateDriverShiftForTripsheet(ctx context.Context, driverShiftID int64, driverID *int64, tripsheetDate time.Time) error
 }
 
 type tripsheetRepo struct {
@@ -63,6 +65,7 @@ func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheet
 			driver_first_name,
 			driver_middle_name,
 			driver_id,
+			driver_shift_id,
 			start_time,
 			end_time,
 			mileage_start,
@@ -77,7 +80,7 @@ func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheet
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9, $10,
 			$11, $12, $13, $14, $15,
-			$16, $17, $18
+			$16, $17, $18, $19
 		)
 		RETURNING
 			id,
@@ -90,6 +93,7 @@ func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheet
 			driver_first_name,
 			driver_middle_name,
 			driver_id,
+			driver_shift_id,
 			start_time,
 			end_time,
 			mileage_start,
@@ -117,6 +121,7 @@ func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheet
 		input.DriverFirstName,
 		input.DriverMiddleName,
 		input.DriverID,
+		input.DriverShiftID,
 		input.StartTime,
 		input.EndTime,
 		input.MileageStart,
@@ -137,6 +142,7 @@ func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheet
 		&item.DriverFirstName,
 		&item.DriverMiddleName,
 		&item.DriverID,
+		&item.DriverShiftID,
 		&item.StartTime,
 		&item.EndTime,
 		&item.MileageStart,
@@ -154,4 +160,38 @@ func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheet
 	}
 
 	return &item, nil
+}
+
+func (r *tripsheetRepo) ValidateDriverShiftForTripsheet(ctx context.Context, driverShiftID int64, driverID *int64, tripsheetDate time.Time) error {
+	const q = `
+		SELECT driver_id, shift_date
+		FROM driver_shifts
+		WHERE id = $1
+		  AND is_deleted = FALSE;
+	`
+
+	var shiftDriverID int64
+	var shiftDate time.Time
+	if err := r.db.QueryRowContext(ctx, q, driverShiftID).Scan(&shiftDriverID, &shiftDate); err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("driver_shift_id not found")
+		}
+		return fmt.Errorf("validate driver shift: %w", err)
+	}
+
+	if driverID != nil && *driverID > 0 && *driverID != shiftDriverID {
+		return fmt.Errorf("driver_shift_id belongs to another driver")
+	}
+
+	if !sameDate(shiftDate, tripsheetDate) {
+		return fmt.Errorf("driver_shift_id shift_date must match tripsheet_date")
+	}
+
+	return nil
+}
+
+func sameDate(a, b time.Time) bool {
+	ay, am, ad := a.Date()
+	by, bm, bd := b.Date()
+	return ay == by && am == bm && ad == bd
 }
