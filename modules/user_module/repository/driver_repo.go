@@ -638,15 +638,38 @@ func (r *DriverRepo) listDriverAssignedVehicles(ctx context.Context, driverID in
 
 func (r *DriverRepo) getDriverTotalWorkedHours(ctx context.Context, driverID int64) (float64, error) {
 	const q = `
-		WITH tripsheet_times AS (
+		WITH driver_info AS (
+			SELECT id, surname, name, middlename
+			FROM drivers
+			WHERE id = $1
+		),
+		driver_tripsheets AS (
+			SELECT DISTINCT t.id
+			FROM tripsheets t
+			CROSS JOIN driver_info d
+			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+			WHERE t.driver_id = d.id
+			   OR ds.driver_id = d.id
+			   OR (
+					t.driver_id IS NULL
+					AND t.driver_shift_id IS NULL
+					AND LOWER(TRIM(COALESCE(t.driver_last_name, ''))) = LOWER(TRIM(d.surname))
+					AND LOWER(TRIM(COALESCE(t.driver_first_name, ''))) = LOWER(TRIM(d.name))
+					AND (
+						TRIM(COALESCE(t.driver_middle_name, '')) = ''
+						OR TRIM(COALESCE(d.middlename, '')) = ''
+						OR LOWER(TRIM(COALESCE(t.driver_middle_name, ''))) = LOWER(TRIM(COALESCE(d.middlename, '')))
+					)
+			   )
+		),
+		tripsheet_times AS (
 			SELECT
 				t.id,
-				COALESCE(t.start_time, MIN(tt.start_time)) AS start_time,
-				COALESCE(t.end_time, MAX(tt.end_time)) AS end_time
+				COALESCE(MIN(tt.start_time), t.start_time) AS start_time,
+				COALESCE(MAX(tt.end_time), t.end_time) AS end_time
 			FROM tripsheets t
-			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+			INNER JOIN driver_tripsheets dt ON dt.id = t.id
 			LEFT JOIN tripsheet_trips tt ON tt.tripsheet_id = t.id
-			WHERE COALESCE(t.driver_id, ds.driver_id) = $1
 			GROUP BY t.id, t.start_time, t.end_time
 		)
 		SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 3600.0), 0)
@@ -665,9 +688,13 @@ func (r *DriverRepo) getDriverTotalWorkedHours(ctx context.Context, driverID int
 
 func (r *DriverRepo) getDriverAccidentsCount(ctx context.Context, driverID int64) (int64, error) {
 	const q = `
-		SELECT COUNT(*)
-		FROM incidents
-		WHERE driver_id = $1;
+		SELECT COUNT(DISTINCT i.id)
+		FROM incidents i
+		LEFT JOIN tripsheets t ON t.id = i.tripsheet_id
+		LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+		WHERE i.driver_id = $1
+		   OR t.driver_id = $1
+		   OR ds.driver_id = $1;
 	`
 
 	var count int64
@@ -679,10 +706,28 @@ func (r *DriverRepo) getDriverAccidentsCount(ctx context.Context, driverID int64
 
 func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID int64, limit int, offset int) ([]models.DriverPassportTripsheetItem, int64, error) {
 	const countQ = `
-		SELECT COUNT(*)
+		WITH driver_info AS (
+			SELECT id, surname, name, middlename
+			FROM drivers
+			WHERE id = $1
+		)
+		SELECT COUNT(DISTINCT t.id)
 		FROM tripsheets t
+		CROSS JOIN driver_info d
 		LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
-		WHERE COALESCE(t.driver_id, ds.driver_id) = $1;
+		WHERE t.driver_id = d.id
+		   OR ds.driver_id = d.id
+		   OR (
+				t.driver_id IS NULL
+				AND t.driver_shift_id IS NULL
+				AND LOWER(TRIM(COALESCE(t.driver_last_name, ''))) = LOWER(TRIM(d.surname))
+				AND LOWER(TRIM(COALESCE(t.driver_first_name, ''))) = LOWER(TRIM(d.name))
+				AND (
+					TRIM(COALESCE(t.driver_middle_name, '')) = ''
+					OR TRIM(COALESCE(d.middlename, '')) = ''
+					OR LOWER(TRIM(COALESCE(t.driver_middle_name, ''))) = LOWER(TRIM(COALESCE(d.middlename, '')))
+				)
+		   );
 	`
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countQ, driverID).Scan(&total); err != nil {
@@ -690,6 +735,30 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 	}
 
 	const q = `
+		WITH driver_info AS (
+			SELECT id, surname, name, middlename
+			FROM drivers
+			WHERE id = $1
+		),
+		driver_tripsheets AS (
+			SELECT DISTINCT t.id
+			FROM tripsheets t
+			CROSS JOIN driver_info d
+			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+			WHERE t.driver_id = d.id
+			   OR ds.driver_id = d.id
+			   OR (
+					t.driver_id IS NULL
+					AND t.driver_shift_id IS NULL
+					AND LOWER(TRIM(COALESCE(t.driver_last_name, ''))) = LOWER(TRIM(d.surname))
+					AND LOWER(TRIM(COALESCE(t.driver_first_name, ''))) = LOWER(TRIM(d.name))
+					AND (
+						TRIM(COALESCE(t.driver_middle_name, '')) = ''
+						OR TRIM(COALESCE(d.middlename, '')) = ''
+						OR LOWER(TRIM(COALESCE(t.driver_middle_name, ''))) = LOWER(TRIM(COALESCE(d.middlename, '')))
+					)
+			   )
+		)
 		SELECT
 			t.id,
 			t.tripsheet_number,
@@ -697,13 +766,13 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 			t.vehicle_id,
 			t.vehicle_brand,
 			t.vehicle_plate_number,
-			COALESCE(t.start_time, MIN(tt.start_time)) AS start_time,
-			COALESCE(t.end_time, MAX(tt.end_time)) AS end_time,
+			COALESCE(MIN(tt.start_time), t.start_time) AS start_time,
+			COALESCE(MAX(tt.end_time), t.end_time) AS end_time,
 			CASE
-				WHEN COALESCE(t.start_time, MIN(tt.start_time)) IS NOT NULL
-				 AND COALESCE(t.end_time, MAX(tt.end_time)) IS NOT NULL
-				 AND COALESCE(t.end_time, MAX(tt.end_time)) > COALESCE(t.start_time, MIN(tt.start_time))
-				THEN EXTRACT(EPOCH FROM (COALESCE(t.end_time, MAX(tt.end_time)) - COALESCE(t.start_time, MIN(tt.start_time)))) / 3600.0
+				WHEN COALESCE(MIN(tt.start_time), t.start_time) IS NOT NULL
+				 AND COALESCE(MAX(tt.end_time), t.end_time) IS NOT NULL
+				 AND COALESCE(MAX(tt.end_time), t.end_time) > COALESCE(MIN(tt.start_time), t.start_time)
+				THEN EXTRACT(EPOCH FROM (COALESCE(MAX(tt.end_time), t.end_time) - COALESCE(MIN(tt.start_time), t.start_time))) / 3600.0
 				ELSE 0
 			END AS worked_hours,
 			COUNT(tt.id) AS trips_count,
@@ -712,10 +781,9 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 			t.created_at,
 			t.updated_at
 		FROM tripsheets t
+		INNER JOIN driver_tripsheets dt ON dt.id = t.id
 		LEFT JOIN tripsheet_statuses ts ON ts.id = t.status_id
 		LEFT JOIN tripsheet_trips tt ON tt.tripsheet_id = t.id
-		LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
-		WHERE COALESCE(t.driver_id, ds.driver_id) = $1
 		GROUP BY
 			t.id,
 			t.tripsheet_number,
@@ -729,7 +797,7 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 			ts.name,
 			t.created_at,
 			t.updated_at
-		ORDER BY t.tripsheet_date DESC, COALESCE(t.start_time, t.created_at) DESC, t.id DESC
+		ORDER BY t.tripsheet_date DESC, COALESCE(MIN(tt.start_time), t.start_time, t.created_at) DESC, t.id DESC
 		LIMIT $2 OFFSET $3;
 	`
 
@@ -790,9 +858,13 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 
 func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID int64, limit int, offset int) ([]models.DriverPassportIncidentItem, int64, error) {
 	const countQ = `
-		SELECT COUNT(*)
-		FROM incidents
-		WHERE driver_id = $1;
+		SELECT COUNT(DISTINCT i.id)
+		FROM incidents i
+		LEFT JOIN tripsheets t ON t.id = i.tripsheet_id
+		LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+		WHERE i.driver_id = $1
+		   OR t.driver_id = $1
+		   OR ds.driver_id = $1;
 	`
 	var total int64
 	if err := r.db.QueryRowContext(ctx, countQ, driverID).Scan(&total); err != nil {
@@ -816,7 +888,11 @@ func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID i
 		FROM incidents i
 		INNER JOIN incident_types it ON it.id = i.incident_type_id
 		INNER JOIN vehicles v ON v.id = i.vehicle_id
+		LEFT JOIN tripsheets t ON t.id = i.tripsheet_id
+		LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
 		WHERE i.driver_id = $1
+		   OR t.driver_id = $1
+		   OR ds.driver_id = $1
 		ORDER BY i.incident_date DESC, i.incident_time DESC, i.id DESC
 		LIMIT $2 OFFSET $3;
 	`
