@@ -26,6 +26,7 @@ type Driver struct {
 	ExperienceYears  *int                    `json:"experience_years,omitempty" example:"5"`
 	StatusID         int64                   `json:"status_id" example:"1"`
 	Status           DriverStatus            `json:"status"`
+	StatusText       string                  `json:"status_text,omitempty"`
 	AssignedVehicles []DriverAssignedVehicle `json:"assigned_vehicles,omitempty"`
 	CreatedAt        time.Time               `json:"created_at" example:"2026-02-18T12:00:00Z"`
 	UpdatedAt        time.Time               `json:"updated_at" example:"2026-02-18T12:10:00Z"`
@@ -78,6 +79,8 @@ type DriverPassport struct {
 	AssignedVehicles []DriverAssignedVehicle       `json:"assigned_vehicles"`
 	TotalWorkedHours float64                       `json:"total_worked_hours"`
 	IncidentsCount   int64                         `json:"incidents_count"`
+	TripsheetsTotal  int64                         `json:"tripsheets_total"`
+	IncidentsTotal   int64                         `json:"incidents_total"`
 	Tripsheets       []DriverPassportTripsheetItem `json:"tripsheets"`
 	Incidents        []DriverPassportIncidentItem  `json:"incidents"`
 }

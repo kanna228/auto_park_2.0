@@ -24,6 +24,13 @@ type DriverListParams struct {
 	Offset      int
 }
 
+type DriverPassportParams struct {
+	TripsLimit      int
+	TripsOffset     int
+	IncidentsLimit  int
+	IncidentsOffset int
+}
+
 type DriverRepo struct {
 	db     *sql.DB
 	schema string
@@ -148,9 +155,22 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 		argPos++
 	}
 	if v := strings.TrimSpace(p.Status); v != "" {
-		conds = append(conds, fmt.Sprintf("(LOWER(ds.code) = LOWER($%[1]d) OR LOWER(ds.name) = LOWER($%[1]d))", argPos))
-		args = append(args, v)
-		argPos++
+		switch strings.ToLower(v) {
+		case "assigned":
+			conds = append(conds, `EXISTS (
+				SELECT 1
+				FROM vehicles v
+				WHERE d.id = ANY(v.drivers_ids)
+			)`)
+		case "unassigned":
+			conds = append(conds, `NOT EXISTS (
+				SELECT 1
+				FROM vehicles v
+				WHERE d.id = ANY(v.drivers_ids)
+			)`)
+		default:
+			conds = append(conds, "FALSE")
+		}
 	}
 	if v := strings.TrimSpace(p.BoardNumber); v != "" {
 		conds = append(conds, fmt.Sprintf(`EXISTS (
@@ -226,6 +246,9 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 		return nil, 0, err
 	}
 	if err := r.populateAssignedVehicles(ctx, res); err != nil {
+		return nil, 0, err
+	}
+	if err := r.populateDriverStatusText(ctx, res); err != nil {
 		return nil, 0, err
 	}
 	return res, total, nil
@@ -420,6 +443,60 @@ func (r *DriverRepo) populateAssignedVehicles(ctx context.Context, drivers []mod
 	return nil
 }
 
+func (r *DriverRepo) populateDriverStatusText(ctx context.Context, drivers []models.Driver) error {
+	if len(drivers) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(drivers))
+	indexByID := make(map[int64]int, len(drivers))
+	for i := range drivers {
+		ids = append(ids, drivers[i].ID)
+		indexByID[drivers[i].ID] = i
+	}
+
+	const q = `
+		SELECT driver_id, BOOL_OR(has_activity)
+		FROM (
+			SELECT COALESCE(t.driver_id, ds.driver_id) AS driver_id, TRUE AS has_activity
+			FROM tripsheets t
+			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+			WHERE COALESCE(t.driver_id, ds.driver_id) = ANY($1)
+			  AND t.end_time IS NULL
+			UNION ALL
+			SELECT driver_id, TRUE AS has_activity
+			FROM driver_shifts
+			WHERE driver_id = ANY($1)
+			  AND is_active = TRUE
+			  AND is_deleted = FALSE
+		) activity
+		WHERE driver_id IS NOT NULL
+		GROUP BY driver_id;
+	`
+	rows, err := r.db.QueryContext(ctx, q, pq.Int64Array(ids))
+	if err != nil {
+		return fmt.Errorf("populate driver status text: %w", err)
+	}
+	defer rows.Close()
+
+	onTripByID := make(map[int64]bool, len(drivers))
+	for rows.Next() {
+		var driverID int64
+		var onTrip bool
+		if err := rows.Scan(&driverID, &onTrip); err != nil {
+			return fmt.Errorf("populate driver status text scan: %w", err)
+		}
+		onTripByID[driverID] = onTrip
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("populate driver status text rows: %w", err)
+	}
+
+	for id, idx := range indexByID {
+		drivers[idx].StatusText = resolveDriverStatus(drivers[idx].AssignedVehicles, onTripByID[id])
+	}
+	return nil
+}
+
 func (r *DriverRepo) StatusExists(ctx context.Context, statusID int64) (bool, error) {
 	const q = `SELECT EXISTS(SELECT 1 FROM driver_statuses WHERE id = $1);`
 	var exists bool
@@ -470,7 +547,9 @@ func (r *DriverRepo) ListStatuses(ctx context.Context, limit, offset int) ([]mod
 	return items, total, nil
 }
 
-func (r *DriverRepo) GetPassport(ctx context.Context, id int64) (*models.DriverPassport, error) {
+func (r *DriverRepo) GetPassport(ctx context.Context, id int64, params DriverPassportParams) (*models.DriverPassport, error) {
+	params = normalizeDriverPassportParams(params)
+
 	driver, err := r.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
@@ -491,12 +570,12 @@ func (r *DriverRepo) GetPassport(ctx context.Context, id int64) (*models.DriverP
 		return nil, err
 	}
 
-	tripsheets, err := r.listDriverPassportTripsheets(ctx, id, 8)
+	tripsheets, tripsheetsTotal, err := r.listDriverPassportTripsheets(ctx, id, params.TripsLimit, params.TripsOffset)
 	if err != nil {
 		return nil, err
 	}
 
-	incidents, err := r.listDriverPassportIncidents(ctx, id, 8)
+	incidents, incidentsTotal, err := r.listDriverPassportIncidents(ctx, id, params.IncidentsLimit, params.IncidentsOffset)
 	if err != nil {
 		return nil, err
 	}
@@ -505,12 +584,17 @@ func (r *DriverRepo) GetPassport(ctx context.Context, id int64) (*models.DriverP
 		return nil, err
 	}
 
+	status := resolveDriverStatus(assignedVehicles, onTrip)
+	driver.StatusText = status
+
 	return &models.DriverPassport{
 		Driver:           *driver,
-		Status:           resolveDriverStatus(assignedVehicles, onTrip),
+		Status:           status,
 		AssignedVehicles: assignedVehicles,
 		TotalWorkedHours: totalWorkedHours,
 		IncidentsCount:   incidentsCount,
+		TripsheetsTotal:  tripsheetsTotal,
+		IncidentsTotal:   incidentsTotal,
 		Tripsheets:       tripsheets,
 		Incidents:        incidents,
 	}, nil
@@ -593,9 +677,16 @@ func (r *DriverRepo) getDriverAccidentsCount(ctx context.Context, driverID int64
 	return count, nil
 }
 
-func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID int64, limit int) ([]models.DriverPassportTripsheetItem, error) {
-	if limit <= 0 {
-		limit = 8
+func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID int64, limit int, offset int) ([]models.DriverPassportTripsheetItem, int64, error) {
+	const countQ = `
+		SELECT COUNT(*)
+		FROM tripsheets t
+		LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+		WHERE COALESCE(t.driver_id, ds.driver_id) = $1;
+	`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ, driverID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count driver passport tripsheets: %w", err)
 	}
 
 	const q = `
@@ -639,12 +730,12 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 			t.created_at,
 			t.updated_at
 		ORDER BY t.tripsheet_date DESC, COALESCE(t.start_time, t.created_at) DESC, t.id DESC
-		LIMIT $2;
+		LIMIT $2 OFFSET $3;
 	`
 
-	rows, err := r.db.QueryContext(ctx, q, driverID, limit)
+	rows, err := r.db.QueryContext(ctx, q, driverID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list driver passport tripsheets: %w", err)
+		return nil, 0, fmt.Errorf("list driver passport tripsheets: %w", err)
 	}
 	defer rows.Close()
 
@@ -674,7 +765,7 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan driver passport tripsheet: %w", err)
+			return nil, 0, fmt.Errorf("scan driver passport tripsheet: %w", err)
 		}
 
 		item.TripsheetDate = tripDate.Format("2006-01-02")
@@ -691,15 +782,21 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("driver passport tripsheet rows: %w", err)
+		return nil, 0, fmt.Errorf("driver passport tripsheet rows: %w", err)
 	}
 
-	return items, nil
+	return items, total, nil
 }
 
-func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID int64, limit int) ([]models.DriverPassportIncidentItem, error) {
-	if limit <= 0 {
-		limit = 8
+func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID int64, limit int, offset int) ([]models.DriverPassportIncidentItem, int64, error) {
+	const countQ = `
+		SELECT COUNT(*)
+		FROM incidents
+		WHERE driver_id = $1;
+	`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ, driverID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count driver passport incidents: %w", err)
 	}
 
 	const q = `
@@ -721,12 +818,12 @@ func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID i
 		INNER JOIN vehicles v ON v.id = i.vehicle_id
 		WHERE i.driver_id = $1
 		ORDER BY i.incident_date DESC, i.incident_time DESC, i.id DESC
-		LIMIT $2;
+		LIMIT $2 OFFSET $3;
 	`
 
-	rows, err := r.db.QueryContext(ctx, q, driverID, limit)
+	rows, err := r.db.QueryContext(ctx, q, driverID, limit, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list driver passport incidents: %w", err)
+		return nil, 0, fmt.Errorf("list driver passport incidents: %w", err)
 	}
 	defer rows.Close()
 
@@ -750,7 +847,7 @@ func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID i
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
-			return nil, fmt.Errorf("scan driver passport incident: %w", err)
+			return nil, 0, fmt.Errorf("scan driver passport incident: %w", err)
 		}
 
 		item.IncidentDate = incidentDate.Format("2006-01-02")
@@ -758,10 +855,10 @@ func (r *DriverRepo) listDriverPassportIncidents(ctx context.Context, driverID i
 		items = append(items, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("driver passport incident rows: %w", err)
+		return nil, 0, fmt.Errorf("driver passport incident rows: %w", err)
 	}
 
-	return items, nil
+	return items, total, nil
 }
 
 type driverScanner interface {
@@ -853,6 +950,22 @@ func nullableInt64Ptr(v sql.NullInt64) *int64 {
 	return &v.Int64
 }
 
+func normalizeDriverPassportParams(p DriverPassportParams) DriverPassportParams {
+	if p.TripsLimit <= 0 || p.TripsLimit > 200 {
+		p.TripsLimit = 8
+	}
+	if p.TripsOffset < 0 {
+		p.TripsOffset = 0
+	}
+	if p.IncidentsLimit <= 0 || p.IncidentsLimit > 200 {
+		p.IncidentsLimit = 8
+	}
+	if p.IncidentsOffset < 0 {
+		p.IncidentsOffset = 0
+	}
+	return p
+}
+
 func (r *DriverRepo) driverHasOpenTripsheetOrActiveShift(ctx context.Context, driverID int64) (bool, error) {
 	const q = `
 		SELECT EXISTS (
@@ -906,7 +1019,7 @@ func rollbackDriverTx(tx *sql.Tx) {
 
 func resolveDriverStatus(assignedVehicles []models.DriverAssignedVehicle, onTrip bool) string {
 	if onTrip {
-		return "РќР° РІС‹РµР·РґРµ"
+		return "На выезде"
 	}
 	if len(assignedVehicles) == 0 {
 		return "Не закреплён"

@@ -42,7 +42,8 @@ type DriverDTO struct {
 	LicenseCategory  string                     `json:"license_category,omitempty" example:"B, C"`
 	ExperienceYears  *int                       `json:"experience_years,omitempty" example:"5"`
 	StatusID         int64                      `json:"status_id" example:"1"`
-	Status           DriverStatusDTO            `json:"status"`
+	Status           string                     `json:"status" example:"Доступен"`
+	StatusInfo       DriverStatusDTO            `json:"status_info"`
 	AssignedVehicles []DriverAssignedVehicleDTO `json:"assigned_vehicles"`
 	CreatedAt        string                     `json:"created_at" example:"2026-02-18T12:34:56Z"`
 	UpdatedAt        string                     `json:"updated_at" example:"2026-02-18T12:34:56Z"`
@@ -95,6 +96,8 @@ type DriverPassportDTO struct {
 	AssignedVehicles []DriverAssignedVehicleDTO   `json:"assigned_vehicles"`
 	TotalWorkedHours float64                      `json:"total_worked_hours" example:"40"`
 	IncidentsCount   int64                        `json:"incidents_count" example:"5"`
+	TripsheetsTotal  int64                        `json:"tripsheets_total" example:"120"`
+	IncidentsTotal   int64                        `json:"incidents_total" example:"5"`
 	Tripsheets       []DriverPassportTripsheetDTO `json:"tripsheets"`
 	Incidents        []DriverPassportIncidentDTO  `json:"incidents"`
 }
@@ -309,6 +312,10 @@ func (h *DriversHandler) UnassignVehicle(c *gin.Context) {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        id path int true "Driver ID"
+// @Param        trips_limit query int false "Tripsheets limit" default(8)
+// @Param        trips_offset query int false "Tripsheets offset" default(0)
+// @Param        incidents_limit query int false "Incidents limit" default(8)
+// @Param        incidents_offset query int false "Incidents offset" default(0)
 // @Success      200 {object} DriverPassportResponse
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -322,7 +329,14 @@ func (h *DriversHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	passport, err := h.svc.GetPassport(c.Request.Context(), id)
+	passportQuery := dto.DriverPassportQuery{
+		TripsLimit:      parseOptionalInt(c, "trips_limit"),
+		TripsOffset:     parseOptionalInt(c, "trips_offset"),
+		IncidentsLimit:  parseOptionalInt(c, "incidents_limit"),
+		IncidentsOffset: parseOptionalInt(c, "incidents_offset"),
+	}
+
+	passport, err := h.svc.GetPassport(c.Request.Context(), id, passportQuery)
 	if err != nil {
 		if err == repository.ErrNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
@@ -560,6 +574,11 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		})
 	}
 
+	statusText := drv.StatusText
+	if strings.TrimSpace(statusText) == "" {
+		statusText = drv.Status.Name
+	}
+
 	return DriverDTO{
 		ID:               drv.ID,
 		IIN:              drv.IIN,
@@ -575,7 +594,8 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		LicenseCategory:  drv.LicenseCategory,
 		ExperienceYears:  drv.ExperienceYears,
 		StatusID:         drv.StatusID,
-		Status:           driverStatusToDTO(drv.Status),
+		Status:           statusText,
+		StatusInfo:       driverStatusToDTO(drv.Status),
 		AssignedVehicles: assignedVehicles,
 		CreatedAt:        drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:        drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
@@ -650,9 +670,23 @@ func driverPassportToDTO(c *gin.Context, passport models.DriverPassport) DriverP
 		AssignedVehicles: assignedVehicles,
 		TotalWorkedHours: passport.TotalWorkedHours,
 		IncidentsCount:   passport.IncidentsCount,
+		TripsheetsTotal:  passport.TripsheetsTotal,
+		IncidentsTotal:   passport.IncidentsTotal,
 		Tripsheets:       tripsheets,
 		Incidents:        incidents,
 	}
+}
+
+func parseOptionalInt(c *gin.Context, key string) int {
+	value := strings.TrimSpace(c.Query(key))
+	if value == "" {
+		return 0
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 func writeDriverVehicleAssignmentError(c *gin.Context, err error) {

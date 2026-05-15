@@ -44,6 +44,13 @@ type DriverListQuery struct {
 	Offset      int
 }
 
+type DriverPassportQuery struct {
+	TripsLimit      int
+	TripsOffset     int
+	IncidentsLimit  int
+	IncidentsOffset int
+}
+
 type AssignDriverVehicleRequest struct {
 	VehicleID int64 `json:"vehicle_id" binding:"required" example:"1"`
 }
