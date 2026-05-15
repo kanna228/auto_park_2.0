@@ -94,7 +94,7 @@ func (s *fuelRefillService) GetAllByVehicleID(ctx context.Context, vehicleID int
 }
 
 func validateAndMapCreate(req dto.CreateFuelRefillRequest) (models.CreateFuelRefillInput, error) {
-	dateVal, timeVal, location, err := validateCommon(req.TripsheetID, req.VehicleID, req.FuelAmount, req.Date, req.Time, req.Location)
+	dateVal, timeVal, location, err := validateCommon(req.TripsheetID, req.VehicleID, req.FuelAmount, req.Price, req.Date, req.Time, req.Location)
 	if err != nil {
 		return models.CreateFuelRefillInput{}, err
 	}
@@ -103,6 +103,7 @@ func validateAndMapCreate(req dto.CreateFuelRefillRequest) (models.CreateFuelRef
 		TripsheetID: req.TripsheetID,
 		VehicleID:   req.VehicleID,
 		FuelAmount:  req.FuelAmount,
+		Price:       req.Price,
 		Date:        dateVal,
 		Time:        timeVal,
 		Location:    location,
@@ -110,7 +111,7 @@ func validateAndMapCreate(req dto.CreateFuelRefillRequest) (models.CreateFuelRef
 }
 
 func validateAndMapUpdate(id int64, req dto.UpdateFuelRefillRequest) (models.UpdateFuelRefillInput, error) {
-	dateVal, timeVal, location, err := validateCommon(req.TripsheetID, req.VehicleID, req.FuelAmount, req.Date, req.Time, req.Location)
+	dateVal, timeVal, location, err := validateCommon(req.TripsheetID, req.VehicleID, req.FuelAmount, req.Price, req.Date, req.Time, req.Location)
 	if err != nil {
 		return models.UpdateFuelRefillInput{}, err
 	}
@@ -120,13 +121,14 @@ func validateAndMapUpdate(id int64, req dto.UpdateFuelRefillRequest) (models.Upd
 		TripsheetID: req.TripsheetID,
 		VehicleID:   req.VehicleID,
 		FuelAmount:  req.FuelAmount,
+		Price:       req.Price,
 		Date:        dateVal,
 		Time:        timeVal,
 		Location:    location,
 	}, nil
 }
 
-func validateCommon(tripsheetID, vehicleID int64, fuelAmount float64, dateStr, timeStr string, location *string) (time.Time, time.Time, *string, error) {
+func validateCommon(tripsheetID, vehicleID int64, fuelAmount float64, price float64, dateStr, timeStr string, location *string) (time.Time, time.Time, *string, error) {
 	if tripsheetID <= 0 {
 		return time.Time{}, time.Time{}, nil, fmt.Errorf("tripsheet_id is required")
 	}
@@ -135,6 +137,9 @@ func validateCommon(tripsheetID, vehicleID int64, fuelAmount float64, dateStr, t
 	}
 	if fuelAmount <= 0 {
 		return time.Time{}, time.Time{}, nil, fmt.Errorf("fuel_amount must be greater than 0")
+	}
+	if price < 0 {
+		return time.Time{}, time.Time{}, nil, fmt.Errorf("price must be greater than or equal to 0")
 	}
 
 	dateVal, err := time.Parse("2006-01-02", strings.TrimSpace(dateStr))
@@ -163,6 +168,7 @@ func mapModelToResponse(item *models.FuelRefill) *dto.FuelRefillResponse {
 		TripsheetID: item.TripsheetID,
 		VehicleID:   item.VehicleID,
 		FuelAmount:  item.FuelAmount,
+		Price:       item.Price,
 		Date:        item.Date.Format("2006-01-02"),
 		Time:        item.Time.Format("15:04:05"),
 		Location:    item.Location,

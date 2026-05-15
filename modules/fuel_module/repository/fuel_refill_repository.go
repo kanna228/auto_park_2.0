@@ -37,12 +37,13 @@ func (r *fuelRefillRepository) Create(ctx context.Context, input models.CreateFu
 			tripsheet_id,
 			vehicle_id,
 			fuel_amount,
+			price,
 			date,
 			time,
 			location
 		)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, tripsheet_id, vehicle_id, fuel_amount, date, time, location, created_at, updated_at
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, tripsheet_id, vehicle_id, fuel_amount, price, date, time, location, created_at, updated_at
 	`, r.table())
 
 	var item models.FuelRefill
@@ -54,6 +55,7 @@ func (r *fuelRefillRepository) Create(ctx context.Context, input models.CreateFu
 		input.TripsheetID,
 		input.VehicleID,
 		input.FuelAmount,
+		input.Price,
 		input.Date,
 		input.Time,
 		input.Location,
@@ -62,6 +64,7 @@ func (r *fuelRefillRepository) Create(ctx context.Context, input models.CreateFu
 		&item.TripsheetID,
 		&item.VehicleID,
 		&item.FuelAmount,
+		&item.Price,
 		&item.Date,
 		&item.Time,
 		&location,
@@ -86,12 +89,13 @@ func (r *fuelRefillRepository) Update(ctx context.Context, input models.UpdateFu
 			tripsheet_id = $1,
 			vehicle_id = $2,
 			fuel_amount = $3,
-			date = $4,
-			time = $5,
-			location = $6,
+			price = $4,
+			date = $5,
+			time = $6,
+			location = $7,
 			updated_at = NOW()
-		WHERE id = $7
-		RETURNING id, tripsheet_id, vehicle_id, fuel_amount, date, time, location, created_at, updated_at
+		WHERE id = $8
+		RETURNING id, tripsheet_id, vehicle_id, fuel_amount, price, date, time, location, created_at, updated_at
 	`, r.table())
 
 	var item models.FuelRefill
@@ -103,6 +107,7 @@ func (r *fuelRefillRepository) Update(ctx context.Context, input models.UpdateFu
 		input.TripsheetID,
 		input.VehicleID,
 		input.FuelAmount,
+		input.Price,
 		input.Date,
 		input.Time,
 		input.Location,
@@ -112,6 +117,7 @@ func (r *fuelRefillRepository) Update(ctx context.Context, input models.UpdateFu
 		&item.TripsheetID,
 		&item.VehicleID,
 		&item.FuelAmount,
+		&item.Price,
 		&item.Date,
 		&item.Time,
 		&location,
@@ -153,7 +159,7 @@ func (r *fuelRefillRepository) Delete(ctx context.Context, id int64) error {
 
 func (r *fuelRefillRepository) GetByID(ctx context.Context, id int64) (*dto.FuelRefillResponse, error) {
 	query := fmt.Sprintf(`
-		SELECT id, tripsheet_id, vehicle_id, fuel_amount, date, time, location, created_at, updated_at
+		SELECT id, tripsheet_id, vehicle_id, fuel_amount, price, date, time, location, created_at, updated_at
 		FROM %s
 		WHERE id = $1
 	`, r.table())
@@ -236,7 +242,7 @@ func (r *fuelRefillRepository) listFuelRefills(ctx context.Context, filter dto.F
 	args = append(args, limit, offset)
 
 	query := fmt.Sprintf(`
-		SELECT fr.id, fr.tripsheet_id, fr.vehicle_id, fr.fuel_amount, fr.date, fr.time, fr.location, fr.created_at, fr.updated_at
+		SELECT fr.id, fr.tripsheet_id, fr.vehicle_id, fr.fuel_amount, fr.price, fr.date, fr.time, fr.location, fr.created_at, fr.updated_at
 		FROM %s fr
 		LEFT JOIN tripsheets t ON t.id = fr.tripsheet_id
 		WHERE %s
@@ -259,6 +265,8 @@ func normalizeFuelRefillSortBy(value string) string {
 		return "t.driver_id"
 	case "fuel_amount":
 		return "fr.fuel_amount"
+	case "price":
+		return "fr.price"
 	case "time":
 		return "fr.time"
 	case "created_at":
@@ -292,6 +300,7 @@ func (r *fuelRefillRepository) scanOne(ctx context.Context, query string, args .
 		&item.TripsheetID,
 		&item.VehicleID,
 		&item.FuelAmount,
+		&item.Price,
 		&dateVal,
 		&timeVal,
 		&location,
@@ -336,6 +345,7 @@ func (r *fuelRefillRepository) scanMany(ctx context.Context, total int, query st
 			&item.TripsheetID,
 			&item.VehicleID,
 			&item.FuelAmount,
+			&item.Price,
 			&dateVal,
 			&timeVal,
 			&location,

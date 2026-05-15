@@ -4,6 +4,7 @@ type CreateFuelRefillRequest struct {
 	TripsheetID int64   `json:"tripsheet_id" example:"1"`
 	VehicleID   int64   `json:"vehicle_id" example:"12"`
 	FuelAmount  float64 `json:"fuel_amount" example:"25.5"`
+	Price       float64 `json:"price" example:"15500"`
 	Date        string  `json:"date" example:"2026-04-15"`
 	Time        string  `json:"time" example:"14:30:00"`
 	Location    *string `json:"location,omitempty" example:"Helios, Astana"`
@@ -13,6 +14,7 @@ type UpdateFuelRefillRequest struct {
 	TripsheetID int64   `json:"tripsheet_id" example:"1"`
 	VehicleID   int64   `json:"vehicle_id" example:"12"`
 	FuelAmount  float64 `json:"fuel_amount" example:"30"`
+	Price       float64 `json:"price" example:"18200"`
 	Date        string  `json:"date" example:"2026-04-15"`
 	Time        string  `json:"time" example:"17:45:00"`
 	Location    *string `json:"location,omitempty" example:"Sinooil, Astana"`
@@ -23,6 +25,7 @@ type FuelRefillResponse struct {
 	TripsheetID int64   `json:"tripsheet_id" example:"1"`
 	VehicleID   int64   `json:"vehicle_id" example:"12"`
 	FuelAmount  float64 `json:"fuel_amount" example:"25.5"`
+	Price       float64 `json:"price" example:"15500"`
 	Date        string  `json:"date" example:"2026-04-15"`
 	Time        string  `json:"time" example:"14:30:00"`
 	Location    *string `json:"location,omitempty" example:"Helios, Astana"`

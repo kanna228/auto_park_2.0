@@ -8,6 +8,7 @@ import (
 
 	"auto_park/internal/config"
 	"auto_park/middleware"
+	"auto_park/modules/dashboard_module"
 	"auto_park/modules/fuel_module"
 	"auto_park/modules/incident_module"
 	"auto_park/modules/notification_module"
@@ -72,6 +73,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	replacementReminderJob := notificationjobs.NewVehiclePartReplacementReminderJob(db, notificationSvc)
 	replacementReminderJob.Start(context.Background())
 
+	dashboard_module.RegisterRoutes(r, cfg, db)
 	fuel_module.RegisterRoutes(r, cfg, db)
 	warehouse_module.RegisterRoutes(r, cfg, db, notificationSvc)
 

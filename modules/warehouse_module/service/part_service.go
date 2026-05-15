@@ -45,6 +45,9 @@ func (s *partService) Create(ctx context.Context, req dto.PartCreateRequest) (in
 	if req.StartQuantity < 0 {
 		return 0, fmt.Errorf("start_quantity must be greater than or equal to 0")
 	}
+	if req.Price < 0 {
+		return 0, fmt.Errorf("price must be greater than or equal to 0")
+	}
 	dimensions, err := normalizeOptionalField("dimensions", req.Dimensions)
 	if err != nil {
 		return 0, err
@@ -58,6 +61,7 @@ func (s *partService) Create(ctx context.Context, req dto.PartCreateRequest) (in
 		PartID:       partID,
 		Name:         name,
 		Quantity:     req.StartQuantity,
+		Price:        req.Price,
 		Category:     category,
 		Dimensions:   dimensions,
 		Manufacturer: manufacturer,
@@ -126,6 +130,9 @@ func (s *partService) UpdateByID(ctx context.Context, id int64, req dto.PartUpda
 	if req.Quantity < 0 {
 		return false, fmt.Errorf("quantity must be greater than or equal to 0")
 	}
+	if req.Price < 0 {
+		return false, fmt.Errorf("price must be greater than or equal to 0")
+	}
 	dimensions, err := normalizeOptionalField("dimensions", req.Dimensions)
 	if err != nil {
 		return false, err
@@ -138,6 +145,7 @@ func (s *partService) UpdateByID(ctx context.Context, id int64, req dto.PartUpda
 	return s.repo.UpdateByID(ctx, id, repository.UpdatePartParams{
 		Name:         name,
 		Quantity:     req.Quantity,
+		Price:        req.Price,
 		Category:     category,
 		Dimensions:   dimensions,
 		Manufacturer: manufacturer,
@@ -183,6 +191,8 @@ func mapPartToDTO(item models.Part) dto.PartResponse {
 		PartID:       item.PartID,
 		Name:         item.Name,
 		Quantity:     item.Quantity,
+		Price:        item.Price,
+		TotalValue:   float64(item.Quantity) * item.Price,
 		Category:     item.Category,
 		Dimensions:   item.Dimensions,
 		Manufacturer: item.Manufacturer,

@@ -551,6 +551,8 @@ type VehicleInstalledPartHistoryRow struct {
 	InstalledAt          time.Time
 	PlannedReplacementAt *time.Time
 	Quantity             int64
+	UnitPrice            float64
+	TotalPrice           float64
 	InstalledByUserID    int64
 	InstallerEmail       *string
 	InstallerFullName    *string
@@ -572,6 +574,8 @@ func (r *vehicleRepo) ListInstalledPartsByVehicleID(ctx context.Context, vehicle
 			vpi.installed_at,
 			vpi.planned_replacement_at,
 			vpi.quantity,
+			vpi.unit_price,
+			vpi.total_price,
 			vpi.installed_by_user_id,
 			u.email AS installer_email,
 			NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS installer_full_name,
@@ -612,6 +616,8 @@ func (r *vehicleRepo) ListInstalledPartsByVehicleID(ctx context.Context, vehicle
 			&item.InstalledAt,
 			&plannedReplacementAt,
 			&item.Quantity,
+			&item.UnitPrice,
+			&item.TotalPrice,
 			&item.InstalledByUserID,
 			&installerEmail,
 			&installerFullName,
