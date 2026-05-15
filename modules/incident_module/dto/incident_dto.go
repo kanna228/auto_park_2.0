@@ -74,6 +74,8 @@ type IncidentResponse struct {
 	VehicleStateNumber string                         `json:"vehicle_state_number"`
 	DriverID           int64                          `json:"driver_id"`
 	DriverFullName     string                         `json:"driver_full_name"`
+	DriverStatusID     int64                          `json:"driver_status_id"`
+	DriverStatusName   string                         `json:"driver_status_name"`
 	MechanicID         int64                          `json:"mechanic_id"`
 	MechanicFullName   string                         `json:"mechanic_full_name"`
 	MechanicShiftID    *int64                         `json:"mechanic_shift_id,omitempty"`

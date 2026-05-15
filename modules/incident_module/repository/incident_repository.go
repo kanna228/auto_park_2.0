@@ -138,6 +138,8 @@ const incidentSelect = `
 		v.state_number,
 		i.driver_id,
 		TRIM(CONCAT_WS(' ', d.surname, d.name, d.middlename)) AS driver_full_name,
+		d.status_id AS driver_status_id,
+		ds.name AS driver_status_name,
 		i.mechanic_id,
 		TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)) AS mechanic_full_name,
 		i.mechanic_shift_id,
@@ -186,6 +188,7 @@ const incidentSelect = `
 	JOIN incident_types it ON it.id = i.incident_type_id
 	JOIN vehicles v ON v.id = i.vehicle_id
 	JOIN drivers d ON d.id = i.driver_id
+	JOIN driver_statuses ds ON ds.id = d.status_id
 	JOIN users u ON u.id = i.mechanic_id
 	LEFT JOIN mechanic_shifts ms ON ms.id = i.mechanic_shift_id
 	LEFT JOIN users ms_u ON ms_u.id = ms.user_id
@@ -242,6 +245,8 @@ func scanIncident(scanner incidentScanner) (*models.Incident, error) {
 		&item.VehicleStateNumber,
 		&item.DriverID,
 		&item.DriverFullName,
+		&item.DriverStatusID,
+		&item.DriverStatusName,
 		&item.MechanicID,
 		&item.MechanicFullName,
 		&mechanicShiftID,

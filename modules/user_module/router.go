@@ -75,6 +75,8 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			driverShifts.DELETE("/:id", driverShiftH.Delete)
 		}
 
+		protected.GET("/driver-statuses", driversH.ListStatuses)
+
 		drivers := protected.Group("/drivers")
 		drivers.GET("", driversH.List)
 		drivers.GET("/:id", driversH.GetByID)
@@ -84,6 +86,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		{
 			adminOnlyDrivers.POST("", driversH.Create)
 			adminOnlyDrivers.PUT("/:id", driversH.Update)
+			adminOnlyDrivers.PATCH("/:id/status", driversH.UpdateStatus)
 			adminOnlyDrivers.DELETE("/:id", driversH.Delete)
 
 			adminOnlyDrivers.POST("/:id/photo", driversH.UploadPhoto)

@@ -99,6 +99,9 @@ func (r *DriverShiftRepo) GetByID(ctx context.Context, id int64) (*models.Driver
 			d.middlename,
 			d.phone,
 			d.mail,
+			d.status_id AS driver_status_id,
+			st.code AS driver_status_code,
+			st.name AS driver_status_name,
 			ds.shift_date,
 			ds.time_from::text,
 			ds.time_to::text,
@@ -109,10 +112,11 @@ func (r *DriverShiftRepo) GetByID(ctx context.Context, id int64) (*models.Driver
 			ds.updated_at
 		FROM driver_shifts ds
 		INNER JOIN drivers d ON d.id = ds.driver_id
+		INNER JOIN driver_statuses st ON st.id = d.status_id
 		LEFT JOIN tripsheets t ON t.driver_shift_id = ds.id
 		WHERE ds.id = $1
 		  AND ds.is_deleted = FALSE
-		GROUP BY ds.id, d.id;
+		GROUP BY ds.id, d.id, st.id;
 	`
 
 	item, err := scanDriverShift(r.db.QueryRowContext(ctx, q, id))
@@ -177,6 +181,7 @@ func (r *DriverShiftRepo) List(ctx context.Context, p ListDriverShiftsParams) ([
 		SELECT COUNT(*)
 		FROM driver_shifts ds
 		INNER JOIN drivers d ON d.id = ds.driver_id
+		INNER JOIN driver_statuses st ON st.id = d.status_id
 	` + whereSQL
 
 	var total int64
@@ -197,6 +202,9 @@ func (r *DriverShiftRepo) List(ctx context.Context, p ListDriverShiftsParams) ([
 			d.middlename,
 			d.phone,
 			d.mail,
+			d.status_id AS driver_status_id,
+			st.code AS driver_status_code,
+			st.name AS driver_status_name,
 			ds.shift_date,
 			ds.time_from::text,
 			ds.time_to::text,
@@ -207,9 +215,10 @@ func (r *DriverShiftRepo) List(ctx context.Context, p ListDriverShiftsParams) ([
 			ds.updated_at
 		FROM driver_shifts ds
 		INNER JOIN drivers d ON d.id = ds.driver_id
+		INNER JOIN driver_statuses st ON st.id = d.status_id
 		LEFT JOIN tripsheets t ON t.driver_shift_id = ds.id
 		%s
-		GROUP BY ds.id, d.id
+		GROUP BY ds.id, d.id, st.id
 		ORDER BY %s %s, ds.id DESC
 		LIMIT $%d OFFSET $%d;
 	`, whereSQL, sortBy, order, argPos, argPos+1)
@@ -448,6 +457,9 @@ func scanDriverShift(scanner driverShiftScanner) (*models.DriverShift, error) {
 		&middlename,
 		&phone,
 		&mail,
+		&item.DriverStatusID,
+		&item.DriverStatusCode,
+		&item.DriverStatusName,
 		&item.ShiftDate,
 		&item.TimeFrom,
 		&timeTo,

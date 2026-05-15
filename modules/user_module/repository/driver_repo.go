@@ -27,6 +27,11 @@ func (r *DriverRepo) table() string {
 }
 
 func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driver, error) {
+	statusID := d.StatusID
+	if statusID <= 0 {
+		statusID = 1
+	}
+
 	q := fmt.Sprintf(`
 		INSERT INTO %s (
 			iin,
@@ -39,27 +44,15 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 			birth_date,
 			license_number,
 			license_category,
-			experience_years
-		)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-		RETURNING
-			id,
-			iin,
-			name,
-			surname,
-			middlename,
-			phone,
-			mail,
-			photo_path,
-			birth_date,
-			license_number,
-			license_category,
 			experience_years,
-			created_at,
-			updated_at
+			status_id
+		)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		RETURNING id
 	`, r.table())
 
-	row := r.db.QueryRowContext(ctx, q,
+	var id int64
+	if err := r.db.QueryRowContext(ctx, q,
 		d.IIN,
 		d.Name,
 		d.Surname,
@@ -71,30 +64,40 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 		nullIfEmpty(d.LicenseNumber),
 		nullIfEmpty(d.LicenseCategory),
 		nullIntValue(d.ExperienceYears),
-	)
+		statusID,
+	).Scan(&id); err != nil {
+		return nil, err
+	}
 
-	return scanDriver(row)
+	return r.GetByID(ctx, id)
 }
 
 func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, error) {
 	q := fmt.Sprintf(`
 		SELECT
-			id,
-			iin,
-			name,
-			surname,
-			middlename,
-			phone,
-			mail,
-			photo_path,
-			birth_date,
-			license_number,
-			license_category,
-			experience_years,
-			created_at,
-			updated_at
-		FROM %s
-		WHERE id=$1
+			d.id,
+			d.iin,
+			d.name,
+			d.surname,
+			d.middlename,
+			d.phone,
+			d.mail,
+			d.photo_path,
+			d.birth_date,
+			d.license_number,
+			d.license_category,
+			d.experience_years,
+			d.status_id,
+			ds.code AS status_code,
+			ds.name AS status_name,
+			COALESCE(ds.description, '') AS status_description,
+			ds.created_at AS status_created_at,
+			ds.updated_at AS status_updated_at,
+			d.created_at,
+			d.updated_at
+		FROM %s d
+		INNER JOIN driver_statuses ds ON ds.id = d.status_id
+		WHERE d.id=$1
 	`, r.table())
 
 	out, err := scanDriver(r.db.QueryRowContext(ctx, q, id))
@@ -123,22 +126,29 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 
 	q := fmt.Sprintf(`
 		SELECT
-			id,
-			iin,
-			name,
-			surname,
-			middlename,
-			phone,
-			mail,
-			photo_path,
-			birth_date,
-			license_number,
-			license_category,
-			experience_years,
-			created_at,
-			updated_at
-		FROM %s
-		ORDER BY surname ASC, name ASC, id ASC
+			d.id,
+			d.iin,
+			d.name,
+			d.surname,
+			d.middlename,
+			d.phone,
+			d.mail,
+			d.photo_path,
+			d.birth_date,
+			d.license_number,
+			d.license_category,
+			d.experience_years,
+			d.status_id,
+			ds.code AS status_code,
+			ds.name AS status_name,
+			COALESCE(ds.description, '') AS status_description,
+			ds.created_at AS status_created_at,
+			ds.updated_at AS status_updated_at,
+			d.created_at,
+			d.updated_at
+		FROM %s d
+		INNER JOIN driver_statuses ds ON ds.id = d.status_id
+		ORDER BY d.surname ASC, d.name ASC, d.id ASC
 		LIMIT $1 OFFSET $2
 	`, r.table())
 
@@ -179,6 +189,7 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		"license_number":   true,
 		"license_category": true,
 		"experience_years": true,
+		"status_id":        true,
 	}
 
 	setParts := make([]string, 0, len(upd)+1)
@@ -208,31 +219,21 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		UPDATE %s
 		SET %s
 		WHERE id=$%d
-		RETURNING
-			id,
-			iin,
-			name,
-			surname,
-			middlename,
-			phone,
-			mail,
-			photo_path,
-			birth_date,
-			license_number,
-			license_category,
-			experience_years,
-			created_at,
-			updated_at
 	`, r.table(), strings.Join(setParts, ", "), i)
 
-	out, err := scanDriver(r.db.QueryRowContext(ctx, q, args...))
+	res, err := r.db.ExecContext(ctx, q, args...)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrNotFound
-		}
 		return nil, err
 	}
-	return out, nil
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if rowsAffected == 0 {
+		return nil, ErrNotFound
+	}
+
+	return r.GetByID(ctx, id)
 }
 
 func (r *DriverRepo) UpdatePhotoPath(ctx context.Context, id int64, photoPath string) (*models.Driver, error) {
@@ -252,6 +253,60 @@ func (r *DriverRepo) Delete(ctx context.Context, id int64) error {
 		return ErrNotFound
 	}
 	return nil
+}
+
+func (r *DriverRepo) UpdateStatus(ctx context.Context, id int64, statusID int64) (*models.Driver, error) {
+	return r.Update(ctx, id, map[string]any{"status_id": statusID})
+}
+
+func (r *DriverRepo) StatusExists(ctx context.Context, statusID int64) (bool, error) {
+	const q = `SELECT EXISTS(SELECT 1 FROM driver_statuses WHERE id = $1);`
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, q, statusID).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check driver status exists: %w", err)
+	}
+	return exists, nil
+}
+
+func (r *DriverRepo) ListStatuses(ctx context.Context, limit, offset int) ([]models.DriverStatus, int64, error) {
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	const countQ = `SELECT COUNT(*) FROM driver_statuses;`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("count driver statuses: %w", err)
+	}
+
+	const q = `
+		SELECT id, code, name, COALESCE(description, ''), created_at, updated_at
+		FROM driver_statuses
+		ORDER BY id ASC
+		LIMIT $1 OFFSET $2;
+	`
+	rows, err := r.db.QueryContext(ctx, q, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list driver statuses: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.DriverStatus, 0)
+	for rows.Next() {
+		var item models.DriverStatus
+		if err := rows.Scan(&item.ID, &item.Code, &item.Name, &item.Description, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, 0, fmt.Errorf("scan driver status: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("rows driver statuses: %w", err)
+	}
+
+	return items, total, nil
 }
 
 func (r *DriverRepo) GetPassport(ctx context.Context, id int64) (*models.DriverPassport, error) {
@@ -287,7 +342,7 @@ func (r *DriverRepo) GetPassport(ctx context.Context, id int64) (*models.DriverP
 
 	return &models.DriverPassport{
 		Driver:           *driver,
-		Status:           resolveDriverStatus(assignedVehicles),
+		Status:           driver.Status.Name,
 		AssignedVehicles: assignedVehicles,
 		TotalWorkedHours: totalWorkedHours,
 		IncidentsCount:   incidentsCount,
@@ -557,12 +612,19 @@ func scanDriver(scanner driverScanner) (*models.Driver, error) {
 		&licenseNumber,
 		&licenseCategory,
 		&experienceYears,
+		&out.StatusID,
+		&out.Status.Code,
+		&out.Status.Name,
+		&out.Status.Description,
+		&out.Status.CreatedAt,
+		&out.Status.UpdatedAt,
 		&out.CreatedAt,
 		&out.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
 
+	out.Status.ID = out.StatusID
 	out.Middlename = middlename.String
 	out.Phone = phone.String
 	out.Mail = mail.String

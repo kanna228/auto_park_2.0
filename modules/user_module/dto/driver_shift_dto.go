@@ -43,6 +43,9 @@ type DriverShiftDriverBriefResponse struct {
 	Middlename string `json:"middlename,omitempty" example:"Ivanovich"`
 	Phone      string `json:"phone,omitempty" example:"+77001234567"`
 	Mail       string `json:"mail,omitempty" example:"driver@mail.com"`
+	StatusID   int64  `json:"status_id" example:"1"`
+	StatusCode string `json:"status_code" example:"available"`
+	StatusName string `json:"status_name" example:"Доступен"`
 }
 
 type DriverShiftTripsheetBriefResponse struct {

@@ -46,6 +46,8 @@ type Incident struct {
 	VehicleStateNumber string
 	DriverID           int64
 	DriverFullName     string
+	DriverStatusID     int64
+	DriverStatusName   string
 	MechanicID         int64
 	MechanicFullName   string
 	MechanicShiftID    *int64

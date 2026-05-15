@@ -131,6 +131,8 @@ func mapIncidentToDTO(item *models.Incident) *dto.IncidentResponse {
 		VehicleStateNumber: item.VehicleStateNumber,
 		DriverID:           item.DriverID,
 		DriverFullName:     item.DriverFullName,
+		DriverStatusID:     item.DriverStatusID,
+		DriverStatusName:   item.DriverStatusName,
 		MechanicID:         item.MechanicID,
 		MechanicFullName:   item.MechanicFullName,
 		MechanicShiftID:    item.MechanicShiftID,
