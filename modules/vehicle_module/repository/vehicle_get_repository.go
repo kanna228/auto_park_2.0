@@ -292,6 +292,8 @@ type VehicleIncidentHistoryRow struct {
 	DriverMiddleName *string
 	DriverPhone      *string
 	DriverEmail      *string
+	DriverStatusID   int64
+	DriverStatusName string
 
 	MechanicID         int64
 	MechanicIIN        string
@@ -328,6 +330,8 @@ func (r *vehicleRepo) ListIncidentsByVehicleID(ctx context.Context, vehicleID in
 			d.middlename,
 			d.phone,
 			d.mail,
+			d.status_id,
+			ds.name AS driver_status_name,
 
 			u.id,
 			u.iin,
@@ -344,6 +348,7 @@ func (r *vehicleRepo) ListIncidentsByVehicleID(ctx context.Context, vehicleID in
 		FROM incidents i
 		JOIN incident_types it ON it.id = i.incident_type_id
 		JOIN drivers d ON d.id = i.driver_id
+		JOIN driver_statuses ds ON ds.id = d.status_id
 		JOIN users u ON u.id = i.mechanic_id
 		JOIN roles r ON r.id = u.role_id
 		LEFT JOIN tripsheets t ON t.id = i.tripsheet_id
@@ -391,6 +396,8 @@ func (r *vehicleRepo) ListIncidentsByVehicleID(ctx context.Context, vehicleID in
 			&driverMiddleName,
 			&driverPhone,
 			&driverEmail,
+			&item.DriverStatusID,
+			&item.DriverStatusName,
 
 			&item.MechanicID,
 			&item.MechanicIIN,
@@ -457,6 +464,8 @@ type VehicleDriverRow struct {
 	MiddleName *string
 	Phone      *string
 	Email      *string
+	StatusID   int64
+	StatusName string
 }
 
 func (r *vehicleRepo) ListDriversByIDs(ctx context.Context, ids []int64) ([]VehicleDriverRow, error) {
@@ -466,16 +475,19 @@ func (r *vehicleRepo) ListDriversByIDs(ctx context.Context, ids []int64) ([]Vehi
 
 	const q = `
 		SELECT
-			id,
-			iin,
-			name,
-			surname,
-			middlename,
-			phone,
-			mail
-		FROM drivers
-		WHERE id = ANY($1)
-		ORDER BY id ASC;
+			d.id,
+			d.iin,
+			d.name,
+			d.surname,
+			d.middlename,
+			d.phone,
+			d.mail,
+			d.status_id,
+			ds.name AS status_name
+		FROM drivers d
+		INNER JOIN driver_statuses ds ON ds.id = d.status_id
+		WHERE d.id = ANY($1)
+		ORDER BY d.id ASC;
 	`
 
 	rows, err := r.db.QueryContext(ctx, q, pq.Int64Array(ids))
@@ -499,6 +511,8 @@ func (r *vehicleRepo) ListDriversByIDs(ctx context.Context, ids []int64) ([]Vehi
 			&middleName,
 			&phone,
 			&email,
+			&item.StatusID,
+			&item.StatusName,
 		); err != nil {
 			return nil, fmt.Errorf("scan drivers by ids: %w", err)
 		}
@@ -661,6 +675,8 @@ type VehicleTripsheetHistoryRow struct {
 	DriverMiddleName           *string
 	DriverPhone                *string
 	DriverEmail                *string
+	DriverStatusID             int64
+	DriverStatusName           *string
 	DriverSnapshotLastName     *string
 	DriverSnapshotFirstName    *string
 	DriverSnapshotMiddleName   *string
@@ -696,6 +712,8 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 			d.middlename AS driver_middle_name,
 			d.phone AS driver_phone,
 			d.mail AS driver_email,
+			d.status_id AS driver_status_id,
+			dst.name AS driver_status_name,
 			t.driver_last_name AS driver_snapshot_last_name,
 			t.driver_first_name AS driver_snapshot_first_name,
 			t.driver_middle_name AS driver_snapshot_middle_name,
@@ -714,6 +732,7 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 		FROM tripsheets t
 		LEFT JOIN tripsheet_statuses ts ON ts.id = t.status_id
 		LEFT JOIN drivers d ON d.id = t.driver_id
+		LEFT JOIN driver_statuses dst ON dst.id = d.status_id
 		WHERE t.vehicle_id = $1
 		   OR t.vehicle_plate_number = (
 			   SELECT state_number
@@ -747,6 +766,8 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 		var driverMiddleName sql.NullString
 		var driverPhone sql.NullString
 		var driverEmail sql.NullString
+		var driverStatusID sql.NullInt64
+		var driverStatusName sql.NullString
 		var driverSnapshotLastName sql.NullString
 		var driverSnapshotFirstName sql.NullString
 		var driverSnapshotMiddleName sql.NullString
@@ -768,6 +789,8 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 			&driverMiddleName,
 			&driverPhone,
 			&driverEmail,
+			&driverStatusID,
+			&driverStatusName,
 			&driverSnapshotLastName,
 			&driverSnapshotFirstName,
 			&driverSnapshotMiddleName,
@@ -797,6 +820,10 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 		item.DriverMiddleName = nullableStringPtrVehicle(driverMiddleName)
 		item.DriverPhone = nullableStringPtrVehicle(driverPhone)
 		item.DriverEmail = nullableStringPtrVehicle(driverEmail)
+		if driverStatusID.Valid {
+			item.DriverStatusID = driverStatusID.Int64
+		}
+		item.DriverStatusName = nullableStringPtrVehicle(driverStatusName)
 		item.DriverSnapshotLastName = nullableStringPtrVehicle(driverSnapshotLastName)
 		item.DriverSnapshotFirstName = nullableStringPtrVehicle(driverSnapshotFirstName)
 		item.DriverSnapshotMiddleName = nullableStringPtrVehicle(driverSnapshotMiddleName)

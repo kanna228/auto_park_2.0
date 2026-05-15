@@ -11,6 +11,9 @@ type DriverShift struct {
 	DriverMiddlename string
 	DriverPhone      string
 	DriverMail       string
+	DriverStatusID   int64
+	DriverStatusCode string
+	DriverStatusName string
 	ShiftDate        time.Time
 	TimeFrom         string
 	TimeTo           *string

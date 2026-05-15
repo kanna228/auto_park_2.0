@@ -18,22 +18,33 @@ import (
 // SWAGGER RESPONSE MODELS
 // =======================
 
+type DriverStatusDTO struct {
+	ID          int64  `json:"id" example:"1"`
+	Code        string `json:"code" example:"available"`
+	Name        string `json:"name" example:"Доступен"`
+	Description string `json:"description,omitempty" example:"Водитель доступен и может быть назначен на рейс"`
+	CreatedAt   string `json:"created_at" example:"2026-05-14T06:00:00Z"`
+	UpdatedAt   string `json:"updated_at" example:"2026-05-14T06:00:00Z"`
+}
+
 type DriverDTO struct {
-	ID              int64   `json:"id" example:"1"`
-	IIN             string  `json:"iin" example:"001122334455"`
-	Name            string  `json:"name" example:"Dias"`
-	Surname         string  `json:"surname" example:"Arnold"`
-	Middlename      string  `json:"middlename,omitempty" example:"A."`
-	Phone           string  `json:"phone,omitempty" example:"+77001234567"`
-	Mail            string  `json:"mail,omitempty" example:"dias@example.com"`
-	PhotoPath       string  `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
-	PhotoURL        string  `json:"photo_url,omitempty" example:"http://localhost:8080/static/drivers/driver_1_1710000000.jpg"`
-	BirthDate       *string `json:"birth_date,omitempty" example:"1990-11-11"`
-	LicenseNumber   string  `json:"license_number,omitempty" example:"DL-123456"`
-	LicenseCategory string  `json:"license_category,omitempty" example:"B, C"`
-	ExperienceYears *int    `json:"experience_years,omitempty" example:"5"`
-	CreatedAt       string  `json:"created_at" example:"2026-02-18T12:34:56Z"`
-	UpdatedAt       string  `json:"updated_at" example:"2026-02-18T12:34:56Z"`
+	ID              int64           `json:"id" example:"1"`
+	IIN             string          `json:"iin" example:"001122334455"`
+	Name            string          `json:"name" example:"Dias"`
+	Surname         string          `json:"surname" example:"Arnold"`
+	Middlename      string          `json:"middlename,omitempty" example:"A."`
+	Phone           string          `json:"phone,omitempty" example:"+77001234567"`
+	Mail            string          `json:"mail,omitempty" example:"dias@example.com"`
+	PhotoPath       string          `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
+	PhotoURL        string          `json:"photo_url,omitempty" example:"http://localhost:8080/static/drivers/driver_1_1710000000.jpg"`
+	BirthDate       *string         `json:"birth_date,omitempty" example:"1990-11-11"`
+	LicenseNumber   string          `json:"license_number,omitempty" example:"DL-123456"`
+	LicenseCategory string          `json:"license_category,omitempty" example:"B, C"`
+	ExperienceYears *int            `json:"experience_years,omitempty" example:"5"`
+	StatusID        int64           `json:"status_id" example:"1"`
+	Status          DriverStatusDTO `json:"status"`
+	CreatedAt       string          `json:"created_at" example:"2026-02-18T12:34:56Z"`
+	UpdatedAt       string          `json:"updated_at" example:"2026-02-18T12:34:56Z"`
 }
 
 type DriverAssignedVehicleDTO struct {
@@ -105,6 +116,19 @@ type DriversListResponse struct {
 	Offset  int         `json:"offset" example:"0"`
 }
 
+type DriverStatusListResponse struct {
+	Success bool              `json:"success" example:"true"`
+	Data    []DriverStatusDTO `json:"data"`
+	Total   int64             `json:"total" example:"5"`
+	Limit   int               `json:"limit" example:"50"`
+	Offset  int               `json:"offset" example:"0"`
+}
+
+type DriverStatusUpdateResponse struct {
+	Success bool      `json:"success" example:"true"`
+	Data    DriverDTO `json:"data"`
+}
+
 type DeleteDriverResponse struct {
 	Success bool `json:"success" example:"true"`
 	Data    struct {
@@ -134,6 +158,38 @@ func driverPhotoURL(c *gin.Context, rel string) string {
 	}
 	rel = strings.TrimLeft(rel, "/")
 	return "http://" + c.Request.Host + path.Join("/static", rel)
+}
+
+// ListStatuses godoc
+// @Summary      List driver statuses
+// @Description  Returns paginated list of driver statuses: available, on_trip, unavailable, vacation, sick_leave. JWT required.
+// @Tags         Drivers
+// @Produce      json
+// @Security     BearerAuth
+// @Param        limit query int false "Limit" default(50)
+// @Param        offset query int false "Offset" default(0)
+// @Param        page query int false "Page number" default(1)
+// @Param        page_size query int false "Page size" default(50)
+// @Success      200 {object} DriverStatusListResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /api/users/driver-statuses [get]
+func (h *DriversHandler) ListStatuses(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+
+	items, total, err := h.svc.ListStatuses(c.Request.Context(), limit, offset)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	out := make([]DriverStatusDTO, 0, len(items))
+	for _, item := range items {
+		out = append(out, driverStatusToDTO(item))
+	}
+
+	c.JSON(http.StatusOK, DriverStatusListResponse{Success: true, Data: out, Total: total, Limit: limit, Offset: offset})
 }
 
 // Create godoc
@@ -273,6 +329,48 @@ func (h *DriversHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, DriverResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
 
+// UpdateStatus godoc
+// @Summary      Update driver status
+// @Description  Updates only driver status by id. Example statuses: 1=Доступен, 2=На выезде. Roles: 1,2,3 only. JWT required.
+// @Tags         Drivers
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Driver ID"
+// @Param        payload body dto.UpdateDriverStatusRequest true "Driver status update payload"
+// @Success      200 {object} DriverStatusUpdateResponse
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      404 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /api/users/drivers/{id}/status [patch]
+func (h *DriversHandler) UpdateStatus(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid id"})
+		return
+	}
+
+	var req dto.UpdateDriverStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	drv, err := h.svc.UpdateStatus(c.Request.Context(), id, req)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
+			return
+		}
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, DriverStatusUpdateResponse{Success: true, Data: driverToDTO(c, *drv)})
+}
+
 // UploadPhoto godoc
 // @Summary      Upload or replace driver photo
 // @Description  Uploads one photo for a driver and replaces the previous one if it exists (roles: 1,2,3 only). JWT required.
@@ -384,6 +482,17 @@ func (h *DriversHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+func driverStatusToDTO(status models.DriverStatus) DriverStatusDTO {
+	return DriverStatusDTO{
+		ID:          status.ID,
+		Code:        status.Code,
+		Name:        status.Name,
+		Description: status.Description,
+		CreatedAt:   status.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:   status.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+	}
+}
+
 func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 	var birthDate *string
 	if drv.BirthDate != nil {
@@ -405,6 +514,8 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		LicenseNumber:   drv.LicenseNumber,
 		LicenseCategory: drv.LicenseCategory,
 		ExperienceYears: drv.ExperienceYears,
+		StatusID:        drv.StatusID,
+		Status:          driverStatusToDTO(drv.Status),
 		CreatedAt:       drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:       drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}

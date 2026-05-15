@@ -32,6 +32,13 @@ func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest
 	if err := validateExperienceYears(req.ExperienceYears); err != nil {
 		return nil, err
 	}
+	statusID := req.StatusID
+	if statusID <= 0 {
+		statusID = 1
+	}
+	if err := s.validateDriverStatus(ctx, statusID); err != nil {
+		return nil, err
+	}
 
 	return s.repo.Create(ctx, &models.Driver{
 		IIN:             req.IIN,
@@ -44,6 +51,7 @@ func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest
 		LicenseNumber:   strings.TrimSpace(req.LicenseNumber),
 		LicenseCategory: strings.TrimSpace(req.LicenseCategory),
 		ExperienceYears: req.ExperienceYears,
+		StatusID:        statusID,
 	})
 }
 
@@ -57,6 +65,20 @@ func (s *DriversService) GetPassport(ctx context.Context, id int64) (*models.Dri
 
 func (s *DriversService) List(ctx context.Context, limit, offset int) ([]models.Driver, int64, error) {
 	return s.repo.List(ctx, limit, offset)
+}
+
+func (s *DriversService) ListStatuses(ctx context.Context, limit, offset int) ([]models.DriverStatus, int64, error) {
+	return s.repo.ListStatuses(ctx, limit, offset)
+}
+
+func (s *DriversService) UpdateStatus(ctx context.Context, id int64, req dto.UpdateDriverStatusRequest) (*models.Driver, error) {
+	if id <= 0 {
+		return nil, fmt.Errorf("invalid id")
+	}
+	if err := s.validateDriverStatus(ctx, req.StatusID); err != nil {
+		return nil, err
+	}
+	return s.repo.UpdateStatus(ctx, id, req.StatusID)
 }
 
 func (s *DriversService) Update(ctx context.Context, id int64, req dto.UpdateDriverRequest) (*models.Driver, error) {
@@ -101,6 +123,12 @@ func (s *DriversService) Update(ctx context.Context, id int64, req dto.UpdateDri
 			return nil, err
 		}
 		upd["experience_years"] = *req.ExperienceYears
+	}
+	if req.StatusID != nil {
+		if err := s.validateDriverStatus(ctx, *req.StatusID); err != nil {
+			return nil, err
+		}
+		upd["status_id"] = *req.StatusID
 	}
 	return s.repo.Update(ctx, id, upd)
 }
@@ -174,6 +202,20 @@ func validateExperienceYears(value *int) error {
 	}
 	if *value > 80 {
 		return fmt.Errorf("experience_years must be less than or equal to 80")
+	}
+	return nil
+}
+
+func (s *DriversService) validateDriverStatus(ctx context.Context, statusID int64) error {
+	if statusID <= 0 {
+		return fmt.Errorf("status_id is required")
+	}
+	exists, err := s.repo.StatusExists(ctx, statusID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return fmt.Errorf("driver status not found")
 	}
 	return nil
 }

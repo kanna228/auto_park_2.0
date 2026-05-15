@@ -10,6 +10,8 @@ type VehicleIncidentDriverInfo struct {
 	MiddleName *string `json:"middle_name,omitempty"`
 	Phone      *string `json:"phone,omitempty"`
 	Email      *string `json:"email,omitempty"`
+	StatusID   int64   `json:"status_id"`
+	StatusName string  `json:"status_name"`
 }
 
 type VehicleIncidentMechanicInfo struct {

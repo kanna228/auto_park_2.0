@@ -148,6 +148,8 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 			MiddleName: item.MiddleName,
 			Phone:      item.Phone,
 			Email:      item.Email,
+			StatusID:   item.StatusID,
+			StatusName: item.StatusName,
 		})
 	}
 
@@ -204,6 +206,8 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 				MiddleName: item.DriverMiddleName,
 				Phone:      item.DriverPhone,
 				Email:      item.DriverEmail,
+				StatusID:   item.DriverStatusID,
+				StatusName: item.DriverStatusName,
 			},
 			Mechanic: dto.VehicleIncidentMechanicInfo{
 				ID:         item.MechanicID,
@@ -352,7 +356,16 @@ func mapVehicleTripsheetDriverToDTO(item repository.VehicleTripsheetHistoryRow) 
 		MiddleName: firstStringPtr(item.DriverMiddleName, item.DriverSnapshotMiddleName),
 		Phone:      item.DriverPhone,
 		Email:      item.DriverEmail,
+		StatusID:   item.DriverStatusID,
+		StatusName: derefString(item.DriverStatusName),
 	}
+}
+
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func firstStringPtr(values ...*string) *string {
