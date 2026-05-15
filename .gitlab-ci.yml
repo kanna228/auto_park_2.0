@@ -1,0 +1,18 @@
+stages:
+  - deploy
+
+deploy-job:
+  stage: deploy
+  tags:
+    - prod
+  only:
+    - main
+  script:
+    - echo "$SSH_PRIVATE_KEY" > /tmp/id_rsa
+    - chmod 600 /tmp/id_rsa
+    - |
+      ssh -o StrictHostKeyChecking=no -i /tmp/id_rsa $SSH_USER@$SSH_HOST "
+        cd /home/vm/Projects/autopark &&
+        git -C ./backend pull &&
+        docker compose up -d --no-deps --force-recreate migrate backend
+      "
