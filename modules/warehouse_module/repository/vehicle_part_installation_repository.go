@@ -56,10 +56,25 @@ type ListVehiclePartInstallationsParams struct {
 	Order             string
 }
 
+type ListVehiclePartInstallationHistoryParams struct {
+	PartID int64
+	Limit  int
+	Offset int
+}
+
+type VehiclePartInstallationHistoryRow struct {
+	EventType     string
+	Vehicle       *string
+	PartRequestID *int64
+	CreatedAt     time.Time
+	Actor         *string
+}
+
 type VehiclePartInstallationRepository interface {
 	Create(ctx context.Context, p CreateVehiclePartInstallationParams) (int64, error)
 	GetByID(ctx context.Context, id int64) (*models.VehiclePartInstallation, error)
 	List(ctx context.Context, p ListVehiclePartInstallationsParams) ([]models.VehiclePartInstallation, int64, error)
+	ListHistory(ctx context.Context, p ListVehiclePartInstallationHistoryParams) ([]VehiclePartInstallationHistoryRow, int64, error)
 	UpdateByID(ctx context.Context, id int64, p UpdateVehiclePartInstallationParams) (bool, error)
 	UpdateActivityByID(ctx context.Context, id int64, isActive bool) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
@@ -167,6 +182,11 @@ func (r *vehiclePartInstallationRepo) Create(ctx context.Context, p CreateVehicl
 		p.InstalledByUserID,
 	).Scan(&id); err != nil {
 		return 0, mapVehiclePartInstallationError(err)
+	}
+
+	vehicleID := p.VehicleID
+	if err := insertPartStockMovementTx(ctx, tx, p.PartID, "issue", p.Quantity, &vehicleID, nil, nil, p.InstalledByUserID); err != nil {
+		return 0, err
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -299,6 +319,70 @@ func (r *vehiclePartInstallationRepo) List(ctx context.Context, p ListVehiclePar
 	return items, total, nil
 }
 
+func (r *vehiclePartInstallationRepo) ListHistory(ctx context.Context, p ListVehiclePartInstallationHistoryParams) ([]VehiclePartInstallationHistoryRow, int64, error) {
+	limit := p.Limit
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	offset := p.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	const countQ = `
+		SELECT COUNT(*)
+		FROM part_stock_movements
+		WHERE part_id = $1
+		  AND type IN ('arrival', 'issue', 'return');
+	`
+	var total int64
+	if err := r.db.QueryRowContext(ctx, countQ, p.PartID).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("list vehicle part installation history count: %w", err)
+	}
+
+	const q = `
+		SELECT
+			CASE
+				WHEN m.type = 'issue' THEN 'install'
+				WHEN m.type = 'return' THEN 'uninstall'
+				ELSE 'arrival'
+			END AS event_type,
+			NULLIF(TRIM(CONCAT_WS(' ', v.state_number, v.brand_model)), '') AS vehicle,
+			m.part_request_id,
+			m.created_at,
+			NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS actor
+		FROM part_stock_movements m
+		LEFT JOIN vehicles v ON v.id = m.vehicle_id
+		LEFT JOIN users u ON u.id = m.actor_user_id
+		WHERE m.part_id = $1
+		  AND m.type IN ('arrival', 'issue', 'return')
+		ORDER BY m.created_at DESC, m.id DESC
+		LIMIT $2 OFFSET $3;
+	`
+	rows, err := r.db.QueryContext(ctx, q, p.PartID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list vehicle part installation history: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]VehiclePartInstallationHistoryRow, 0)
+	for rows.Next() {
+		var item VehiclePartInstallationHistoryRow
+		var vehicle, actor sql.NullString
+		var partRequestID sql.NullInt64
+		if err := rows.Scan(&item.EventType, &vehicle, &partRequestID, &item.CreatedAt, &actor); err != nil {
+			return nil, 0, fmt.Errorf("list vehicle part installation history scan: %w", err)
+		}
+		item.Vehicle = nullableStringPtr(vehicle)
+		item.PartRequestID = nullableInt64Ptr(partRequestID)
+		item.Actor = nullableStringPtr(actor)
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("list vehicle part installation history rows: %w", err)
+	}
+	return items, total, nil
+}
+
 func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, p UpdateVehiclePartInstallationParams) (bool, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -352,8 +436,16 @@ func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, 
 			if err := decreasePartQuantityTx(ctx, tx, p.PartID, delta); err != nil {
 				return false, err
 			}
+			vehicleID := p.VehicleID
+			if err := insertPartStockMovementTx(ctx, tx, p.PartID, "issue", delta, &vehicleID, nil, nil, p.InstalledByUserID); err != nil {
+				return false, err
+			}
 		} else if delta < 0 {
 			if err := increasePartQuantityTx(ctx, tx, p.PartID, -delta); err != nil {
+				return false, err
+			}
+			vehicleID := p.VehicleID
+			if err := insertPartStockMovementTx(ctx, tx, p.PartID, "return", -delta, &vehicleID, nil, nil, p.InstalledByUserID); err != nil {
 				return false, err
 			}
 		}
@@ -361,10 +453,18 @@ func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, 
 		if err := increasePartQuantityTx(ctx, tx, current.PartID, current.Quantity); err != nil {
 			return false, err
 		}
+		oldVehicleID := current.VehicleID
+		if err := insertPartStockMovementTx(ctx, tx, current.PartID, "return", current.Quantity, &oldVehicleID, nil, nil, p.InstalledByUserID); err != nil {
+			return false, err
+		}
 		if newPart.Quantity < p.Quantity {
 			return false, ErrVehiclePartInstallationInsufficientStock
 		}
 		if err := decreasePartQuantityTx(ctx, tx, p.PartID, p.Quantity); err != nil {
+			return false, err
+		}
+		vehicleID := p.VehicleID
+		if err := insertPartStockMovementTx(ctx, tx, p.PartID, "issue", p.Quantity, &vehicleID, nil, nil, p.InstalledByUserID); err != nil {
 			return false, err
 		}
 	}
@@ -489,6 +589,10 @@ func (r *vehiclePartInstallationRepo) DeleteByID(ctx context.Context, id int64) 
 		return false, err
 	}
 	if err := increasePartQuantityTx(ctx, tx, current.PartID, current.Quantity); err != nil {
+		return false, err
+	}
+	vehicleID := current.VehicleID
+	if err := insertPartStockMovementTx(ctx, tx, current.PartID, "return", current.Quantity, &vehicleID, nil, nil, current.InstalledByUserID); err != nil {
 		return false, err
 	}
 

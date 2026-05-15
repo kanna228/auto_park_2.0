@@ -9,9 +9,20 @@ import (
 	"time"
 
 	"auto_park/modules/user_module/models"
+
+	"github.com/lib/pq"
 )
 
 var ErrNotFound = errors.New("not found")
+var ErrVehicleNotFound = errors.New("vehicle not found")
+
+type DriverListParams struct {
+	Search      string
+	Status      string
+	BoardNumber string
+	Limit       int
+	Offset      int
+}
 
 type DriverRepo struct {
 	db     *sql.DB
@@ -110,17 +121,60 @@ func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, err
 	return out, nil
 }
 
-func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driver, int64, error) {
+func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Driver, int64, error) {
+	limit := p.Limit
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
+	offset := p.Offset
 	if offset < 0 {
 		offset = 0
 	}
 
-	countQ := fmt.Sprintf(`SELECT COUNT(*) FROM %s;`, r.table())
+	conds := make([]string, 0, 4)
+	args := make([]any, 0, 8)
+	argPos := 1
+	if v := strings.TrimSpace(p.Search); v != "" {
+		conds = append(conds, fmt.Sprintf(`(
+			d.iin ILIKE $%[1]d OR
+			d.name ILIKE $%[1]d OR
+			d.surname ILIKE $%[1]d OR
+			COALESCE(d.middlename, '') ILIKE $%[1]d OR
+			COALESCE(d.phone, '') ILIKE $%[1]d OR
+			COALESCE(d.mail, '') ILIKE $%[1]d OR
+			CONCAT_WS(' ', d.surname, d.name, d.middlename) ILIKE $%[1]d
+		)`, argPos))
+		args = append(args, "%"+v+"%")
+		argPos++
+	}
+	if v := strings.TrimSpace(p.Status); v != "" {
+		conds = append(conds, fmt.Sprintf("(LOWER(ds.code) = LOWER($%[1]d) OR LOWER(ds.name) = LOWER($%[1]d))", argPos))
+		args = append(args, v)
+		argPos++
+	}
+	if v := strings.TrimSpace(p.BoardNumber); v != "" {
+		conds = append(conds, fmt.Sprintf(`EXISTS (
+			SELECT 1
+			FROM vehicles v
+			WHERE d.id = ANY(v.drivers_ids)
+			  AND v.board_number ILIKE $%d
+		)`, argPos))
+		args = append(args, "%"+v+"%")
+		argPos++
+	}
+	whereSQL := ""
+	if len(conds) > 0 {
+		whereSQL = "WHERE " + strings.Join(conds, " AND ")
+	}
+
+	countQ := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM %s d
+		INNER JOIN driver_statuses ds ON ds.id = d.status_id
+		%s;
+	`, r.table(), whereSQL)
 	var total int64
-	if err := r.db.QueryRowContext(ctx, countQ).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, countQ, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
@@ -148,11 +202,13 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 			d.updated_at
 		FROM %s d
 		INNER JOIN driver_statuses ds ON ds.id = d.status_id
+		%s
 		ORDER BY d.surname ASC, d.name ASC, d.id ASC
-		LIMIT $1 OFFSET $2
-	`, r.table())
+		LIMIT $%d OFFSET $%d
+	`, r.table(), whereSQL, argPos, argPos+1)
+	args = append(args, limit, offset)
 
-	rows, err := r.db.QueryContext(ctx, q, limit, offset)
+	rows, err := r.db.QueryContext(ctx, q, args...)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -167,6 +223,9 @@ func (r *DriverRepo) List(ctx context.Context, limit, offset int) ([]models.Driv
 		res = append(res, *d)
 	}
 	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if err := r.populateAssignedVehicles(ctx, res); err != nil {
 		return nil, 0, err
 	}
 	return res, total, nil
@@ -259,6 +318,108 @@ func (r *DriverRepo) UpdateStatus(ctx context.Context, id int64, statusID int64)
 	return r.Update(ctx, id, map[string]any{"status_id": statusID})
 }
 
+func (r *DriverRepo) AssignVehicle(ctx context.Context, driverID int64, vehicleID int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin assign driver vehicle: %w", err)
+	}
+	defer rollbackDriverTx(tx)
+
+	if err := ensureDriverExistsTx(ctx, tx, driverID); err != nil {
+		return err
+	}
+	if err := ensureVehicleExistsTx(ctx, tx, vehicleID); err != nil {
+		return err
+	}
+	const q = `
+		UPDATE vehicles
+		SET drivers_ids = CASE
+				WHEN $1 = ANY(drivers_ids) THEN drivers_ids
+				ELSE array_append(COALESCE(drivers_ids, '{}'), $1)
+			END,
+			updated_at = NOW()
+		WHERE id = $2;
+	`
+	if _, err := tx.ExecContext(ctx, q, driverID, vehicleID); err != nil {
+		return fmt.Errorf("assign driver vehicle: %w", err)
+	}
+	return tx.Commit()
+}
+
+func (r *DriverRepo) UnassignVehicle(ctx context.Context, driverID int64, vehicleID int64) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin unassign driver vehicle: %w", err)
+	}
+	defer rollbackDriverTx(tx)
+
+	if err := ensureDriverExistsTx(ctx, tx, driverID); err != nil {
+		return err
+	}
+	if err := ensureVehicleExistsTx(ctx, tx, vehicleID); err != nil {
+		return err
+	}
+	const q = `
+		UPDATE vehicles
+		SET drivers_ids = array_remove(COALESCE(drivers_ids, '{}'), $1),
+			updated_at = NOW()
+		WHERE id = $2;
+	`
+	if _, err := tx.ExecContext(ctx, q, driverID, vehicleID); err != nil {
+		return fmt.Errorf("unassign driver vehicle: %w", err)
+	}
+	return tx.Commit()
+}
+
+func (r *DriverRepo) populateAssignedVehicles(ctx context.Context, drivers []models.Driver) error {
+	if len(drivers) == 0 {
+		return nil
+	}
+	ids := make([]int64, 0, len(drivers))
+	indexByID := make(map[int64]int, len(drivers))
+	for i := range drivers {
+		ids = append(ids, drivers[i].ID)
+		indexByID[drivers[i].ID] = i
+		drivers[i].AssignedVehicles = []models.DriverAssignedVehicle{}
+	}
+
+	const q = `
+		SELECT
+			did.driver_id,
+			v.id,
+			v.board_number,
+			v.state_number,
+			v.brand_model,
+			v.status_id,
+			COALESCE(vs.name, '') AS status_name
+		FROM vehicles v
+		LEFT JOIN vehicle_status vs ON vs.id = v.status_id
+		CROSS JOIN LATERAL unnest(COALESCE(v.drivers_ids, '{}')) AS did(driver_id)
+		WHERE did.driver_id = ANY($1)
+		ORDER BY v.updated_at DESC, v.id DESC;
+	`
+	rows, err := r.db.QueryContext(ctx, q, pq.Int64Array(ids))
+	if err != nil {
+		return fmt.Errorf("populate assigned vehicles: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var driverID int64
+		var item models.DriverAssignedVehicle
+		if err := rows.Scan(&driverID, &item.ID, &item.BoardNumber, &item.StateNumber, &item.BrandModel, &item.StatusID, &item.StatusName); err != nil {
+			return fmt.Errorf("populate assigned vehicles scan: %w", err)
+		}
+		if idx, ok := indexByID[driverID]; ok {
+			drivers[idx].AssignedVehicles = append(drivers[idx].AssignedVehicles, item)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("populate assigned vehicles rows: %w", err)
+	}
+	return nil
+}
+
 func (r *DriverRepo) StatusExists(ctx context.Context, statusID int64) (bool, error) {
 	const q = `SELECT EXISTS(SELECT 1 FROM driver_statuses WHERE id = $1);`
 	var exists bool
@@ -339,10 +500,14 @@ func (r *DriverRepo) GetPassport(ctx context.Context, id int64) (*models.DriverP
 	if err != nil {
 		return nil, err
 	}
+	onTrip, err := r.driverHasOpenTripsheetOrActiveShift(ctx, id)
+	if err != nil {
+		return nil, err
+	}
 
 	return &models.DriverPassport{
 		Driver:           *driver,
-		Status:           driver.Status.Name,
+		Status:           resolveDriverStatus(assignedVehicles, onTrip),
 		AssignedVehicles: assignedVehicles,
 		TotalWorkedHours: totalWorkedHours,
 		IncidentsCount:   incidentsCount,
@@ -389,10 +554,20 @@ func (r *DriverRepo) listDriverAssignedVehicles(ctx context.Context, driverID in
 
 func (r *DriverRepo) getDriverTotalWorkedHours(ctx context.Context, driverID int64) (float64, error) {
 	const q = `
+		WITH tripsheet_times AS (
+			SELECT
+				t.id,
+				COALESCE(t.start_time, MIN(tt.start_time)) AS start_time,
+				COALESCE(t.end_time, MAX(tt.end_time)) AS end_time
+			FROM tripsheets t
+			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+			LEFT JOIN tripsheet_trips tt ON tt.tripsheet_id = t.id
+			WHERE COALESCE(t.driver_id, ds.driver_id) = $1
+			GROUP BY t.id, t.start_time, t.end_time
+		)
 		SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (end_time - start_time)) / 3600.0), 0)
-		FROM tripsheets
-		WHERE driver_id = $1
-		  AND start_time IS NOT NULL
+		FROM tripsheet_times
+		WHERE start_time IS NOT NULL
 		  AND end_time IS NOT NULL
 		  AND end_time > start_time;
 	`
@@ -407,10 +582,8 @@ func (r *DriverRepo) getDriverTotalWorkedHours(ctx context.Context, driverID int
 func (r *DriverRepo) getDriverAccidentsCount(ctx context.Context, driverID int64) (int64, error) {
 	const q = `
 		SELECT COUNT(*)
-		FROM incidents i
-		INNER JOIN incident_types it ON it.id = i.incident_type_id
-		WHERE i.driver_id = $1
-		  AND LOWER(it.name) = LOWER('ДТП');
+		FROM incidents
+		WHERE driver_id = $1;
 	`
 
 	var count int64
@@ -433,11 +606,13 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 			t.vehicle_id,
 			t.vehicle_brand,
 			t.vehicle_plate_number,
-			t.start_time,
-			t.end_time,
+			COALESCE(t.start_time, MIN(tt.start_time)) AS start_time,
+			COALESCE(t.end_time, MAX(tt.end_time)) AS end_time,
 			CASE
-				WHEN t.start_time IS NOT NULL AND t.end_time IS NOT NULL AND t.end_time > t.start_time
-				THEN EXTRACT(EPOCH FROM (t.end_time - t.start_time)) / 3600.0
+				WHEN COALESCE(t.start_time, MIN(tt.start_time)) IS NOT NULL
+				 AND COALESCE(t.end_time, MAX(tt.end_time)) IS NOT NULL
+				 AND COALESCE(t.end_time, MAX(tt.end_time)) > COALESCE(t.start_time, MIN(tt.start_time))
+				THEN EXTRACT(EPOCH FROM (COALESCE(t.end_time, MAX(tt.end_time)) - COALESCE(t.start_time, MIN(tt.start_time)))) / 3600.0
 				ELSE 0
 			END AS worked_hours,
 			COUNT(tt.id) AS trips_count,
@@ -448,7 +623,8 @@ func (r *DriverRepo) listDriverPassportTripsheets(ctx context.Context, driverID 
 		FROM tripsheets t
 		LEFT JOIN tripsheet_statuses ts ON ts.id = t.status_id
 		LEFT JOIN tripsheet_trips tt ON tt.tripsheet_id = t.id
-		WHERE t.driver_id = $1
+		LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+		WHERE COALESCE(t.driver_id, ds.driver_id) = $1
 		GROUP BY
 			t.id,
 			t.tripsheet_number,
@@ -677,7 +853,61 @@ func nullableInt64Ptr(v sql.NullInt64) *int64 {
 	return &v.Int64
 }
 
-func resolveDriverStatus(assignedVehicles []models.DriverAssignedVehicle) string {
+func (r *DriverRepo) driverHasOpenTripsheetOrActiveShift(ctx context.Context, driverID int64) (bool, error) {
+	const q = `
+		SELECT EXISTS (
+			SELECT 1
+			FROM tripsheets t
+			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+			WHERE COALESCE(t.driver_id, ds.driver_id) = $1
+			  AND t.end_time IS NULL
+		) OR EXISTS (
+			SELECT 1
+			FROM driver_shifts
+			WHERE driver_id = $1
+			  AND is_active = TRUE
+			  AND is_deleted = FALSE
+		);
+	`
+	var exists bool
+	if err := r.db.QueryRowContext(ctx, q, driverID).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check driver active trip or shift: %w", err)
+	}
+	return exists, nil
+}
+
+func ensureDriverExistsTx(ctx context.Context, tx *sql.Tx, driverID int64) error {
+	const q = `SELECT EXISTS(SELECT 1 FROM drivers WHERE id = $1);`
+	var exists bool
+	if err := tx.QueryRowContext(ctx, q, driverID).Scan(&exists); err != nil {
+		return fmt.Errorf("check driver exists: %w", err)
+	}
+	if !exists {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func ensureVehicleExistsTx(ctx context.Context, tx *sql.Tx, vehicleID int64) error {
+	const q = `SELECT EXISTS(SELECT 1 FROM vehicles WHERE id = $1);`
+	var exists bool
+	if err := tx.QueryRowContext(ctx, q, vehicleID).Scan(&exists); err != nil {
+		return fmt.Errorf("check vehicle exists: %w", err)
+	}
+	if !exists {
+		return ErrVehicleNotFound
+	}
+	return nil
+}
+
+func rollbackDriverTx(tx *sql.Tx) {
+	_ = tx.Rollback()
+}
+
+func resolveDriverStatus(assignedVehicles []models.DriverAssignedVehicle, onTrip bool) string {
+	if onTrip {
+		return "РќР° РІС‹РµР·РґРµ"
+	}
 	if len(assignedVehicles) == 0 {
 		return "Не закреплён"
 	}

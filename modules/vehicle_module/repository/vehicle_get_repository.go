@@ -81,12 +81,14 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 }
 
 type ListVehiclesParams struct {
+	Search      string
 	BoardNumber string
 	StateNumber string
 	VIN         string
 	BrandModel  string
 
-	StatusID *int64
+	StatusID   *int64
+	StatusName string
 
 	ManufactureYearFrom *int
 	ManufactureYearTo   *int
@@ -109,6 +111,9 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 		where = append(where, fmt.Sprintf(cond, len(args)))
 	}
 
+	if strings.TrimSpace(q.Search) != "" {
+		add("(v.state_number ILIKE '%%' || $%[1]d || '%%' OR v.board_number ILIKE '%%' || $%[1]d || '%%' OR v.brand_model ILIKE '%%' || $%[1]d || '%%')", strings.TrimSpace(q.Search))
+	}
 	if strings.TrimSpace(q.BoardNumber) != "" {
 		add("v.board_number ILIKE '%%' || $%d || '%%'", strings.TrimSpace(q.BoardNumber))
 	}
@@ -124,6 +129,9 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 
 	if q.StatusID != nil {
 		add("v.status_id = $%d", *q.StatusID)
+	}
+	if strings.TrimSpace(q.StatusName) != "" {
+		add("LOWER(vs.name) = LOWER($%d)", strings.TrimSpace(q.StatusName))
 	}
 
 	if q.ManufactureYearFrom != nil {
@@ -710,7 +718,7 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 			t.vehicle_id,
 			t.vehicle_brand,
 			t.vehicle_plate_number,
-			t.driver_id,
+			COALESCE(t.driver_id, dsh.driver_id) AS driver_id,
 			t.driver_shift_id,
 			d.iin AS driver_iin,
 			d.name AS driver_first_name,
@@ -737,7 +745,8 @@ func (r *vehicleRepo) ListTripsheetsByVehicleID(ctx context.Context, vehicleID i
 			t.updated_at
 		FROM tripsheets t
 		LEFT JOIN tripsheet_statuses ts ON ts.id = t.status_id
-		LEFT JOIN drivers d ON d.id = t.driver_id
+		LEFT JOIN driver_shifts dsh ON dsh.id = t.driver_shift_id
+		LEFT JOIN drivers d ON d.id = COALESCE(t.driver_id, dsh.driver_id)
 		LEFT JOIN driver_statuses dst ON dst.id = d.status_id
 		WHERE t.vehicle_id = $1
 		   OR t.vehicle_plate_number = (

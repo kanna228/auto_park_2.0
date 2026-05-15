@@ -18,6 +18,7 @@ type VehiclePartInstallationService interface {
 	Create(ctx context.Context, userID int64, req dto.VehiclePartInstallationCreateRequest) (int64, error)
 	GetByID(ctx context.Context, id int64) (*dto.VehiclePartInstallationResponse, error)
 	List(ctx context.Context, q dto.VehiclePartInstallationListQuery) (*dto.VehiclePartInstallationListResponse, error)
+	ListHistory(ctx context.Context, partID int64, limit int, offset int) (*dto.VehiclePartInstallationHistoryResponse, error)
 	UpdateByID(ctx context.Context, id int64, fallbackUserID int64, roleID int64, req dto.VehiclePartInstallationUpdateRequest) (bool, error)
 	UpdateActivityByID(ctx context.Context, id int64, req dto.VehiclePartInstallationActivityUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
@@ -151,6 +152,27 @@ func (s *vehiclePartInstallationService) List(ctx context.Context, q dto.Vehicle
 		Limit:  limit,
 		Offset: offset,
 	}, nil
+}
+
+func (s *vehiclePartInstallationService) ListHistory(ctx context.Context, partID int64, limit int, offset int) (*dto.VehiclePartInstallationHistoryResponse, error) {
+	if partID <= 0 {
+		return nil, fmt.Errorf("part_id is required")
+	}
+	items, total, err := s.repo.ListHistory(ctx, repository.ListVehiclePartInstallationHistoryParams{PartID: partID, Limit: limit, Offset: offset})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dto.VehiclePartInstallationHistoryItem, 0, len(items))
+	for _, item := range items {
+		out = append(out, dto.VehiclePartInstallationHistoryItem{
+			EventType:     item.EventType,
+			Vehicle:       item.Vehicle,
+			PartRequestID: item.PartRequestID,
+			CreatedAt:     item.CreatedAt,
+			Actor:         item.Actor,
+		})
+	}
+	return &dto.VehiclePartInstallationHistoryResponse{Items: out, Total: total, Limit: normalizeLimit(limit), Offset: normalizeOffset(offset)}, nil
 }
 
 func (s *vehiclePartInstallationService) UpdateByID(ctx context.Context, id int64, fallbackUserID int64, roleID int64, req dto.VehiclePartInstallationUpdateRequest) (bool, error) {

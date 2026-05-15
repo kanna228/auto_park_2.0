@@ -63,8 +63,14 @@ func (s *DriversService) GetPassport(ctx context.Context, id int64) (*models.Dri
 	return s.repo.GetPassport(ctx, id)
 }
 
-func (s *DriversService) List(ctx context.Context, limit, offset int) ([]models.Driver, int64, error) {
-	return s.repo.List(ctx, limit, offset)
+func (s *DriversService) List(ctx context.Context, q dto.DriverListQuery) ([]models.Driver, int64, error) {
+	return s.repo.List(ctx, repository.DriverListParams{
+		Search:      strings.TrimSpace(q.Search),
+		Status:      strings.TrimSpace(q.Status),
+		BoardNumber: strings.TrimSpace(q.BoardNumber),
+		Limit:       q.Limit,
+		Offset:      q.Offset,
+	})
 }
 
 func (s *DriversService) ListStatuses(ctx context.Context, limit, offset int) ([]models.DriverStatus, int64, error) {
@@ -177,6 +183,26 @@ func (s *DriversService) Delete(ctx context.Context, id int64) error {
 	}
 
 	return nil
+}
+
+func (s *DriversService) AssignVehicle(ctx context.Context, driverID int64, vehicleID int64) error {
+	if driverID <= 0 {
+		return fmt.Errorf("invalid driver id")
+	}
+	if vehicleID <= 0 {
+		return fmt.Errorf("invalid vehicle_id")
+	}
+	return s.repo.AssignVehicle(ctx, driverID, vehicleID)
+}
+
+func (s *DriversService) UnassignVehicle(ctx context.Context, driverID int64, vehicleID int64) error {
+	if driverID <= 0 {
+		return fmt.Errorf("invalid driver id")
+	}
+	if vehicleID <= 0 {
+		return fmt.Errorf("invalid vehicle_id")
+	}
+	return s.repo.UnassignVehicle(ctx, driverID, vehicleID)
 }
 
 func parseOptionalDriverDate(value string, field string) (*time.Time, error) {

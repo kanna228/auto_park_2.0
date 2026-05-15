@@ -1,12 +1,14 @@
 package dto
 
 type VehicleListQuery struct {
+	Search      string
 	BoardNumber string
 	StateNumber string
 	VIN         string
 	BrandModel  string
 
-	StatusID *int64
+	StatusID   *int64
+	StatusName string
 
 	ManufactureYearFrom *int
 	ManufactureYearTo   *int

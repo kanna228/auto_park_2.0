@@ -35,3 +35,15 @@ type UploadDriverPhotoRequest struct {
 type UpdateDriverStatusRequest struct {
 	StatusID int64 `json:"status_id" binding:"required" example:"2"`
 }
+
+type DriverListQuery struct {
+	Search      string
+	Status      string
+	BoardNumber string
+	Limit       int
+	Offset      int
+}
+
+type AssignDriverVehicleRequest struct {
+	VehicleID int64 `json:"vehicle_id" binding:"required" example:"1"`
+}
