@@ -27,12 +27,14 @@ func (s *vehicleService) GetByID(ctx context.Context, id int64) (*dto.VehicleRes
 
 func (s *vehicleService) List(ctx context.Context, q dto.VehicleListQuery) (*dto.VehicleListResponse, error) {
 	params := repository.ListVehiclesParams{
+		Search:      q.Search,
 		BoardNumber: q.BoardNumber,
 		StateNumber: q.StateNumber,
 		VIN:         q.VIN,
 		BrandModel:  q.BrandModel,
 
-		StatusID: q.StatusID,
+		StatusID:   q.StatusID,
+		StatusName: q.StatusName,
 
 		ManufactureYearFrom: q.ManufactureYearFrom,
 		ManufactureYearTo:   q.ManufactureYearTo,

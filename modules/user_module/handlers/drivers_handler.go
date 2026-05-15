@@ -28,23 +28,24 @@ type DriverStatusDTO struct {
 }
 
 type DriverDTO struct {
-	ID              int64           `json:"id" example:"1"`
-	IIN             string          `json:"iin" example:"001122334455"`
-	Name            string          `json:"name" example:"Dias"`
-	Surname         string          `json:"surname" example:"Arnold"`
-	Middlename      string          `json:"middlename,omitempty" example:"A."`
-	Phone           string          `json:"phone,omitempty" example:"+77001234567"`
-	Mail            string          `json:"mail,omitempty" example:"dias@example.com"`
-	PhotoPath       string          `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
-	PhotoURL        string          `json:"photo_url,omitempty" example:"http://localhost:8080/static/drivers/driver_1_1710000000.jpg"`
-	BirthDate       *string         `json:"birth_date,omitempty" example:"1990-11-11"`
-	LicenseNumber   string          `json:"license_number,omitempty" example:"DL-123456"`
-	LicenseCategory string          `json:"license_category,omitempty" example:"B, C"`
-	ExperienceYears *int            `json:"experience_years,omitempty" example:"5"`
-	StatusID        int64           `json:"status_id" example:"1"`
-	Status          DriverStatusDTO `json:"status"`
-	CreatedAt       string          `json:"created_at" example:"2026-02-18T12:34:56Z"`
-	UpdatedAt       string          `json:"updated_at" example:"2026-02-18T12:34:56Z"`
+	ID               int64                      `json:"id" example:"1"`
+	IIN              string                     `json:"iin" example:"001122334455"`
+	Name             string                     `json:"name" example:"Dias"`
+	Surname          string                     `json:"surname" example:"Arnold"`
+	Middlename       string                     `json:"middlename,omitempty" example:"A."`
+	Phone            string                     `json:"phone,omitempty" example:"+77001234567"`
+	Mail             string                     `json:"mail,omitempty" example:"dias@example.com"`
+	PhotoPath        string                     `json:"photo_path,omitempty" example:"drivers/driver_1_1710000000.jpg"`
+	PhotoURL         string                     `json:"photo_url,omitempty" example:"http://localhost:8080/static/drivers/driver_1_1710000000.jpg"`
+	BirthDate        *string                    `json:"birth_date,omitempty" example:"1990-11-11"`
+	LicenseNumber    string                     `json:"license_number,omitempty" example:"DL-123456"`
+	LicenseCategory  string                     `json:"license_category,omitempty" example:"B, C"`
+	ExperienceYears  *int                       `json:"experience_years,omitempty" example:"5"`
+	StatusID         int64                      `json:"status_id" example:"1"`
+	Status           DriverStatusDTO            `json:"status"`
+	AssignedVehicles []DriverAssignedVehicleDTO `json:"assigned_vehicles"`
+	CreatedAt        string                     `json:"created_at" example:"2026-02-18T12:34:56Z"`
+	UpdatedAt        string                     `json:"updated_at" example:"2026-02-18T12:34:56Z"`
 }
 
 type DriverAssignedVehicleDTO struct {
@@ -230,6 +231,9 @@ func (h *DriversHandler) Create(c *gin.Context) {
 // @Security     BearerAuth
 // @Param        limit  query int false "Limit"  default(50)
 // @Param        offset query int false "Offset" default(0)
+// @Param        search query string false "Search by full name, IIN, phone or email"
+// @Param        status query string false "Filter by status code or name"
+// @Param        board_number query string false "Filter by assigned vehicle board number"
 // @Param        page query int false "Page number" default(1)
 // @Param        page_size query int false "Page size" default(50)
 // @Success      200 {object} DriversListResponse
@@ -240,7 +244,15 @@ func (h *DriversHandler) List(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
-	list, total, err := h.svc.List(c.Request.Context(), limit, offset)
+	q := dto.DriverListQuery{
+		Search:      c.Query("search"),
+		Status:      c.Query("status"),
+		BoardNumber: c.Query("board_number"),
+		Limit:       limit,
+		Offset:      offset,
+	}
+
+	list, total, err := h.svc.List(c.Request.Context(), q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
@@ -252,6 +264,42 @@ func (h *DriversHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, DriversListResponse{Success: true, Data: out, Total: total, Limit: limit, Offset: offset})
+}
+
+func (h *DriversHandler) AssignVehicle(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid id"})
+		return
+	}
+	var req dto.AssignDriverVehicleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		return
+	}
+	if err := h.svc.AssignVehicle(c.Request.Context(), id, req.VehicleID); err != nil {
+		writeDriverVehicleAssignmentError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"driver_id": id, "vehicle_id": req.VehicleID}})
+}
+
+func (h *DriversHandler) UnassignVehicle(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid id"})
+		return
+	}
+	vehicleID, err := strconv.ParseInt(c.Param("vehicle_id"), 10, 64)
+	if err != nil || vehicleID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid vehicle_id"})
+		return
+	}
+	if err := h.svc.UnassignVehicle(c.Request.Context(), id, vehicleID); err != nil {
+		writeDriverVehicleAssignmentError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"driver_id": id, "vehicle_id": vehicleID}})
 }
 
 // GetByID godoc
@@ -500,24 +548,37 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		birthDate = &v
 	}
 
+	assignedVehicles := make([]DriverAssignedVehicleDTO, 0, len(drv.AssignedVehicles))
+	for _, vehicle := range drv.AssignedVehicles {
+		assignedVehicles = append(assignedVehicles, DriverAssignedVehicleDTO{
+			ID:          vehicle.ID,
+			BoardNumber: vehicle.BoardNumber,
+			StateNumber: vehicle.StateNumber,
+			BrandModel:  vehicle.BrandModel,
+			StatusID:    vehicle.StatusID,
+			StatusName:  vehicle.StatusName,
+		})
+	}
+
 	return DriverDTO{
-		ID:              drv.ID,
-		IIN:             drv.IIN,
-		Name:            drv.Name,
-		Surname:         drv.Surname,
-		Middlename:      drv.Middlename,
-		Phone:           drv.Phone,
-		Mail:            drv.Mail,
-		PhotoPath:       drv.PhotoPath,
-		PhotoURL:        driverPhotoURL(c, drv.PhotoPath),
-		BirthDate:       birthDate,
-		LicenseNumber:   drv.LicenseNumber,
-		LicenseCategory: drv.LicenseCategory,
-		ExperienceYears: drv.ExperienceYears,
-		StatusID:        drv.StatusID,
-		Status:          driverStatusToDTO(drv.Status),
-		CreatedAt:       drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
-		UpdatedAt:       drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
+		ID:               drv.ID,
+		IIN:              drv.IIN,
+		Name:             drv.Name,
+		Surname:          drv.Surname,
+		Middlename:       drv.Middlename,
+		Phone:            drv.Phone,
+		Mail:             drv.Mail,
+		PhotoPath:        drv.PhotoPath,
+		PhotoURL:         driverPhotoURL(c, drv.PhotoPath),
+		BirthDate:        birthDate,
+		LicenseNumber:    drv.LicenseNumber,
+		LicenseCategory:  drv.LicenseCategory,
+		ExperienceYears:  drv.ExperienceYears,
+		StatusID:         drv.StatusID,
+		Status:           driverStatusToDTO(drv.Status),
+		AssignedVehicles: assignedVehicles,
+		CreatedAt:        drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		UpdatedAt:        drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
 }
 
@@ -591,5 +652,16 @@ func driverPassportToDTO(c *gin.Context, passport models.DriverPassport) DriverP
 		IncidentsCount:   passport.IncidentsCount,
 		Tripsheets:       tripsheets,
 		Incidents:        incidents,
+	}
+}
+
+func writeDriverVehicleAssignmentError(c *gin.Context, err error) {
+	switch {
+	case err == repository.ErrNotFound:
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
+	case err == repository.ErrVehicleNotFound:
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "vehicle not found"})
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 	}
 }

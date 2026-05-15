@@ -46,6 +46,12 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			reportGroup.GET("/tripsheet/:tripsheet_id", reportH.DownloadTripsheetReport)
 		}
 
+		fuelReportsAliasGroup := protected.Group("/fuel-reports")
+		fuelReportsAliasGroup.Use(middleware.RequireRoles(1, 2))
+		{
+			fuelReportsAliasGroup.GET("/driver/:driver_id", reportH.DownloadDriverReport)
+		}
+
 		writeGroup := protected.Group("")
 		writeGroup.Use(middleware.RequireRoles(1, 2, 3))
 		{
@@ -53,5 +59,11 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			writeGroup.PUT("/refills/:id", h.Update)
 			writeGroup.DELETE("/refills/:id", h.Delete)
 		}
+	}
+
+	legacyReports := r.Group("/api/fuel-reports")
+	legacyReports.Use(middleware.AuthJWT(cfg), middleware.RequireRoles(1, 2))
+	{
+		legacyReports.GET("/driver/:driver_id", reportH.DownloadDriverReport)
 	}
 }

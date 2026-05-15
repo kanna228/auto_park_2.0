@@ -91,6 +91,36 @@ func (h *PartHandler) GetPartByID(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": item})
 }
 
+func (h *PartHandler) GetPartsSummary(c *gin.Context) {
+	resp, err := h.svc.Summary(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+
+func (h *PartHandler) ListPartMovements(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	limit, ok := parseIntQuery(c, "limit", false)
+	if !ok {
+		return
+	}
+	offset, ok := parseIntQuery(c, "offset", true)
+	if !ok {
+		return
+	}
+	resp, err := h.svc.ListMovements(c.Request.Context(), id, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+
 // ListParts godoc
 // @Summary      List parts
 // @Description  Returns warehouse parts with filters, pagination and sorting. Accessible to admin, duty mechanic and warehouse manager.
@@ -142,6 +172,23 @@ func (h *PartHandler) ListParts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+
+func (h *PartHandler) ExportParts(c *gin.Context) {
+	q := dto.PartListQuery{
+		PartID:   c.Query("part_id"),
+		Name:     c.Query("name"),
+		Category: c.Query("category"),
+		SortBy:   c.Query("sort_by"),
+		Order:    c.Query("order"),
+	}
+	data, filename, err := h.svc.Export(c.Request.Context(), q, c.DefaultQuery("format", "xlsx"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data)
 }
 
 // UpdatePart godoc
@@ -221,6 +268,71 @@ func (h *PartHandler) DeletePart(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
+}
+
+func (h *PartHandler) CreatePartArrival(c *gin.Context) {
+	userID, ok := getUserIDFromContext(c)
+	if !ok {
+		return
+	}
+	var req dto.PartArrivalCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		return
+	}
+	id, err := h.svc.CreateArrival(c.Request.Context(), userID, req)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": id}})
+}
+
+func (h *PartHandler) ListPartArrivals(c *gin.Context) {
+	limit, ok := parseIntQuery(c, "limit", false)
+	if !ok {
+		return
+	}
+	offset, ok := parseIntQuery(c, "offset", true)
+	if !ok {
+		return
+	}
+	resp, err := h.svc.ListArrivals(c.Request.Context(), c.Query("date_from"), c.Query("date_to"), c.Query("status"), limit, offset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+
+func (h *PartHandler) AcceptPartArrival(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+	userID, ok := getUserIDFromContext(c)
+	if !ok {
+		return
+	}
+	accepted, err := h.svc.AcceptArrival(c.Request.Context(), id, userID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	if !accepted {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "part arrival not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
+}
+
+func (h *PartHandler) GetPartArrivalsSummary(c *gin.Context) {
+	resp, err := h.svc.ArrivalSummary(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 }
 
 func parseID(c *gin.Context) (int64, bool) {

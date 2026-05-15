@@ -88,6 +88,8 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			adminOnlyDrivers.PUT("/:id", driversH.Update)
 			adminOnlyDrivers.PATCH("/:id/status", driversH.UpdateStatus)
 			adminOnlyDrivers.DELETE("/:id", driversH.Delete)
+			adminOnlyDrivers.POST("/:id/vehicles", driversH.AssignVehicle)
+			adminOnlyDrivers.DELETE("/:id/vehicles/:vehicle_id", driversH.UnassignVehicle)
 
 			adminOnlyDrivers.POST("/:id/photo", driversH.UploadPhoto)
 			adminOnlyDrivers.PUT("/:id/photo", driversH.UploadPhoto)

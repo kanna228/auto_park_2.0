@@ -167,6 +167,27 @@ func (h *VehiclePartInstallationHandler) ListVehiclePartInstallations(c *gin.Con
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
 }
 
+func (h *VehiclePartInstallationHandler) ListVehiclePartInstallationHistory(c *gin.Context) {
+	partID, ok := parseInt64Query(c, "part_id", false)
+	if !ok {
+		return
+	}
+	limit, ok := parseIntQuery(c, "limit", false)
+	if !ok {
+		return
+	}
+	offset, ok := parseIntQuery(c, "offset", true)
+	if !ok {
+		return
+	}
+	resp, err := h.svc.ListHistory(c.Request.Context(), partID, limit, offset)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+
 // UpdateVehiclePartInstallation godoc
 // @Summary      Update vehicle part installation
 // @Description  Fully updates vehicle part installation including mechanic_shift_id. If part or quantity is changed, warehouse stock is adjusted safely. The installed_at date is locked after save for all users except administrator.

@@ -88,11 +88,13 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 // @Tags         Vehicles
 // @Produce      json
 // @Security     BearerAuth
+// @Param        search       query string false "Search by state number, board number or brand/model"
 // @Param        board_number query string false "Filter by board number"
 // @Param        state_number query string false "Filter by state number"
 // @Param        vin          query string false "Filter by VIN"
 // @Param        brand_model  query string false "Filter by brand/model"
 // @Param        status_id    query int    false "Filter by vehicle status id"
+// @Param        status_name  query string false "Filter by vehicle status name"
 // @Param        year_from    query int    false "Manufacture year from"
 // @Param        year_to      query int    false "Manufacture year to"
 // @Param        driver_id    query int    false "Filter by driver id"
@@ -108,10 +110,12 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 // @Router       /api/vehicles [get]
 func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 	q := dto.VehicleListQuery{
+		Search:      c.Query("search"),
 		BoardNumber: c.Query("board_number"),
 		StateNumber: c.Query("state_number"),
 		VIN:         c.Query("vin"),
 		BrandModel:  c.Query("brand_model"),
+		StatusName:  c.Query("status_name"),
 		SortBy:      c.Query("sort_by"),
 		Order:       c.Query("order"),
 	}

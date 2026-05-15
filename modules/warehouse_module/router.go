@@ -44,6 +44,9 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		readGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
 		{
 			readGroup.GET("", partHandler.ListParts)
+			readGroup.GET("/summary", partHandler.GetPartsSummary)
+			readGroup.GET("/export", partHandler.ExportParts)
+			readGroup.GET("/:id/movements", partHandler.ListPartMovements)
 			readGroup.GET("/:id", partHandler.GetPartByID)
 		}
 
@@ -58,6 +61,20 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		deleteGroup.Use(middleware.RequireRoles(roleAdmin))
 		{
 			deleteGroup.DELETE("/:id", partHandler.DeletePart)
+		}
+
+		partArrivalReadGroup := protected.Group("/part-arrivals")
+		partArrivalReadGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
+		{
+			partArrivalReadGroup.GET("", partHandler.ListPartArrivals)
+			partArrivalReadGroup.GET("/summary", partHandler.GetPartArrivalsSummary)
+		}
+
+		partArrivalWriteGroup := protected.Group("/part-arrivals")
+		partArrivalWriteGroup.Use(middleware.RequireRoles(roleAdmin, roleWarehouseManager))
+		{
+			partArrivalWriteGroup.POST("", partHandler.CreatePartArrival)
+			partArrivalWriteGroup.PATCH("/:id/accept", partHandler.AcceptPartArrival)
 		}
 
 		partRequestReadGroup := protected.Group("")
@@ -95,6 +112,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		vehiclePartInstallationReadGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
 		{
 			vehiclePartInstallationReadGroup.GET("", vehiclePartInstallationHandler.ListVehiclePartInstallations)
+			vehiclePartInstallationReadGroup.GET("/history", vehiclePartInstallationHandler.ListVehiclePartInstallationHistory)
 			vehiclePartInstallationReadGroup.GET("/:id", vehiclePartInstallationHandler.GetVehiclePartInstallationByID)
 		}
 
