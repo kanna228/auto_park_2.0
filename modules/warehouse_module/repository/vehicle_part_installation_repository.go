@@ -78,6 +78,7 @@ type warehousePartForInstallation struct {
 	PartID       string
 	Name         string
 	Quantity     int64
+	Price        float64
 	Category     string
 	IsConsumable bool
 }
@@ -140,12 +141,14 @@ func (r *vehiclePartInstallationRepo) Create(ctx context.Context, p CreateVehicl
 			installed_at,
 			planned_replacement_at,
 			quantity,
+			unit_price,
+			total_price,
 			installed_by_user_id,
 			is_active,
 			created_at,
 			updated_at
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, NOW(), NOW())
 		RETURNING id;
 	`
 
@@ -159,6 +162,8 @@ func (r *vehiclePartInstallationRepo) Create(ctx context.Context, p CreateVehicl
 		p.InstalledAt,
 		p.PlannedReplacementAt,
 		p.Quantity,
+		part.Price,
+		part.Price*float64(p.Quantity),
 		p.InstalledByUserID,
 	).Scan(&id); err != nil {
 		return 0, mapVehiclePartInstallationError(err)
@@ -372,10 +377,12 @@ func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, 
 			installed_at = $4,
 			planned_replacement_at = $5,
 			quantity = $6,
-			installed_by_user_id = $7,
-			is_active = $8,
+			unit_price = $7,
+			total_price = $8,
+			installed_by_user_id = $9,
+			is_active = $10,
 			updated_at = NOW()
-		WHERE id = $9;
+		WHERE id = $11;
 	`
 	res, err := tx.ExecContext(
 		ctx,
@@ -386,6 +393,8 @@ func (r *vehiclePartInstallationRepo) UpdateByID(ctx context.Context, id int64, 
 		p.InstalledAt,
 		p.PlannedReplacementAt,
 		p.Quantity,
+		newPart.Price,
+		newPart.Price*float64(p.Quantity),
 		p.InstalledByUserID,
 		p.IsActive,
 		id,
@@ -522,6 +531,8 @@ const vehiclePartInstallationSelectSQL = `
 		vpi.installed_at,
 		vpi.planned_replacement_at,
 		vpi.quantity,
+		vpi.unit_price,
+		vpi.total_price,
 		vpi.installed_by_user_id,
 		u.email AS installer_email,
 		NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS installer_full_name,
@@ -572,6 +583,8 @@ func scanVehiclePartInstallation(scanner vehiclePartInstallationScanner) (*model
 		&item.InstalledAt,
 		&item.PlannedReplacementAt,
 		&item.Quantity,
+		&item.UnitPrice,
+		&item.TotalPrice,
 		&item.InstalledByUserID,
 		&installerEmail,
 		&installerFullName,
@@ -601,7 +614,7 @@ func scanVehiclePartInstallationRows(rows *sql.Rows) (*models.VehiclePartInstall
 
 func getPartForUpdate(ctx context.Context, tx *sql.Tx, partID int64) (*warehousePartForInstallation, error) {
 	const q = `
-		SELECT id, part_id, name, quantity, category, is_consumable
+		SELECT id, part_id, name, quantity, price, category, is_consumable
 		FROM parts_catalog
 		WHERE id = $1
 		FOR UPDATE;
@@ -612,6 +625,7 @@ func getPartForUpdate(ctx context.Context, tx *sql.Tx, partID int64) (*warehouse
 		&item.PartID,
 		&item.Name,
 		&item.Quantity,
+		&item.Price,
 		&item.Category,
 		&item.IsConsumable,
 	); err != nil {
@@ -773,6 +787,10 @@ func normalizeVehiclePartInstallationSortBy(v string) string {
 		return "vpi.mechanic_shift_id"
 	case "quantity":
 		return "vpi.quantity"
+	case "unit_price":
+		return "vpi.unit_price"
+	case "total_price":
+		return "vpi.total_price"
 	case "installed_by_user_id":
 		return "vpi.installed_by_user_id"
 	case "is_active":

@@ -280,6 +280,8 @@ func mapVehiclePartInstallationToDTO(item models.VehiclePartInstallation) dto.Ve
 		InstalledAt:          item.InstalledAt.Format("2006-01-02"),
 		PlannedReplacementAt: item.PlannedReplacementAt.Format("2006-01-02"),
 		Quantity:             item.Quantity,
+		UnitPrice:            item.UnitPrice,
+		TotalPrice:           item.TotalPrice,
 		InstalledByUserID:    item.InstalledByUserID,
 		InstallerEmail:       item.InstallerEmail,
 		InstallerFullName:    item.InstallerFullName,

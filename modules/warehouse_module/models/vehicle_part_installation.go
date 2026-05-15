@@ -22,6 +22,8 @@ type VehiclePartInstallation struct {
 	InstalledAt               time.Time
 	PlannedReplacementAt      time.Time
 	Quantity                  int64
+	UnitPrice                 float64
+	TotalPrice                float64
 	InstalledByUserID         int64
 	InstallerEmail            *string
 	InstallerFullName         *string

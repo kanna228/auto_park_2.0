@@ -6,6 +6,7 @@ type PartCreateRequest struct {
 	PartID        string  `json:"part_id" binding:"required" example:"BRK-PAD-001"`
 	Name          string  `json:"name" binding:"required" example:"Brake Pad Front"`
 	StartQuantity int64   `json:"start_quantity" binding:"required" example:"50"`
+	Price         float64 `json:"price" example:"25000"`
 	Category      string  `json:"category" binding:"required" example:"brake_system"`
 	Dimensions    *string `json:"dimensions,omitempty" example:"120x45x18 mm"`
 	Manufacturer  *string `json:"manufacturer,omitempty" example:"Bosch"`
@@ -15,6 +16,7 @@ type PartCreateRequest struct {
 type PartUpdateRequest struct {
 	Name         string  `json:"name" binding:"required" example:"Brake Pad Front"`
 	Quantity     int64   `json:"quantity" binding:"required" example:"75"`
+	Price        float64 `json:"price" example:"25000"`
 	Category     string  `json:"category" binding:"required" example:"brake_system"`
 	Dimensions   *string `json:"dimensions,omitempty" example:"120x45x18 mm"`
 	Manufacturer *string `json:"manufacturer,omitempty" example:"Bosch"`
@@ -26,6 +28,8 @@ type PartResponse struct {
 	PartID       string    `json:"part_id" example:"BRK-PAD-001"`
 	Name         string    `json:"name" example:"Brake Pad Front"`
 	Quantity     int64     `json:"quantity" example:"50"`
+	Price        float64   `json:"price" example:"25000"`
+	TotalValue   float64   `json:"total_value" example:"1250000"`
 	Category     string    `json:"category" example:"brake_system"`
 	Dimensions   *string   `json:"dimensions,omitempty" example:"120x45x18 mm"`
 	Manufacturer *string   `json:"manufacturer,omitempty" example:"Bosch"`
@@ -42,6 +46,17 @@ type PartListQuery struct {
 	Offset   int
 	SortBy   string
 	Order    string
+}
+
+type PartStockItemResponse struct {
+	ID           int64   `json:"id"`
+	PartID       string  `json:"part_id"`
+	Name         string  `json:"name"`
+	Quantity     int64   `json:"quantity"`
+	Price        float64 `json:"price"`
+	TotalValue   float64 `json:"total_value"`
+	Category     string  `json:"category"`
+	IsConsumable bool    `json:"is_consumable"`
 }
 
 type PartListResponse struct {

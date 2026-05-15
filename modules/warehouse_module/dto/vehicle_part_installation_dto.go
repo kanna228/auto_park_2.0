@@ -76,6 +76,8 @@ type VehiclePartInstallationResponse struct {
 	InstalledAt          string                                             `json:"installed_at"`
 	PlannedReplacementAt string                                             `json:"planned_replacement_at"`
 	Quantity             int64                                              `json:"quantity"`
+	UnitPrice            float64                                            `json:"unit_price"`
+	TotalPrice           float64                                            `json:"total_price"`
 	InstalledByUserID    int64                                              `json:"installed_by_user_id"`
 	InstallerEmail       *string                                            `json:"installer_email,omitempty"`
 	InstallerFullName    *string                                            `json:"installer_full_name,omitempty"`

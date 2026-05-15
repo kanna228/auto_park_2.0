@@ -238,6 +238,8 @@ func (s *vehicleService) buildVehicleResponse(ctx context.Context, v models.Vehi
 			InstalledAt:          item.InstalledAt,
 			PlannedReplacementAt: item.PlannedReplacementAt,
 			Quantity:             item.Quantity,
+			UnitPrice:            item.UnitPrice,
+			TotalPrice:           item.TotalPrice,
 			InstalledByUserID:    item.InstalledByUserID,
 			InstallerEmail:       item.InstallerEmail,
 			InstallerFullName:    item.InstallerFullName,

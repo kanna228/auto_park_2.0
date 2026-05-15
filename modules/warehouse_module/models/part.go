@@ -7,6 +7,7 @@ type Part struct {
 	PartID       string
 	Name         string
 	Quantity     int64
+	Price        float64
 	Category     string
 	Dimensions   *string
 	Manufacturer *string

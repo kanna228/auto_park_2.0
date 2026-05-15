@@ -7,6 +7,7 @@ type FuelRefill struct {
 	TripsheetID int64
 	VehicleID   int64
 	FuelAmount  float64
+	Price       float64
 	Date        time.Time
 	Time        time.Time
 	Location    *string
@@ -18,6 +19,7 @@ type CreateFuelRefillInput struct {
 	TripsheetID int64
 	VehicleID   int64
 	FuelAmount  float64
+	Price       float64
 	Date        time.Time
 	Time        time.Time
 	Location    *string
@@ -28,6 +30,7 @@ type UpdateFuelRefillInput struct {
 	TripsheetID int64
 	VehicleID   int64
 	FuelAmount  float64
+	Price       float64
 	Date        time.Time
 	Time        time.Time
 	Location    *string
