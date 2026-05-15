@@ -59,8 +59,13 @@ func (s *DriversService) GetByID(ctx context.Context, id int64) (*models.Driver,
 	return s.repo.GetByID(ctx, id)
 }
 
-func (s *DriversService) GetPassport(ctx context.Context, id int64) (*models.DriverPassport, error) {
-	return s.repo.GetPassport(ctx, id)
+func (s *DriversService) GetPassport(ctx context.Context, id int64, q dto.DriverPassportQuery) (*models.DriverPassport, error) {
+	return s.repo.GetPassport(ctx, id, repository.DriverPassportParams{
+		TripsLimit:      q.TripsLimit,
+		TripsOffset:     q.TripsOffset,
+		IncidentsLimit:  q.IncidentsLimit,
+		IncidentsOffset: q.IncidentsOffset,
+	})
 }
 
 func (s *DriversService) List(ctx context.Context, q dto.DriverListQuery) ([]models.Driver, int64, error) {
