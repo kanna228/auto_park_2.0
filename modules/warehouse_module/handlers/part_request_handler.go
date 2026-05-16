@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
+	invoiceservice "auto_park/modules/invoice_module/service"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/repository"
 	"auto_park/modules/warehouse_module/service"
@@ -15,11 +17,13 @@ import (
 )
 
 type PartRequestHandler struct {
-	svc service.PartRequestService
+	svc        service.PartRequestService
+	auditSvc   *auditlogservice.Service
+	invoiceSvc invoiceservice.InvoiceService
 }
 
-func NewPartRequestHandler(svc service.PartRequestService) *PartRequestHandler {
-	return &PartRequestHandler{svc: svc}
+func NewPartRequestHandler(svc service.PartRequestService, auditSvc *auditlogservice.Service, invoiceSvc invoiceservice.InvoiceService) *PartRequestHandler {
+	return &PartRequestHandler{svc: svc, auditSvc: auditSvc, invoiceSvc: invoiceSvc}
 }
 
 // CreatePartRequest godoc
@@ -357,6 +361,16 @@ func (h *PartRequestHandler) UpdatePartRequestStatus(c *gin.Context) {
 		return
 	}
 
+	current, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	if current == nil {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "part request not found"})
+		return
+	}
+
 	updated, err := h.svc.UpdateStatusByID(c.Request.Context(), id, changedByUserID, roleID, req)
 	if err != nil {
 		writePartRequestError(c, err)
@@ -365,6 +379,27 @@ func (h *PartRequestHandler) UpdatePartRequestStatus(c *gin.Context) {
 	if !updated {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "part request not found"})
 		return
+	}
+
+	updatedItem, err := h.svc.GetByID(c.Request.Context(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+	if updatedItem != nil {
+		actor := actorFromContext(c, changedByUserID)
+		if h.auditSvc != nil {
+			if err := h.auditSvc.Write(c.Request.Context(), "info", "request", statusDisplay(current.Status), statusDisplay(updatedItem.Status), actor, ""); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+				return
+			}
+		}
+		if h.invoiceSvc != nil && isIssuedPartRequestStatus(updatedItem.Status) {
+			if _, err := h.invoiceSvc.CreateForPartRequest(c.Request.Context(), id, strconv.FormatInt(id, 10)); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+				return
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
@@ -443,6 +478,27 @@ func (h *PartRequestHandler) ListPartRequestStatuses(c *gin.Context) {
 
 func getUserIDFromContext(c *gin.Context) (int64, bool) {
 	return middleware.CurrentUserIDOrAbort(c)
+}
+
+func actorFromContext(c *gin.Context, userID int64) string {
+	actor := strings.TrimSpace(middleware.CurrentEmail(c))
+	if actor == "" {
+		actor = strconv.FormatInt(userID, 10)
+	}
+	return actor
+}
+
+func statusDisplay(status dto.PartRequestStatusResponse) string {
+	if value := strings.TrimSpace(status.Name); value != "" {
+		return value
+	}
+	return strings.TrimSpace(status.Code)
+}
+
+func isIssuedPartRequestStatus(status dto.PartRequestStatusResponse) bool {
+	code := strings.ToLower(strings.TrimSpace(status.Code))
+	name := strings.ToLower(strings.TrimSpace(status.Name))
+	return code == "issued" || strings.Contains(name, "\u0432\u044b\u0434\u0430\u043d")
 }
 
 func parseInt64Query(c *gin.Context, key string, allowZero bool) (int64, bool) {

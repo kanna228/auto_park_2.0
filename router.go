@@ -8,9 +8,18 @@ import (
 
 	"auto_park/internal/config"
 	"auto_park/middleware"
+	"auto_park/modules/audit_log_module"
+	auditlogrepository "auto_park/modules/audit_log_module/repository"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/dashboard_module"
 	"auto_park/modules/fuel_module"
+	"auto_park/modules/fuel_norm_module"
 	"auto_park/modules/incident_module"
+	"auto_park/modules/invoice_module"
+	invoicerepository "auto_park/modules/invoice_module/repository"
+	invoiceservice "auto_park/modules/invoice_module/service"
+	"auto_park/modules/maintenance_execution_module"
+	"auto_park/modules/maintenance_schedule_module"
 	"auto_park/modules/notification_module"
 	notificationjobs "auto_park/modules/notification_module/jobs"
 	notificationrepository "auto_park/modules/notification_module/repository"
@@ -75,7 +84,19 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 
 	dashboard_module.RegisterRoutes(r, cfg, db)
 	fuel_module.RegisterRoutes(r, cfg, db)
-	warehouse_module.RegisterRoutes(r, cfg, db, notificationSvc)
+	fuel_norm_module.RegisterRoutes(r, cfg, db)
+	maintenance_schedule_module.RegisterRoutes(r, cfg, db)
+	maintenance_execution_module.RegisterRoutes(r, cfg, db)
+
+	auditLogRepo := auditlogrepository.NewAuditLogRepository(db)
+	auditLogSvc := auditlogservice.NewAuditLogService(auditLogRepo)
+	audit_log_module.RegisterRoutes(r, cfg, auditLogSvc)
+
+	invoiceRepo := invoicerepository.NewInvoiceRepository(db)
+	invoiceSvc := invoiceservice.NewInvoiceService(invoiceRepo)
+	invoice_module.RegisterRoutes(r, cfg, invoiceSvc)
+
+	warehouse_module.RegisterRoutes(r, cfg, db, notificationSvc, auditLogSvc, invoiceSvc)
 
 	return r
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/repository"
 	"auto_park/modules/warehouse_module/service"
@@ -14,11 +15,12 @@ import (
 )
 
 type PartHandler struct {
-	svc service.PartService
+	svc      service.PartService
+	auditSvc *auditlogservice.Service
 }
 
-func NewPartHandler(svc service.PartService) *PartHandler {
-	return &PartHandler{svc: svc}
+func NewPartHandler(svc service.PartService, auditSvc *auditlogservice.Service) *PartHandler {
+	return &PartHandler{svc: svc, auditSvc: auditSvc}
 }
 
 // CreatePart godoc
@@ -322,6 +324,12 @@ func (h *PartHandler) AcceptPartArrival(c *gin.Context) {
 	if !accepted {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "part arrival not found"})
 		return
+	}
+	if h.auditSvc != nil {
+		if err := h.auditSvc.Write(c.Request.Context(), "success", "arrival", "\u0427\u0435\u0440\u043d\u043e\u0432\u0438\u043a", "\u041f\u0440\u0438\u043d\u044f\u0442", actorFromContext(c, userID), ""); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+			return
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
