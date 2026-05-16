@@ -5,6 +5,8 @@ import (
 
 	"auto_park/internal/config"
 	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
+	invoiceservice "auto_park/modules/invoice_module/service"
 	notificationservice "auto_park/modules/notification_module/service"
 	"auto_park/modules/warehouse_module/handlers"
 	"auto_park/modules/warehouse_module/repository"
@@ -19,14 +21,14 @@ const (
 	roleWarehouseManager int64 = 5
 )
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc notificationservice.NotificationService) {
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc notificationservice.NotificationService, auditLogSvc *auditlogservice.Service, invoiceSvc invoiceservice.InvoiceService) {
 	partRepo := repository.NewPartRepository(db)
 	partSvc := service.NewPartService(partRepo)
-	partHandler := handlers.NewPartHandler(partSvc)
+	partHandler := handlers.NewPartHandler(partSvc, auditLogSvc)
 
 	partRequestRepo := repository.NewPartRequestRepository(db)
 	partRequestSvc := service.NewPartRequestService(partRequestRepo, notifySvc)
-	partRequestHandler := handlers.NewPartRequestHandler(partRequestSvc)
+	partRequestHandler := handlers.NewPartRequestHandler(partRequestSvc, auditLogSvc, invoiceSvc)
 
 	vehiclePartInstallationRepo := repository.NewVehiclePartInstallationRepository(db)
 	vehiclePartInstallationSvc := service.NewVehiclePartInstallationService(vehiclePartInstallationRepo)
