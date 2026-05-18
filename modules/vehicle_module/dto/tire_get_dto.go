@@ -11,6 +11,7 @@ type TireResponse struct {
 	Mileage        int64     `json:"mileage"`
 	MaxUsage       int64     `json:"max_usage"`
 	RemainingUsage int64     `json:"remaining_usage"`
+	InstalledAt    string    `json:"installed_at"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }

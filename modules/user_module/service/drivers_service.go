@@ -33,10 +33,20 @@ func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest
 		return nil, err
 	}
 	statusID := req.StatusID
-	if statusID <= 0 {
+	statusCode := strings.TrimSpace(req.Status)
+	if statusCode != "" {
+		statusID, err = s.resolveDriverStatusID(ctx, statusCode)
+		if err != nil {
+			return nil, err
+		}
+	} else if statusID <= 0 {
 		statusID = 1
 	}
 	if err := s.validateDriverStatus(ctx, statusID); err != nil {
+		return nil, err
+	}
+	status, err := s.repo.GetStatusByID(ctx, statusID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -52,6 +62,7 @@ func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest
 		LicenseCategory: strings.TrimSpace(req.LicenseCategory),
 		ExperienceYears: req.ExperienceYears,
 		StatusID:        statusID,
+		Status:          *status,
 	})
 }
 
@@ -86,10 +97,18 @@ func (s *DriversService) UpdateStatus(ctx context.Context, id int64, req dto.Upd
 	if id <= 0 {
 		return nil, fmt.Errorf("invalid id")
 	}
-	if err := s.validateDriverStatus(ctx, req.StatusID); err != nil {
+	statusID := req.StatusID
+	if strings.TrimSpace(req.Status) != "" {
+		resolved, err := s.resolveDriverStatusID(ctx, req.Status)
+		if err != nil {
+			return nil, err
+		}
+		statusID = resolved
+	}
+	if err := s.validateDriverStatus(ctx, statusID); err != nil {
 		return nil, err
 	}
-	return s.repo.UpdateStatus(ctx, id, req.StatusID)
+	return s.repo.UpdateStatus(ctx, id, statusID)
 }
 
 func (s *DriversService) Update(ctx context.Context, id int64, req dto.UpdateDriverRequest) (*models.Driver, error) {
@@ -139,7 +158,24 @@ func (s *DriversService) Update(ctx context.Context, id int64, req dto.UpdateDri
 		if err := s.validateDriverStatus(ctx, *req.StatusID); err != nil {
 			return nil, err
 		}
+		status, err := s.repo.GetStatusByID(ctx, *req.StatusID)
+		if err != nil {
+			return nil, err
+		}
 		upd["status_id"] = *req.StatusID
+		upd["status"] = normalizeDriverTableStatus(status.Code)
+	}
+	if req.Status != nil {
+		statusID, err := s.resolveDriverStatusID(ctx, *req.Status)
+		if err != nil {
+			return nil, err
+		}
+		status, err := s.repo.GetStatusByID(ctx, statusID)
+		if err != nil {
+			return nil, err
+		}
+		upd["status_id"] = statusID
+		upd["status"] = normalizeDriverTableStatus(status.Code)
 	}
 	return s.repo.Update(ctx, id, upd)
 }
@@ -249,6 +285,43 @@ func (s *DriversService) validateDriverStatus(ctx context.Context, statusID int6
 		return fmt.Errorf("driver status not found")
 	}
 	return nil
+}
+
+func (s *DriversService) resolveDriverStatusID(ctx context.Context, status string) (int64, error) {
+	status = normalizeDriverStatusCode(status)
+	if status == "" {
+		return 0, fmt.Errorf("status is required")
+	}
+	id, err := s.repo.GetStatusIDByCode(ctx, status)
+	if err != nil {
+		if err == repository.ErrNotFound {
+			return 0, fmt.Errorf("driver status not found")
+		}
+		return 0, err
+	}
+	return id, nil
+}
+
+func normalizeDriverStatusCode(status string) string {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "available", "on_trip", "inactive":
+		return status
+	case "unavailable":
+		return "inactive"
+	default:
+		return status
+	}
+}
+
+func normalizeDriverTableStatus(status string) string {
+	status = normalizeDriverStatusCode(status)
+	switch status {
+	case "available", "on_trip", "inactive":
+		return status
+	default:
+		return "available"
+	}
 }
 
 func nullText(value string) any {

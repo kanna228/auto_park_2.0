@@ -97,7 +97,7 @@ func (h *NotificationHandler) List(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+	c.JSON(http.StatusOK, gin.H{"success": true, "unread_count": resp.UnreadCount, "data": resp})
 }
 
 // ListUnread godoc
@@ -160,6 +160,21 @@ func (h *NotificationHandler) CountUnread(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": dto.NotificationUnreadCountResponse{Count: count}})
+}
+
+func (h *NotificationHandler) CountUnreadPlain(c *gin.Context) {
+	userID, ok := middleware.CurrentUserIDOrAbort(c)
+	if !ok {
+		return
+	}
+
+	count, err := h.svc.CountUnread(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"count": count})
 }
 
 // MarkAsRead godoc

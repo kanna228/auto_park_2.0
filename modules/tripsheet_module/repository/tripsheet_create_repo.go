@@ -19,6 +19,9 @@ type TripsheetRepo interface {
 	Delete(ctx context.Context, id int64) error
 	DeleteTripsWithTripsheet(ctx context.Context, id int64) error
 	ValidateDriverShiftForTripsheet(ctx context.Context, driverShiftID int64, driverID *int64, tripsheetDate time.Time) error
+	ResolveDriverID(ctx context.Context, driverID *int64, driverShiftID *int64) (*int64, error)
+	SetDriverStatusByCode(ctx context.Context, driverID int64, code string) error
+	RefreshDriverAvailability(ctx context.Context, driverID int64) error
 }
 
 type tripsheetRepo struct {

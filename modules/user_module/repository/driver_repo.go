@@ -24,6 +24,28 @@ type DriverListParams struct {
 	Offset      int
 }
 
+func normalizeDriverStatusCode(code string) string {
+	code = strings.ToLower(strings.TrimSpace(code))
+	switch code {
+	case "available", "on_trip", "inactive":
+		return code
+	case "unavailable":
+		return "inactive"
+	default:
+		return code
+	}
+}
+
+func normalizeDriverTableStatus(code string) string {
+	code = normalizeDriverStatusCode(code)
+	switch code {
+	case "available", "on_trip", "inactive":
+		return code
+	default:
+		return "available"
+	}
+}
+
 type DriverPassportParams struct {
 	TripsLimit      int
 	TripsOffset     int
@@ -49,6 +71,15 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 	if statusID <= 0 {
 		statusID = 1
 	}
+	statusCode := normalizeDriverStatusCode(d.Status.Code)
+	if statusCode == "" {
+		status, err := r.GetStatusByID(ctx, statusID)
+		if err != nil {
+			return nil, err
+		}
+		statusCode = normalizeDriverTableStatus(status.Code)
+	}
+	statusCode = normalizeDriverTableStatus(statusCode)
 
 	q := fmt.Sprintf(`
 		INSERT INTO %s (
@@ -63,9 +94,10 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 			license_number,
 			license_category,
 			experience_years,
-			status_id
+			status_id,
+			status
 		)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		RETURNING id
 	`, r.table())
 
@@ -83,6 +115,7 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 		nullIfEmpty(d.LicenseCategory),
 		nullIntValue(d.ExperienceYears),
 		statusID,
+		statusCode,
 	).Scan(&id); err != nil {
 		return nil, err
 	}
@@ -169,7 +202,14 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 				WHERE d.id = ANY(v.drivers_ids)
 			)`)
 		default:
-			conds = append(conds, "FALSE")
+			normalized := normalizeDriverStatusCode(v)
+			conds = append(conds, fmt.Sprintf(`(
+				ds.code = $%[1]d OR
+				d.status = $%[1]d OR
+				ds.name ILIKE $%[2]d
+			)`, argPos, argPos+1))
+			args = append(args, normalized, "%"+v+"%")
+			argPos += 2
 		}
 	}
 	if v := strings.TrimSpace(p.BoardNumber); v != "" {
@@ -272,6 +312,7 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		"license_category": true,
 		"experience_years": true,
 		"status_id":        true,
+		"status":           true,
 	}
 
 	setParts := make([]string, 0, len(upd)+1)
@@ -338,7 +379,14 @@ func (r *DriverRepo) Delete(ctx context.Context, id int64) error {
 }
 
 func (r *DriverRepo) UpdateStatus(ctx context.Context, id int64, statusID int64) (*models.Driver, error) {
-	return r.Update(ctx, id, map[string]any{"status_id": statusID})
+	status, err := r.GetStatusByID(ctx, statusID)
+	if err != nil {
+		return nil, err
+	}
+	return r.Update(ctx, id, map[string]any{
+		"status_id": statusID,
+		"status":    normalizeDriverTableStatus(status.Code),
+	})
 }
 
 func (r *DriverRepo) AssignVehicle(ctx context.Context, driverID int64, vehicleID int64) error {
@@ -462,6 +510,7 @@ func (r *DriverRepo) populateDriverStatusText(ctx context.Context, drivers []mod
 			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
 			WHERE COALESCE(t.driver_id, ds.driver_id) = ANY($1)
 			  AND t.end_time IS NULL
+			  AND t.status_id NOT IN (4, 5)
 			UNION ALL
 			SELECT driver_id, TRUE AS has_activity
 			FROM driver_shifts
@@ -504,6 +553,43 @@ func (r *DriverRepo) StatusExists(ctx context.Context, statusID int64) (bool, er
 		return false, fmt.Errorf("check driver status exists: %w", err)
 	}
 	return exists, nil
+}
+
+func (r *DriverRepo) GetStatusByID(ctx context.Context, statusID int64) (*models.DriverStatus, error) {
+	const q = `
+		SELECT id, code, name, COALESCE(description, ''), created_at, updated_at
+		FROM driver_statuses
+		WHERE id = $1;
+	`
+	var item models.DriverStatus
+	if err := r.db.QueryRowContext(ctx, q, statusID).Scan(&item.ID, &item.Code, &item.Name, &item.Description, &item.CreatedAt, &item.UpdatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("get driver status by id: %w", err)
+	}
+	return &item, nil
+}
+
+func (r *DriverRepo) GetStatusIDByCode(ctx context.Context, code string) (int64, error) {
+	code = normalizeDriverStatusCode(code)
+	if code == "" {
+		return 0, ErrNotFound
+	}
+	const q = `
+		SELECT id
+		FROM driver_statuses
+		WHERE code = $1
+		LIMIT 1;
+	`
+	var id int64
+	if err := r.db.QueryRowContext(ctx, q, code).Scan(&id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, fmt.Errorf("get driver status by code: %w", err)
+	}
+	return id, nil
 }
 
 func (r *DriverRepo) ListStatuses(ctx context.Context, limit, offset int) ([]models.DriverStatus, int64, error) {
@@ -1050,6 +1136,7 @@ func (r *DriverRepo) driverHasOpenTripsheetOrActiveShift(ctx context.Context, dr
 			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
 			WHERE COALESCE(t.driver_id, ds.driver_id) = $1
 			  AND t.end_time IS NULL
+			  AND t.status_id NOT IN (4, 5)
 		) OR EXISTS (
 			SELECT 1
 			FROM driver_shifts

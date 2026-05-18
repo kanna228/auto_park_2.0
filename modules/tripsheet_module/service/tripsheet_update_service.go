@@ -72,12 +72,13 @@ func (s *tripsheetService) Update(ctx context.Context, id int64, req dto.UpdateT
 		}
 	}
 
+	current, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
 	statusID := req.StatusID
 	if statusID == nil {
-		current, err := s.repo.GetByID(ctx, id)
-		if err != nil {
-			return nil, err
-		}
 		statusID = &current.StatusID
 	}
 
@@ -107,6 +108,19 @@ func (s *tripsheetService) Update(ctx context.Context, id int64, req dto.UpdateT
 	updated, err := s.repo.Update(ctx, input)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := s.syncDriverStatusForTripsheet(ctx, updated.DriverID, updated.DriverShiftID, updated.EndTime, updated.StatusID); err != nil {
+		return nil, err
+	}
+	if !sameOptionalInt64(current.DriverID, updated.DriverID) || !sameOptionalInt64(current.DriverShiftID, updated.DriverShiftID) {
+		if oldDriverID, err := s.repo.ResolveDriverID(ctx, current.DriverID, current.DriverShiftID); err == nil && oldDriverID != nil {
+			if err := s.repo.RefreshDriverAvailability(ctx, *oldDriverID); err != nil {
+				return nil, err
+			}
+		} else if err != nil {
+			return nil, err
+		}
 	}
 
 	return mapTripsheetModelToCreateResponse(updated), nil
@@ -146,4 +160,11 @@ func mapTripsheetModelToCreateResponse(item *models.Tripsheet) *dto.CreateTripsh
 	}
 
 	return resp
+}
+
+func sameOptionalInt64(a *int64, b *int64) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return *a == *b
 }

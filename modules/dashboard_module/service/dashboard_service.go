@@ -17,6 +17,7 @@ import (
 
 type DashboardService interface {
 	GetStats(ctx context.Context) (*dto.DashboardStatsResponse, error)
+	GetAnalytics(ctx context.Context, period string) (*dto.AnalyticsDashboardResponse, error)
 	ExportStatsExcel(ctx context.Context) ([]byte, string, error)
 	ExportStatsPDF(ctx context.Context) ([]byte, string, error)
 }
@@ -31,6 +32,10 @@ func NewDashboardService(repo repository.DashboardRepository) DashboardService {
 
 func (s *dashboardService) GetStats(ctx context.Context) (*dto.DashboardStatsResponse, error) {
 	return s.repo.GetStats(ctx)
+}
+
+func (s *dashboardService) GetAnalytics(ctx context.Context, period string) (*dto.AnalyticsDashboardResponse, error) {
+	return s.repo.GetAnalytics(ctx, period)
 }
 
 func (s *dashboardService) ExportStatsExcel(ctx context.Context) ([]byte, string, error) {
