@@ -78,6 +78,7 @@ func mapTireToDTO(item models.Tire) dto.TireResponse {
 		Mileage:        item.Mileage,
 		MaxUsage:       item.MaxUsage,
 		RemainingUsage: remaining,
+		InstalledAt:    item.InstalledAt.Format("2006-01-02"),
 		CreatedAt:      item.CreatedAt,
 		UpdatedAt:      item.UpdatedAt,
 	}

@@ -19,10 +19,11 @@ type NotificationResponse struct {
 }
 
 type NotificationListResponse struct {
-	Items  []NotificationResponse `json:"items"`
-	Total  int64                  `json:"total" example:"1"`
-	Limit  int                    `json:"limit" example:"50"`
-	Offset int                    `json:"offset" example:"0"`
+	Items       []NotificationResponse `json:"items"`
+	UnreadCount int64                  `json:"unread_count" example:"5"`
+	Total       int64                  `json:"total" example:"1"`
+	Limit       int                    `json:"limit" example:"50"`
+	Offset      int                    `json:"offset" example:"0"`
 }
 
 type NotificationUnreadCountResponse struct {

@@ -105,4 +105,20 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 			adminUsersByID.DELETE("/:id", delH.DeleteUser)
 		}
 	}
+
+	driversAPI := r.Group("/api/drivers")
+	driversAPI.Use(middleware.AuthJWT(cfg))
+	{
+		driversAPI.GET("", driversH.List)
+		driversAPI.GET("/:id", driversH.GetByID)
+
+		driversWriteAPI := driversAPI.Group("")
+		driversWriteAPI.Use(middleware.RequireRoles(1, 2, 3))
+		{
+			driversWriteAPI.POST("", driversH.Create)
+			driversWriteAPI.PUT("/:id", driversH.Update)
+			driversWriteAPI.PATCH("/:id/status", driversH.UpdateStatus)
+			driversWriteAPI.DELETE("/:id", driversH.Delete)
+		}
+	}
 }

@@ -25,4 +25,12 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		api.GET("/stats/export/excel", h.ExportStatsExcel)
 		api.GET("/stats/export/pdf", h.ExportStatsPDF)
 	}
+
+	analytics := r.Group("/api/analytics")
+	analytics.Use(middleware.AuthJWT(cfg))
+	analytics.Use(middleware.RequireRoles(1, 2, 5))
+	{
+		analytics.GET("/dashboard", h.GetAnalyticsDashboard)
+		analytics.GET("/export", h.ExportAnalytics)
+	}
 }

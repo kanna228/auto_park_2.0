@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"auto_park/modules/dashboard_module/service"
 
@@ -35,6 +36,26 @@ func (h *DashboardHandler) GetStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+}
+
+func (h *DashboardHandler) GetAnalyticsDashboard(c *gin.Context) {
+	resp, err := h.svc.GetAnalytics(c.Request.Context(), strings.TrimSpace(c.DefaultQuery("period", "week")))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, resp)
+}
+
+func (h *DashboardHandler) ExportAnalytics(c *gin.Context) {
+	format := strings.ToLower(strings.TrimSpace(c.DefaultQuery("format", "excel")))
+	switch format {
+	case "pdf":
+		h.ExportStatsPDF(c)
+	default:
+		h.ExportStatsExcel(c)
+	}
 }
 
 // ExportStatsExcel godoc

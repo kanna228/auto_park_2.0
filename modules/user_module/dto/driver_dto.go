@@ -12,6 +12,7 @@ type CreateDriverRequest struct {
 	LicenseCategory string `json:"license_category,omitempty" example:"B, C"`
 	ExperienceYears *int   `json:"experience_years,omitempty" example:"5"`
 	StatusID        int64  `json:"status_id,omitempty" example:"1"`
+	Status          string `json:"status,omitempty" example:"available"`
 }
 
 type UpdateDriverRequest struct {
@@ -26,6 +27,7 @@ type UpdateDriverRequest struct {
 	LicenseCategory *string `json:"license_category"`
 	ExperienceYears *int    `json:"experience_years"`
 	StatusID        *int64  `json:"status_id" example:"1"`
+	Status          *string `json:"status" example:"available"`
 }
 
 type UploadDriverPhotoRequest struct {
@@ -33,7 +35,8 @@ type UploadDriverPhotoRequest struct {
 }
 
 type UpdateDriverStatusRequest struct {
-	StatusID int64 `json:"status_id" binding:"required" example:"2"`
+	StatusID int64  `json:"status_id,omitempty" example:"2"`
+	Status   string `json:"status,omitempty" example:"on_trip"`
 }
 
 type DriverListQuery struct {

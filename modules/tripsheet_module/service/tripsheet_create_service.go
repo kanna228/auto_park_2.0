@@ -123,6 +123,9 @@ func (s *tripsheetService) Create(ctx context.Context, req dto.CreateTripsheetRe
 	if err != nil {
 		return nil, err
 	}
+	if err := s.syncDriverStatusForTripsheet(ctx, created.DriverID, created.DriverShiftID, created.EndTime, created.StatusID); err != nil {
+		return nil, err
+	}
 
 	resp := &dto.CreateTripsheetResponse{
 		ID:                         created.ID,
@@ -157,6 +160,24 @@ func (s *tripsheetService) Create(ctx context.Context, req dto.CreateTripsheetRe
 	}
 
 	return resp, nil
+}
+
+func (s *tripsheetService) syncDriverStatusForTripsheet(ctx context.Context, driverID *int64, driverShiftID *int64, endTime *time.Time, statusID int64) error {
+	resolvedDriverID, err := s.repo.ResolveDriverID(ctx, driverID, driverShiftID)
+	if err != nil {
+		return err
+	}
+	if resolvedDriverID == nil || *resolvedDriverID <= 0 {
+		return nil
+	}
+	if endTime == nil && !isClosedTripsheetStatus(statusID) {
+		return s.repo.SetDriverStatusByCode(ctx, *resolvedDriverID, "on_trip")
+	}
+	return s.repo.RefreshDriverAvailability(ctx, *resolvedDriverID)
+}
+
+func isClosedTripsheetStatus(statusID int64) bool {
+	return statusID == 4 || statusID == 5
 }
 
 func getIntOrZero(v *int) int {

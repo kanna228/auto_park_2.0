@@ -18,6 +18,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 
 	insuranceRepo := repository.NewInsuranceRepository(db)
 	technicalInspectionRepo := repository.NewTechnicalInspectionRepository(db)
+	vehicleDocumentRepo := repository.NewVehicleDocumentRepository(db)
 
 	vehicleSvc := service.NewVehicleService(
 		vehicleRepo,
@@ -42,6 +43,8 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 
 	technicalInspectionSvc := service.NewTechnicalInspectionService(technicalInspectionRepo, documentStorage)
 	technicalInspectionHandler := handlers.NewTechnicalInspectionHandler(technicalInspectionSvc)
+	vehicleDocumentSvc := service.NewVehicleDocumentService(vehicleDocumentRepo)
+	vehicleDocumentHandler := handlers.NewVehicleDocumentHandler(vehicleDocumentSvc)
 
 	api := r.Group("/api/vehicles")
 	protected := api.Group("")
@@ -54,6 +57,14 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		protected.GET("/statuses", vehicleHandler.ListVehicleStatuses)
 		protected.GET("/status-history", vehicleHandler.ListVehicleStatusHistory)
 		protected.GET("/status-history/:id", vehicleHandler.GetVehicleStatusHistoryByID)
+
+		protected.GET("/:id/tires", tireHandler.ListVehicleTires)
+		protected.POST("/:id/tires", tireHandler.CreateVehicleTire)
+		protected.PUT("/:id/tires/:tid", tireHandler.UpdateVehicleTire)
+		protected.DELETE("/:id/tires/:tid", tireHandler.DeleteVehicleTire)
+		protected.GET("/:id/documents", vehicleDocumentHandler.List)
+		protected.POST("/:id/documents", vehicleDocumentHandler.Create)
+		protected.DELETE("/:id/documents/:doc_id", vehicleDocumentHandler.Delete)
 
 		protected.GET("/:id", vehicleHandler.GetVehicleByID)
 		protected.PUT("/:id", vehicleHandler.UpdateVehicle)

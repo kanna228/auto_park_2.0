@@ -42,7 +42,9 @@ type DriverDTO struct {
 	LicenseCategory  string                     `json:"license_category,omitempty" example:"B, C"`
 	ExperienceYears  *int                       `json:"experience_years,omitempty" example:"5"`
 	StatusID         int64                      `json:"status_id" example:"1"`
-	Status           string                     `json:"status" example:"Доступен"`
+	Status           string                     `json:"status" example:"available"`
+	StatusText       string                     `json:"status_text,omitempty" example:"Доступен"`
+	StatusCode       string                     `json:"status_code" example:"available"`
 	StatusInfo       DriverStatusDTO            `json:"status_info"`
 	AssignedVehicles []DriverAssignedVehicleDTO `json:"assigned_vehicles"`
 	CreatedAt        string                     `json:"created_at" example:"2026-02-18T12:34:56Z"`
@@ -594,7 +596,9 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		LicenseCategory:  drv.LicenseCategory,
 		ExperienceYears:  drv.ExperienceYears,
 		StatusID:         drv.StatusID,
-		Status:           statusText,
+		Status:           drv.Status.Code,
+		StatusText:       statusText,
+		StatusCode:       drv.Status.Code,
 		StatusInfo:       driverStatusToDTO(drv.Status),
 		AssignedVehicles: assignedVehicles,
 		CreatedAt:        drv.CreatedAt.Format("2006-01-02T15:04:05Z"),

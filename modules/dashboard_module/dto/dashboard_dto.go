@@ -79,3 +79,46 @@ type DashboardWarehouseStockItem struct {
 	TotalValue   float64 `json:"total_value" example:"1250000"`
 	IsConsumable bool    `json:"is_consumable" example:"false"`
 }
+
+type AnalyticsDashboardResponse struct {
+	Period          string                    `json:"period"`
+	KPI             AnalyticsKPI              `json:"kpi"`
+	MonthlyExpenses []AnalyticsMonthlyExpense `json:"monthly_expenses"`
+	FleetStatus     AnalyticsFleetStatus      `json:"fleet_status"`
+	RepairBreakdown AnalyticsRepairBreakdown  `json:"repair_breakdown"`
+	CriticalParts   []AnalyticsCriticalPart   `json:"critical_parts"`
+}
+
+type AnalyticsKPI struct {
+	FuelCost         float64 `json:"fuel_cost"`
+	RepairCost       float64 `json:"repair_cost"`
+	PartsIssued      int64   `json:"parts_issued"`
+	WarehouseBalance float64 `json:"warehouse_balance"`
+}
+
+type AnalyticsMonthlyExpense struct {
+	Month   string  `json:"month"`
+	Fuel    float64 `json:"fuel"`
+	Repairs float64 `json:"repairs"`
+	Parts   float64 `json:"parts"`
+}
+
+type AnalyticsFleetStatus struct {
+	Total     int64 `json:"total"`
+	OnTrip    int64 `json:"on_trip"`
+	InGarage  int64 `json:"in_garage"`
+	InRepair  int64 `json:"in_repair"`
+	InReserve int64 `json:"in_reserve"`
+}
+
+type AnalyticsRepairBreakdown struct {
+	PlannedTOPercent int64 `json:"planned_to_percent"`
+	UnplannedPercent int64 `json:"unplanned_percent"`
+	AccidentPercent  int64 `json:"accident_percent"`
+}
+
+type AnalyticsCriticalPart struct {
+	Name             string `json:"name"`
+	RemainingPercent int64  `json:"remaining_percent"`
+	Status           string `json:"status"`
+}

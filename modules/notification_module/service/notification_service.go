@@ -177,6 +177,10 @@ func (s *notificationService) List(ctx context.Context, userID int64, onlyUnread
 	for _, item := range items {
 		out = append(out, mapNotificationToDTO(item))
 	}
+	unreadCount, err := s.repo.CountUnread(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
 
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -186,10 +190,11 @@ func (s *notificationService) List(ctx context.Context, userID int64, onlyUnread
 	}
 
 	return &dto.NotificationListResponse{
-		Items:  out,
-		Total:  total,
-		Limit:  limit,
-		Offset: offset,
+		Items:       out,
+		UnreadCount: unreadCount,
+		Total:       total,
+		Limit:       limit,
+		Offset:      offset,
 	}, nil
 }
 

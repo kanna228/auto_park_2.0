@@ -19,6 +19,7 @@ func (r *tireRepoImpl) GetByID(ctx context.Context, id int64) (*models.Tire, err
 			t.tire,
 			t.mileage,
 			t.max_usage,
+			t.installed_at,
 			t.created_at,
 			t.updated_at
 		FROM tires t
@@ -35,6 +36,7 @@ func (r *tireRepoImpl) GetByID(ctx context.Context, id int64) (*models.Tire, err
 		&item.Tire,
 		&item.Mileage,
 		&item.MaxUsage,
+		&item.InstalledAt,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	)
@@ -121,6 +123,7 @@ func (r *tireRepoImpl) List(ctx context.Context, q ListTiresParams) ([]models.Ti
 			t.tire,
 			t.mileage,
 			t.max_usage,
+			t.installed_at,
 			t.created_at,
 			t.updated_at
 		FROM tires t
@@ -147,6 +150,7 @@ func (r *tireRepoImpl) List(ctx context.Context, q ListTiresParams) ([]models.Ti
 			&item.Tire,
 			&item.Mileage,
 			&item.MaxUsage,
+			&item.InstalledAt,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
@@ -185,6 +189,7 @@ func (r *tireRepoImpl) GetByVehicleID(ctx context.Context, vehicleID int64, limi
 			t.tire,
 			t.mileage,
 			t.max_usage,
+			t.installed_at,
 			t.created_at,
 			t.updated_at
 		FROM tires t
@@ -211,6 +216,7 @@ func (r *tireRepoImpl) GetByVehicleID(ctx context.Context, vehicleID int64, limi
 			&item.Tire,
 			&item.Mileage,
 			&item.MaxUsage,
+			&item.InstalledAt,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
@@ -224,4 +230,54 @@ func (r *tireRepoImpl) GetByVehicleID(ctx context.Context, vehicleID int64, limi
 	}
 
 	return items, total, nil
+}
+
+func (r *tireRepoImpl) ListByVehicle(ctx context.Context, vehicleID int64) ([]models.Tire, error) {
+	const q = `
+		SELECT
+			t.id,
+			t.place_id,
+			tp.name,
+			t.vehicle_id,
+			t.tire,
+			t.mileage,
+			t.max_usage,
+			t.installed_at,
+			t.created_at,
+			t.updated_at
+		FROM tires t
+		JOIN tire_places tp ON tp.id = t.place_id
+		WHERE t.vehicle_id = $1
+		ORDER BY t.place_id ASC, t.id ASC;
+	`
+
+	rows, err := r.db.QueryContext(ctx, q, vehicleID)
+	if err != nil {
+		return nil, fmt.Errorf("list vehicle tires: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]models.Tire, 0)
+	for rows.Next() {
+		var item models.Tire
+		if err := rows.Scan(
+			&item.ID,
+			&item.PlaceID,
+			&item.PlaceName,
+			&item.VehicleID,
+			&item.Tire,
+			&item.Mileage,
+			&item.MaxUsage,
+			&item.InstalledAt,
+			&item.CreatedAt,
+			&item.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("list vehicle tires scan: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("list vehicle tires rows: %w", err)
+	}
+	return items, nil
 }
