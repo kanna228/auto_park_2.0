@@ -205,7 +205,6 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 			normalized := normalizeDriverStatusCode(v)
 			conds = append(conds, fmt.Sprintf(`(
 				ds.code = $%[1]d OR
-				d.status = $%[1]d OR
 				ds.name ILIKE $%[2]d
 			)`, argPos, argPos+1))
 			args = append(args, normalized, "%"+v+"%")
