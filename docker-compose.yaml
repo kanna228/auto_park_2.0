@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: autopark_user
       POSTGRES_PASSWORD: autopark_password
     ports:
-      - "5433:5432"
+      - "5436:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,11 +24,12 @@ services:
         condition: service_healthy
     volumes:
       - ./database/migrations:/migrations
-    command: [
-      "-path=/migrations",
-      "-database=postgres://autopark_user:autopark_password@postgres:5432/auto_park?sslmode=disable",
-      "up"
-    ]
+    command:
+      [
+        "-path=/migrations",
+        "-database=postgres://autopark_user:autopark_password@postgres:5432/auto_park?sslmode=disable",
+        "up",
+      ]
     restart: "no"
 
   auto_park:
