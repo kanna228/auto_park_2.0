@@ -45,7 +45,7 @@ func (h *VehiclePartInstallationHandler) CreateVehiclePartInstallation(c *gin.Co
 
 	var req dto.VehiclePartInstallationCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 
@@ -223,7 +223,7 @@ func (h *VehiclePartInstallationHandler) UpdateVehiclePartInstallation(c *gin.Co
 
 	var req dto.VehiclePartInstallationUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 
@@ -270,7 +270,7 @@ func (h *VehiclePartInstallationHandler) UpdateVehiclePartInstallationActivity(c
 
 	var req dto.VehiclePartInstallationActivityUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 

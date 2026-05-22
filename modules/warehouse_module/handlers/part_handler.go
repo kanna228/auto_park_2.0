@@ -40,7 +40,7 @@ func NewPartHandler(svc service.PartService, auditSvc *auditlogservice.Service) 
 func (h *PartHandler) CreatePart(c *gin.Context) {
 	var req dto.PartCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 
@@ -217,7 +217,7 @@ func (h *PartHandler) UpdatePart(c *gin.Context) {
 
 	var req dto.PartUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 
@@ -279,7 +279,7 @@ func (h *PartHandler) CreatePartArrival(c *gin.Context) {
 	}
 	var req dto.PartArrivalCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 	id, err := h.svc.CreateArrival(c.Request.Context(), userID, req)

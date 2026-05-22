@@ -3,21 +3,21 @@ package dto
 import "time"
 
 type VehiclePartInstallationCreateRequest struct {
-	PartID               int64  `json:"part_id" binding:"required"`
-	VehicleID            int64  `json:"vehicle_id" binding:"required"`
-	MechanicShiftID      int64  `json:"mechanic_shift_id" binding:"required"`
+	PartID               int64  `json:"part_id" binding:"gt=0"`
+	VehicleID            int64  `json:"vehicle_id" binding:"gt=0"`
+	MechanicShiftID      int64  `json:"mechanic_shift_id" binding:"gt=0"`
 	InstalledAt          string `json:"installed_at" binding:"required" example:"2026-05-12"`
 	PlannedReplacementAt string `json:"planned_replacement_at" binding:"required" example:"2026-08-12"`
-	Quantity             int64  `json:"quantity" binding:"required"`
+	Quantity             int64  `json:"quantity" binding:"gt=0"`
 }
 
 type VehiclePartInstallationUpdateRequest struct {
-	PartID               int64  `json:"part_id" binding:"required"`
-	VehicleID            int64  `json:"vehicle_id" binding:"required"`
-	MechanicShiftID      int64  `json:"mechanic_shift_id" binding:"required"`
+	PartID               int64  `json:"part_id" binding:"gt=0"`
+	VehicleID            int64  `json:"vehicle_id" binding:"gt=0"`
+	MechanicShiftID      int64  `json:"mechanic_shift_id" binding:"gt=0"`
 	InstalledAt          string `json:"installed_at" binding:"required" example:"2026-05-12"`
 	PlannedReplacementAt string `json:"planned_replacement_at" binding:"required" example:"2026-08-12"`
-	Quantity             int64  `json:"quantity" binding:"required"`
+	Quantity             int64  `json:"quantity" binding:"gt=0"`
 	IsActive             *bool  `json:"is_active,omitempty"`
 }
 
