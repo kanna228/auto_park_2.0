@@ -37,7 +37,7 @@ func NewVehicleServiceHandler(svc service.VehicleServiceService) *VehicleService
 func (h *VehicleServiceHandler) CreatePartsCollection(c *gin.Context) {
 	var req dto.PartsCollectionCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 
@@ -141,7 +141,7 @@ func (h *VehicleServiceHandler) UpdatePartsCollection(c *gin.Context) {
 	}
 	var req dto.PartsCollectionUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 	updated, err := h.svc.UpdatePartsCollectionByID(c.Request.Context(), id, req)
@@ -204,7 +204,7 @@ func (h *VehicleServiceHandler) DeletePartsCollection(c *gin.Context) {
 func (h *VehicleServiceHandler) CreateServiceType(c *gin.Context) {
 	var req dto.ServiceTypeCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 	id, err := h.svc.CreateServiceType(c.Request.Context(), req)
@@ -303,7 +303,7 @@ func (h *VehicleServiceHandler) UpdateServiceType(c *gin.Context) {
 	}
 	var req dto.ServiceTypeUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 	updated, err := h.svc.UpdateServiceTypeByID(c.Request.Context(), id, req)
@@ -366,7 +366,7 @@ func (h *VehicleServiceHandler) DeleteServiceType(c *gin.Context) {
 func (h *VehicleServiceHandler) CreateVehicleService(c *gin.Context) {
 	var req dto.VehicleServiceCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 	id, err := h.svc.CreateVehicleService(c.Request.Context(), req)
@@ -487,7 +487,7 @@ func (h *VehicleServiceHandler) UpdateVehicleService(c *gin.Context) {
 	}
 	var req dto.VehicleServiceUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 	updated, err := h.svc.UpdateVehicleServiceByID(c.Request.Context(), id, req)

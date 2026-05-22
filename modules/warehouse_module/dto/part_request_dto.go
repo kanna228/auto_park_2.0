@@ -3,22 +3,22 @@ package dto
 import "time"
 
 type PartRequestCreateRequest struct {
-	PartID          int64  `json:"part_id" binding:"required" example:"1"`
-	Quantity        int64  `json:"quantity" binding:"required" example:"5"`
+	PartID          int64  `json:"part_id" binding:"gt=0" example:"1"`
+	Quantity        int64  `json:"quantity" binding:"gt=0" example:"5"`
 	MechanicComment string `json:"mechanic_comment" binding:"required" example:"Need new brake pads for scheduled maintenance"`
 }
 
 type PartRequestUpdateRequest struct {
-	PartID           int64  `json:"part_id" binding:"required" example:"1"`
-	Quantity         int64  `json:"quantity" binding:"required" example:"7"`
+	PartID           int64  `json:"part_id" binding:"gt=0" example:"1"`
+	Quantity         int64  `json:"quantity" binding:"gt=0" example:"7"`
 	MechanicComment  string `json:"mechanic_comment" binding:"required" example:"Updated quantity after inspection"`
-	StatusID         int64  `json:"status_id" binding:"required" example:"1"`
+	StatusID         int64  `json:"status_id" binding:"gt=0" example:"1"`
 	RejectionComment string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
 	HistoryComment   string `json:"history_comment,omitempty" example:"Updated request after additional vehicle inspection"`
 }
 
 type PartRequestStatusUpdateRequest struct {
-	StatusID         int64  `json:"status_id" binding:"required" example:"3"`
+	StatusID         int64  `json:"status_id" binding:"gt=0" example:"3"`
 	Comment          string `json:"comment,omitempty" example:"Approved by warehouse manager"`
 	RejectionComment string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
 }

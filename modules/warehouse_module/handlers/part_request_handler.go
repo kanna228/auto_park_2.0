@@ -48,7 +48,7 @@ func (h *PartRequestHandler) CreatePartRequest(c *gin.Context) {
 
 	var req dto.PartRequestCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 
@@ -306,7 +306,7 @@ func (h *PartRequestHandler) UpdatePartRequest(c *gin.Context) {
 
 	var req dto.PartRequestUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 
@@ -357,7 +357,7 @@ func (h *PartRequestHandler) UpdatePartRequestStatus(c *gin.Context) {
 
 	var req dto.PartRequestStatusUpdateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "invalid request body"})
+		writeBindError(c, err)
 		return
 	}
 

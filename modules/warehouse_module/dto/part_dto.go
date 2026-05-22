@@ -5,7 +5,7 @@ import "time"
 type PartCreateRequest struct {
 	PartID           string  `json:"part_id" binding:"required" example:"BRK-PAD-001"`
 	Name             string  `json:"name" binding:"required" example:"Brake Pad Front"`
-	StartQuantity    int64   `json:"start_quantity" binding:"required" example:"50"`
+	StartQuantity    int64   `json:"start_quantity" binding:"gte=0" example:"50"`
 	MinStockQuantity int64   `json:"min_stock_quantity" example:"5"`
 	Unit             string  `json:"unit" example:"шт"`
 	Price            float64 `json:"price" example:"25000"`
@@ -17,7 +17,7 @@ type PartCreateRequest struct {
 
 type PartUpdateRequest struct {
 	Name             string  `json:"name" binding:"required" example:"Brake Pad Front"`
-	Quantity         int64   `json:"quantity" binding:"required" example:"75"`
+	Quantity         int64   `json:"quantity" binding:"gte=0" example:"75"`
 	MinStockQuantity int64   `json:"min_stock_quantity" example:"5"`
 	Unit             string  `json:"unit" example:"шт"`
 	Price            float64 `json:"price" example:"25000"`
@@ -97,9 +97,9 @@ type PartStockMovementListResponse struct {
 }
 
 type PartArrivalCreateItemRequest struct {
-	PartID   int64    `json:"part_id" binding:"required"`
-	Quantity int64    `json:"quantity" binding:"required"`
-	Price    *float64 `json:"price,omitempty"`
+	PartID   int64    `json:"part_id" binding:"gt=0"`
+	Quantity int64    `json:"quantity" binding:"gt=0"`
+	Price    *float64 `json:"price,omitempty" binding:"omitempty,gte=0"`
 }
 
 type PartArrivalCreateRequest struct {

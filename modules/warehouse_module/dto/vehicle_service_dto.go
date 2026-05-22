@@ -69,16 +69,16 @@ type ServiceTypeListResponse struct {
 }
 
 type VehicleServiceCreateRequest struct {
-	TypeID    int64  `json:"type_id" binding:"required" example:"1"`
-	PartID    int64  `json:"part_id" binding:"required" example:"1"`
-	VehicleID int64  `json:"vehicle_id" binding:"required" example:"12"`
+	TypeID    int64  `json:"type_id" binding:"gt=0" example:"1"`
+	PartID    int64  `json:"part_id" binding:"gt=0" example:"1"`
+	VehicleID int64  `json:"vehicle_id" binding:"gt=0" example:"12"`
 	Date      string `json:"date" binding:"required" example:"2026-05-14"`
 }
 
 type VehicleServiceUpdateRequest struct {
-	TypeID    int64  `json:"type_id" binding:"required" example:"1"`
-	PartID    int64  `json:"part_id" binding:"required" example:"1"`
-	VehicleID int64  `json:"vehicle_id" binding:"required" example:"12"`
+	TypeID    int64  `json:"type_id" binding:"gt=0" example:"1"`
+	PartID    int64  `json:"part_id" binding:"gt=0" example:"1"`
+	VehicleID int64  `json:"vehicle_id" binding:"gt=0" example:"12"`
 	Date      string `json:"date" binding:"required" example:"2026-05-14"`
 }
 
