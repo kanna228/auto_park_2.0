@@ -40,10 +40,9 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	}
 
 	email := sanitize(req.Email)
-	iin := sanitize(req.IIN)
 	password := sanitizePassword(req.Password)
 
-	resp, err := h.svc.Login(c.Request.Context(), email, password, iin)
+	resp, err := h.svc.Login(c.Request.Context(), email, password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"success": false, "error": "invalid credentials"})
 		return

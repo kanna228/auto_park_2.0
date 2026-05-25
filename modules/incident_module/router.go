@@ -8,13 +8,14 @@ import (
 	"auto_park/modules/incident_module/handlers"
 	"auto_park/modules/incident_module/repository"
 	"auto_park/modules/incident_module/service"
+	notificationservice "auto_park/modules/notification_module/service"
 
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc ...notificationservice.NotificationService) {
 	incidentRepo := repository.NewIncidentRepository(db)
-	incidentSvc := service.NewIncidentService(incidentRepo)
+	incidentSvc := service.NewIncidentService(incidentRepo, notifySvc...)
 	incidentHandler := handlers.NewIncidentHandler(incidentSvc)
 
 	api := r.Group("/api/incidents")

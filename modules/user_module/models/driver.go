@@ -25,6 +25,10 @@ type Driver struct {
 	LicenseCategory  string                  `json:"license_category,omitempty" example:"B, C"`
 	ExperienceYears  *int                    `json:"experience_years,omitempty" example:"5"`
 	StatusID         int64                   `json:"status_id" example:"1"`
+	RoleID           int64                   `json:"role_id" example:"6"`
+	PasswordHash     string                  `json:"-"`
+	SessionToken     *string                 `json:"session_token,omitempty"`
+	LastSeen         *time.Time              `json:"last_seen,omitempty"`
 	Status           DriverStatus            `json:"status"`
 	StatusText       string                  `json:"status_text,omitempty"`
 	AssignedVehicles []DriverAssignedVehicle `json:"assigned_vehicles,omitempty"`

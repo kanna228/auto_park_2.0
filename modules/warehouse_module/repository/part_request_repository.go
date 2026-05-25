@@ -14,28 +14,39 @@ var ErrPartRequestLocked = errors.New("part request cannot be changed after appr
 var ErrPartRequestPartNotFound = errors.New("part not found")
 var ErrPartRequestStatusNotFound = errors.New("part request status not found")
 var ErrPartRequestUserNotFound = errors.New("user not found")
+var ErrPartRequestInsufficientStock = errors.New("not enough part quantity in stock")
+var ErrPartRequestRepairContextRequired = errors.New("vehicle_id, mechanic_shift_id and planned_replacement_at are required to complete repair")
+var ErrPartRequestRepairCompletionForbidden = errors.New("part request must be approved before repair can be completed")
 
 type CreatePartRequestParams struct {
-	PartID          int64
-	Quantity        int64
-	MechanicComment string
-	StatusID        int64
-	AuthorUserID    int64
-	HistoryComment  string
+	PartID               int64
+	Quantity             int64
+	MechanicComment      string
+	VehicleID            *int64
+	MechanicShiftID      *int64
+	PlannedReplacementAt string
+	StatusID             int64
+	AuthorUserID         int64
+	HistoryComment       string
 }
 
 type UpdatePartRequestParams struct {
-	PartID           int64
-	Quantity         int64
-	MechanicComment  string
-	StatusID         int64
-	RejectionComment string
-	ChangedByUserID  int64
-	HistoryComment   string
+	PartID               int64
+	Quantity             int64
+	MechanicComment      string
+	VehicleID            *int64
+	MechanicShiftID      *int64
+	PlannedReplacementAt string
+	StatusID             int64
+	TargetStatusCode     string
+	RejectionComment     string
+	ChangedByUserID      int64
+	HistoryComment       string
 }
 
 type UpdatePartRequestStatusParams struct {
 	StatusID         int64
+	TargetStatusCode string
 	RejectionComment string
 	ChangedByUserID  int64
 	HistoryComment   string
@@ -44,6 +55,15 @@ type UpdatePartRequestStatusParams struct {
 type DeletePartRequestParams struct {
 	ChangedByUserID int64
 	HistoryComment  string
+}
+
+type CompletePartRequestRepairParams struct {
+	VehicleID            *int64
+	MechanicShiftID      *int64
+	InstalledAt          string
+	PlannedReplacementAt string
+	CompletedByUserID    int64
+	HistoryComment       string
 }
 
 type ListPartRequestsParams struct {
@@ -78,6 +98,7 @@ type PartRequestRepository interface {
 	List(ctx context.Context, p ListPartRequestsParams) ([]models.PartRequest, int64, error)
 	UpdateByID(ctx context.Context, id int64, p UpdatePartRequestParams) (bool, error)
 	UpdateStatusByID(ctx context.Context, id int64, p UpdatePartRequestStatusParams) (bool, error)
+	CompleteRepairByID(ctx context.Context, id int64, p CompletePartRequestRepairParams) (bool, error)
 	DeleteByID(ctx context.Context, id int64, p DeletePartRequestParams) (bool, error)
 	PartExists(ctx context.Context, partID int64) (bool, error)
 	StatusExists(ctx context.Context, statusID int64) (bool, error)
@@ -108,13 +129,35 @@ func (r *partRequestRepo) Create(ctx context.Context, p CreatePartRequestParams)
 	defer rollbackPartRequestTx(tx)
 
 	const insertRequestQ = `
-		INSERT INTO part_requests (part_id, quantity, mechanic_comment, status_id, author_user_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		INSERT INTO part_requests (
+			part_id,
+			quantity,
+			mechanic_comment,
+			vehicle_id,
+			mechanic_shift_id,
+			planned_replacement_at,
+			status_id,
+			author_user_id,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, NULLIF($6, '')::DATE, $7, $8, NOW(), NOW())
 		RETURNING id;
 	`
 
 	var id int64
-	if err := tx.QueryRowContext(ctx, insertRequestQ, p.PartID, p.Quantity, p.MechanicComment, statusID, p.AuthorUserID).Scan(&id); err != nil {
+	if err := tx.QueryRowContext(
+		ctx,
+		insertRequestQ,
+		p.PartID,
+		p.Quantity,
+		p.MechanicComment,
+		p.VehicleID,
+		p.MechanicShiftID,
+		p.PlannedReplacementAt,
+		statusID,
+		p.AuthorUserID,
+	).Scan(&id); err != nil {
 		return 0, mapPartRequestError(err)
 	}
 
@@ -137,9 +180,17 @@ func (r *partRequestRepo) GetByID(ctx context.Context, id int64) (*models.PartRe
 			p.part_id AS part_catalog_code,
 			p.name AS part_name,
 			p.category AS part_category,
+			p.quantity AS part_quantity,
 			pr.quantity,
 			pr.mechanic_comment,
 			pr.rejection_comment,
+			pr.vehicle_id,
+			pr.mechanic_shift_id,
+			pr.planned_replacement_at,
+			pr.repair_status,
+			pr.completed_at,
+			pr.completed_by_user_id,
+			pr.vehicle_part_installation_id,
 			pr.status_id,
 			s.code AS status_code,
 			s.name AS status_name,
@@ -236,9 +287,17 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 			p.part_id AS part_catalog_code,
 			p.name AS part_name,
 			p.category AS part_category,
+			p.quantity AS part_quantity,
 			pr.quantity,
 			pr.mechanic_comment,
 			pr.rejection_comment,
+			pr.vehicle_id,
+			pr.mechanic_shift_id,
+			pr.planned_replacement_at,
+			pr.repair_status,
+			pr.completed_at,
+			pr.completed_by_user_id,
+			pr.vehicle_part_installation_id,
 			pr.status_id,
 			s.code AS status_code,
 			s.name AS status_name,
@@ -285,6 +344,22 @@ func (r *partRequestRepo) UpdateByID(ctx context.Context, id int64, p UpdatePart
 	}
 	defer rollbackPartRequestTx(tx)
 
+	var currentStatusCode string
+	const lockQ = `
+		SELECT s.code
+		FROM part_requests pr
+		INNER JOIN part_request_statuses s ON s.id = pr.status_id
+		WHERE pr.id = $1
+		  AND pr.is_deleted = FALSE
+		FOR UPDATE OF pr;
+	`
+	if err := tx.QueryRowContext(ctx, lockQ, id).Scan(&currentStatusCode); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("lock part request before update: %w", err)
+	}
+
 	const q = `
 		UPDATE part_requests
 		SET part_id = $1,
@@ -292,11 +367,29 @@ func (r *partRequestRepo) UpdateByID(ctx context.Context, id int64, p UpdatePart
 			mechanic_comment = $3,
 			status_id = $4,
 			rejection_comment = $5,
+			vehicle_id = $6,
+			mechanic_shift_id = $7,
+			planned_replacement_at = NULLIF($8, '')::DATE,
+			repair_status = CASE WHEN $9 = 'approved' AND $10 <> 'approved' THEN 'in_progress' ELSE repair_status END,
 			updated_at = NOW()
-		WHERE id = $6
+		WHERE id = $11
 		  AND is_deleted = FALSE;
 	`
-	res, err := tx.ExecContext(ctx, q, p.PartID, p.Quantity, p.MechanicComment, p.StatusID, nullableTextParam(p.RejectionComment), id)
+	res, err := tx.ExecContext(
+		ctx,
+		q,
+		p.PartID,
+		p.Quantity,
+		p.MechanicComment,
+		p.StatusID,
+		nullableTextParam(p.RejectionComment),
+		p.VehicleID,
+		p.MechanicShiftID,
+		p.PlannedReplacementAt,
+		p.TargetStatusCode,
+		currentStatusCode,
+		id,
+	)
 	if err != nil {
 		return false, mapPartRequestError(err)
 	}
@@ -306,6 +399,12 @@ func (r *partRequestRepo) UpdateByID(ctx context.Context, id int64, p UpdatePart
 	}
 	if aff == 0 {
 		return false, nil
+	}
+
+	if shouldIssuePartRequestStock(currentStatusCode, p.TargetStatusCode) {
+		if err := issuePartRequestStockTx(ctx, tx, p.PartID, p.Quantity, id, p.ChangedByUserID); err != nil {
+			return false, err
+		}
 	}
 
 	if err := insertPartRequestHistory(ctx, tx, id, p.StatusID, p.ChangedByUserID, p.HistoryComment); err != nil {
@@ -326,15 +425,34 @@ func (r *partRequestRepo) UpdateStatusByID(ctx context.Context, id int64, p Upda
 	}
 	defer rollbackPartRequestTx(tx)
 
+	var partID int64
+	var quantity int64
+	var currentStatusCode string
+	const lockQ = `
+		SELECT pr.part_id, pr.quantity, s.code
+		FROM part_requests pr
+		INNER JOIN part_request_statuses s ON s.id = pr.status_id
+		WHERE pr.id = $1
+		  AND pr.is_deleted = FALSE
+		FOR UPDATE OF pr;
+	`
+	if err := tx.QueryRowContext(ctx, lockQ, id).Scan(&partID, &quantity, &currentStatusCode); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("lock part request before status update: %w", err)
+	}
+
 	const q = `
 		UPDATE part_requests
 		SET status_id = $1,
 			rejection_comment = $2,
+			repair_status = CASE WHEN $3 = 'approved' AND $4 <> 'approved' THEN 'in_progress' ELSE repair_status END,
 			updated_at = NOW()
-		WHERE id = $3
+		WHERE id = $5
 		  AND is_deleted = FALSE;
 	`
-	res, err := tx.ExecContext(ctx, q, p.StatusID, nullableTextParam(p.RejectionComment), id)
+	res, err := tx.ExecContext(ctx, q, p.StatusID, nullableTextParam(p.RejectionComment), p.TargetStatusCode, currentStatusCode, id)
 	if err != nil {
 		return false, mapPartRequestError(err)
 	}
@@ -346,12 +464,173 @@ func (r *partRequestRepo) UpdateStatusByID(ctx context.Context, id int64, p Upda
 		return false, nil
 	}
 
+	if shouldIssuePartRequestStock(currentStatusCode, p.TargetStatusCode) {
+		if err := issuePartRequestStockTx(ctx, tx, partID, quantity, id, p.ChangedByUserID); err != nil {
+			return false, err
+		}
+	}
+
 	if err := insertPartRequestHistory(ctx, tx, id, p.StatusID, p.ChangedByUserID, p.HistoryComment); err != nil {
 		return false, mapPartRequestError(err)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return false, fmt.Errorf("commit update part request status tx: %w", err)
+	}
+
+	return true, nil
+}
+
+func (r *partRequestRepo) CompleteRepairByID(ctx context.Context, id int64, p CompletePartRequestRepairParams) (bool, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return false, fmt.Errorf("begin complete part request repair tx: %w", err)
+	}
+	defer rollbackPartRequestTx(tx)
+
+	var partID int64
+	var quantity int64
+	var statusID int64
+	var statusCode string
+	var storedVehicleID sql.NullInt64
+	var storedMechanicShiftID sql.NullInt64
+	var storedPlannedReplacementAt string
+	var repairStatus string
+	var vehiclePartInstallationID sql.NullInt64
+
+	const lockQ = `
+		SELECT
+			pr.part_id,
+			pr.quantity,
+			pr.status_id,
+			s.code,
+			pr.vehicle_id,
+			pr.mechanic_shift_id,
+			COALESCE(pr.planned_replacement_at::TEXT, ''),
+			pr.repair_status,
+			pr.vehicle_part_installation_id
+		FROM part_requests pr
+		INNER JOIN part_request_statuses s ON s.id = pr.status_id
+		WHERE pr.id = $1
+		  AND pr.is_deleted = FALSE
+		FOR UPDATE OF pr;
+	`
+	if err := tx.QueryRowContext(ctx, lockQ, id).Scan(
+		&partID,
+		&quantity,
+		&statusID,
+		&statusCode,
+		&storedVehicleID,
+		&storedMechanicShiftID,
+		&storedPlannedReplacementAt,
+		&repairStatus,
+		&vehiclePartInstallationID,
+	); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("lock part request before repair completion: %w", err)
+	}
+
+	if strings.ToLower(strings.TrimSpace(statusCode)) != "approved" {
+		return false, ErrPartRequestRepairCompletionForbidden
+	}
+	if strings.ToLower(strings.TrimSpace(repairStatus)) == "completed" && vehiclePartInstallationID.Valid {
+		return true, nil
+	}
+
+	vehicleID := resolveInt64Param(p.VehicleID, storedVehicleID)
+	mechanicShiftID := resolveInt64Param(p.MechanicShiftID, storedMechanicShiftID)
+	plannedReplacementAt := strings.TrimSpace(p.PlannedReplacementAt)
+	if plannedReplacementAt == "" {
+		plannedReplacementAt = strings.TrimSpace(storedPlannedReplacementAt)
+	}
+	if vehicleID <= 0 || mechanicShiftID <= 0 || plannedReplacementAt == "" {
+		return false, ErrPartRequestRepairContextRequired
+	}
+
+	part, err := getPartForUpdate(ctx, tx, partID)
+	if err != nil {
+		return false, err
+	}
+	if err := ensureVehicleExistsTx(ctx, tx, vehicleID); err != nil {
+		return false, err
+	}
+	if err := ensureInstallerExistsTx(ctx, tx, p.CompletedByUserID); err != nil {
+		return false, err
+	}
+	if err := ensureMechanicShiftExistsTx(ctx, tx, mechanicShiftID); err != nil {
+		return false, err
+	}
+	if !part.IsConsumable {
+		exists, err := activeInstallationExistsTx(ctx, tx, partID, vehicleID, 0)
+		if err != nil {
+			return false, err
+		}
+		if exists {
+			return false, ErrVehiclePartInstallationActiveDuplicate
+		}
+	}
+
+	const insertInstallationQ = `
+		INSERT INTO vehicle_part_installations (
+			part_id,
+			vehicle_id,
+			mechanic_shift_id,
+			installed_at,
+			planned_replacement_at,
+			quantity,
+			unit_price,
+			total_price,
+			installed_by_user_id,
+			is_active,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, NOW(), NOW())
+		RETURNING id;
+	`
+
+	var installationID int64
+	if err := tx.QueryRowContext(
+		ctx,
+		insertInstallationQ,
+		partID,
+		vehicleID,
+		mechanicShiftID,
+		p.InstalledAt,
+		plannedReplacementAt,
+		quantity,
+		part.Price,
+		part.Price*float64(quantity),
+		p.CompletedByUserID,
+	).Scan(&installationID); err != nil {
+		return false, mapVehiclePartInstallationError(err)
+	}
+
+	const updateRequestQ = `
+		UPDATE part_requests
+		SET vehicle_id = $1,
+			mechanic_shift_id = $2,
+			planned_replacement_at = $3,
+			repair_status = 'completed',
+			completed_at = NOW(),
+			completed_by_user_id = $4,
+			vehicle_part_installation_id = $5,
+			updated_at = NOW()
+		WHERE id = $6
+		  AND is_deleted = FALSE;
+	`
+	if _, err := tx.ExecContext(ctx, updateRequestQ, vehicleID, mechanicShiftID, plannedReplacementAt, p.CompletedByUserID, installationID, id); err != nil {
+		return false, mapPartRequestError(err)
+	}
+
+	if err := insertPartRequestHistory(ctx, tx, id, statusID, p.CompletedByUserID, p.HistoryComment); err != nil {
+		return false, mapPartRequestError(err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, fmt.Errorf("commit complete part request repair tx: %w", err)
 	}
 
 	return true, nil
@@ -646,6 +925,73 @@ func insertPartRequestHistory(ctx context.Context, tx *sql.Tx, partRequestID int
 	return err
 }
 
+func shouldIssuePartRequestStock(currentStatusCode string, targetStatusCode string) bool {
+	targetStatusCode = strings.ToLower(strings.TrimSpace(targetStatusCode))
+	currentStatusCode = strings.ToLower(strings.TrimSpace(currentStatusCode))
+	return targetStatusCode == "approved" && currentStatusCode != "approved"
+}
+
+func issuePartRequestStockTx(ctx context.Context, tx *sql.Tx, partID int64, quantity int64, partRequestID int64, actorUserID int64) error {
+	alreadyIssued, err := partRequestStockAlreadyIssuedTx(ctx, tx, partRequestID)
+	if err != nil {
+		return err
+	}
+	if alreadyIssued {
+		return nil
+	}
+
+	var currentQuantity int64
+	const lockPartQ = `
+		SELECT quantity
+		FROM parts_catalog
+		WHERE id = $1
+		FOR UPDATE;
+	`
+	if err := tx.QueryRowContext(ctx, lockPartQ, partID).Scan(&currentQuantity); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrPartRequestPartNotFound
+		}
+		return fmt.Errorf("lock part before issue: %w", err)
+	}
+	if currentQuantity < quantity {
+		return ErrPartRequestInsufficientStock
+	}
+
+	const updatePartQ = `
+		UPDATE parts_catalog
+		SET quantity = quantity - $1,
+			updated_at = NOW()
+		WHERE id = $2;
+	`
+	if _, err := tx.ExecContext(ctx, updatePartQ, quantity, partID); err != nil {
+		return fmt.Errorf("decrease part quantity: %w", err)
+	}
+
+	documentNumber := fmt.Sprintf("part-request-%d", partRequestID)
+	partRequestIDPtr := partRequestID
+	if err := insertPartStockMovementTx(ctx, tx, partID, "issue", quantity, nil, &partRequestIDPtr, &documentNumber, actorUserID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func partRequestStockAlreadyIssuedTx(ctx context.Context, tx *sql.Tx, partRequestID int64) (bool, error) {
+	const q = `
+		SELECT EXISTS(
+			SELECT 1
+			FROM part_stock_movements
+			WHERE part_request_id = $1
+			  AND type = 'issue'
+		);
+	`
+	var exists bool
+	if err := tx.QueryRowContext(ctx, q, partRequestID).Scan(&exists); err != nil {
+		return false, fmt.Errorf("check part request stock issue: %w", err)
+	}
+	return exists, nil
+}
+
 func rollbackPartRequestTx(tx *sql.Tx) {
 	_ = tx.Rollback()
 }
@@ -657,6 +1003,12 @@ type partRequestScanner interface {
 func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 	var item models.PartRequest
 	var rejectionComment sql.NullString
+	var vehicleID sql.NullInt64
+	var mechanicShiftID sql.NullInt64
+	var plannedReplacementAt sql.NullTime
+	var completedAt sql.NullTime
+	var completedByUserID sql.NullInt64
+	var vehiclePartInstallationID sql.NullInt64
 	var authorEmail sql.NullString
 	var authorFullName sql.NullString
 
@@ -666,9 +1018,17 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 		&item.PartCatalogCode,
 		&item.PartName,
 		&item.PartCategory,
+		&item.PartQuantity,
 		&item.Quantity,
 		&item.MechanicComment,
 		&rejectionComment,
+		&vehicleID,
+		&mechanicShiftID,
+		&plannedReplacementAt,
+		&item.RepairStatus,
+		&completedAt,
+		&completedByUserID,
+		&vehiclePartInstallationID,
 		&item.StatusID,
 		&item.StatusCode,
 		&item.StatusName,
@@ -682,6 +1042,12 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 	}
 
 	item.RejectionComment = nullableStringPtr(rejectionComment)
+	item.VehicleID = nullableInt64Ptr(vehicleID)
+	item.MechanicShiftID = nullableInt64Ptr(mechanicShiftID)
+	item.PlannedReplacementAt = nullableTimePtr(plannedReplacementAt)
+	item.CompletedAt = nullableTimePtr(completedAt)
+	item.CompletedByUserID = nullableInt64Ptr(completedByUserID)
+	item.VehiclePartInstallationID = nullableInt64Ptr(vehiclePartInstallationID)
 	item.AuthorEmail = nullableStringPtr(authorEmail)
 	item.AuthorFullName = nullableStringPtr(authorFullName)
 	return &item, nil
@@ -725,6 +1091,16 @@ func nullableStringPtr(v sql.NullString) *string {
 		return nil
 	}
 	return &v.String
+}
+
+func resolveInt64Param(value *int64, fallback sql.NullInt64) int64 {
+	if value != nil {
+		return *value
+	}
+	if fallback.Valid {
+		return fallback.Int64
+	}
+	return 0
 }
 
 func nullableTextParam(value string) any {
@@ -779,6 +1155,12 @@ func mapPartRequestError(err error) error {
 	case strings.Contains(msg, "part_requests_status_id_fkey"):
 		return ErrPartRequestStatusNotFound
 	case strings.Contains(msg, "part_requests_author_user_id_fkey"):
+		return ErrPartRequestUserNotFound
+	case strings.Contains(msg, "part_requests_vehicle_id_fkey"):
+		return ErrVehiclePartInstallationVehicleNotFound
+	case strings.Contains(msg, "part_requests_mechanic_shift_id_fkey"):
+		return ErrVehiclePartInstallationMechanicShiftNotFound
+	case strings.Contains(msg, "part_requests_completed_by_user_id_fkey"):
 		return ErrPartRequestUserNotFound
 	case strings.Contains(msg, "part_request_history_status_id_fkey"):
 		return ErrPartRequestStatusNotFound

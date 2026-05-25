@@ -13,10 +13,13 @@ import (
 )
 
 type jwtClaims struct {
-	UserID int64  `json:"uid"`
-	Email  string `json:"email"`
-	RoleID int64  `json:"role_id"`
-	IIN    string `json:"iin"`
+	UserID      int64  `json:"uid"`
+	AccountType string `json:"account_type"`
+	DriverID    int64  `json:"driver_id,omitempty"`
+	Email       string `json:"email"`
+	RoleID      int64  `json:"role_id"`
+	RoleName    string `json:"role_name"`
+	IIN         string `json:"iin"`
 	jwt.RegisteredClaims
 }
 
@@ -74,6 +77,11 @@ func AuthJWT(cfg *config.Config) gin.HandlerFunc {
 		c.Set(ContextRoleIDKey, claims.RoleID)
 		c.Set(ContextEmailKey, claims.Email)
 		c.Set(ContextIINKey, claims.IIN)
+		if strings.TrimSpace(claims.AccountType) == "" {
+			claims.AccountType = "user"
+		}
+		c.Set(ContextAccountTypeKey, claims.AccountType)
+		c.Set(ContextDriverIDKey, claims.DriverID)
 
 		c.Next()
 	}

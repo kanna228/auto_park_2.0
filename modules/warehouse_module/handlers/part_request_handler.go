@@ -405,6 +405,58 @@ func (h *PartRequestHandler) UpdatePartRequestStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
+// UpdatePartRequestRepairStatus godoc
+// @Summary      Complete repair for approved part request
+// @Description  Marks the repair as completed and creates vehicle_part_installations on backend without a second warehouse stock write-off. Stock is already issued when the part request is approved.
+// @Tags         Warehouse Part Requests
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        id path int true "Part request ID"
+// @Param        payload body dto.PartRequestRepairStatusUpdateRequest true "Repair status update payload"
+// @Success      200 {object} PartRequestStatusUpdateResponseWrap
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      403 {object} ErrorResponse
+// @Failure      404 {object} ErrorResponse
+// @Failure      409 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /api/warehouse/part-requests/{id}/repair-status [patch]
+func (h *PartRequestHandler) UpdatePartRequestRepairStatus(c *gin.Context) {
+	id, ok := parseID(c)
+	if !ok {
+		return
+	}
+
+	changedByUserID, ok := getUserIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	roleID, ok := getRoleIDFromContext(c)
+	if !ok {
+		return
+	}
+
+	var req dto.PartRequestRepairStatusUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		writeBindError(c, err)
+		return
+	}
+
+	updated, err := h.svc.UpdateRepairStatusByID(c.Request.Context(), id, changedByUserID, roleID, req)
+	if err != nil {
+		writePartRequestError(c, err)
+		return
+	}
+	if !updated {
+		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "part request not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
+}
+
 // DeletePartRequest godoc
 // @Summary      Delete part request
 // @Description  Soft-deletes a part request and keeps immutable history. Deletion is blocked after request status becomes approved or rejected.
@@ -537,6 +589,20 @@ func writePartRequestError(c *gin.Context, err error) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "user not found"})
 	case errors.Is(err, repository.ErrPartRequestLocked):
 		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "part request cannot be changed after approval or rejection"})
+	case errors.Is(err, repository.ErrPartRequestInsufficientStock):
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "not enough part quantity in stock"})
+	case errors.Is(err, repository.ErrPartRequestRepairContextRequired):
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle_id, mechanic_shift_id and planned_replacement_at are required to complete repair"})
+	case errors.Is(err, repository.ErrPartRequestRepairCompletionForbidden):
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "part request must be approved before repair can be completed"})
+	case errors.Is(err, repository.ErrVehiclePartInstallationVehicleNotFound):
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle not found"})
+	case errors.Is(err, repository.ErrVehiclePartInstallationMechanicShiftNotFound):
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "mechanic shift not found"})
+	case errors.Is(err, repository.ErrVehiclePartInstallationUserNotFound):
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "installer user not found"})
+	case errors.Is(err, repository.ErrVehiclePartInstallationActiveDuplicate):
+		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "non-consumable part is already active on this vehicle"})
 	case errors.Is(err, service.ErrPartRequestRejectionCommentRequired):
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "rejection_comment is required when status is rejected"})
 	case errors.Is(err, service.ErrPartRequestRejectForbidden):
@@ -545,6 +611,8 @@ func writePartRequestError(c *gin.Context, err error) {
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "only warehouse manager can approve or reject part request"})
 	case errors.Is(err, service.ErrPartRequestViewForbidden):
 		c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "part request list is not available for this role"})
+	case errors.Is(err, service.ErrPartRequestRepairStatusUnsupported):
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "only completed repair status is supported"})
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 	}

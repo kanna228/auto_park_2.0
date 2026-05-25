@@ -26,7 +26,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	usersReadSvc := service.NewUsersReadService(userRepo)
 	updSvc := service.NewUsersUpdateService(userRepo)
 	delSvc := service.NewUsersDeleteService(userRepo)
-	driversSvc := service.NewDriversService(driverRepo, driverPhotoStorage)
+	driversSvc := service.NewDriversService(driverRepo, driverPhotoStorage, mailer)
 	mechanicShiftSvc := service.NewMechanicShiftService(mechanicShiftRepo)
 	driverShiftSvc := service.NewDriverShiftService(driverShiftRepo)
 

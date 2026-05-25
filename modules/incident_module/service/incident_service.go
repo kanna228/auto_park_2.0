@@ -7,8 +7,11 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
+
+	notificationservice "auto_park/modules/notification_module/service"
 )
 
 type IncidentService interface {
@@ -21,11 +24,16 @@ type IncidentService interface {
 }
 
 type incidentService struct {
-	repo repository.IncidentRepository
+	repo      repository.IncidentRepository
+	notifySvc notificationservice.NotificationService
 }
 
-func NewIncidentService(repo repository.IncidentRepository) IncidentService {
-	return &incidentService{repo: repo}
+func NewIncidentService(repo repository.IncidentRepository, notifySvc ...notificationservice.NotificationService) IncidentService {
+	var ns notificationservice.NotificationService
+	if len(notifySvc) > 0 {
+		ns = notifySvc[0]
+	}
+	return &incidentService{repo: repo, notifySvc: ns}
 }
 
 func parseIncidentDate(val string) (time.Time, error) {
@@ -186,7 +194,34 @@ func (s *incidentService) Create(ctx context.Context, req dto.IncidentCreateRequ
 		return nil, err
 	}
 
+	s.notifyIncidentCreated(ctx, item)
+
 	return &dto.IncidentCreateResponse{ID: item.ID}, nil
+}
+
+func (s *incidentService) notifyIncidentCreated(ctx context.Context, item *models.Incident) {
+	if s.notifySvc == nil || item == nil || item.MechanicID <= 0 {
+		return
+	}
+
+	title := "Новый инцидент по машине"
+	message := fmt.Sprintf("%s %s: машина %s, место: %s. Осмотрите машину и создайте заявку на ремонт/обслуживание деталей", item.IncidentTypeName, item.IncidentDate.Format("2006-01-02"), item.VehicleStateNumber, item.Location)
+	contextData := map[string]any{
+		"incident_id":          item.ID,
+		"incident_type_id":     item.IncidentTypeID,
+		"incident_type_name":   item.IncidentTypeName,
+		"vehicle_id":           item.VehicleID,
+		"vehicle_state_number": item.VehicleStateNumber,
+		"driver_id":            item.DriverID,
+		"mechanic_shift_id":    item.MechanicShiftID,
+		"date":                 item.IncidentDate.Format("2006-01-02"),
+		"time":                 item.IncidentTime.Format("15:04:05"),
+		"location":             item.Location,
+	}
+
+	if _, err := s.notifySvc.CreateForUser(ctx, item.MechanicID, notificationservice.NotificationTypeIncidentCreated, title, message, contextData); err != nil {
+		log.Printf("[notifications] create mechanic incident notification failed: %v", err)
+	}
 }
 
 func (s *incidentService) GetByID(ctx context.Context, id int64) (*dto.IncidentResponse, error) {

@@ -73,10 +73,11 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	user_module.RegisterRoutes(r, cfg, db)
 	vehicle_module.RegisterRoutes(r, cfg, db)
 	tripsheet_module.RegisterRoutes(r, cfg, db)
-	incident_module.RegisterRoutes(r, cfg, db)
+
 	notificationHub := notificationws.NewHub()
 	notificationRepo := notificationrepository.NewNotificationRepository(db)
 	notificationSvc := notificationservice.NewNotificationService(notificationRepo, notificationHub)
+	incident_module.RegisterRoutes(r, cfg, db, notificationSvc)
 	notification_module.RegisterRoutes(r, cfg, notificationSvc, notificationHub)
 
 	replacementReminderJob := notificationjobs.NewVehiclePartReplacementReminderJob(db, notificationSvc)

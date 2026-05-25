@@ -15,7 +15,7 @@ import (
 
 type AuthRepo interface {
 	GetAuthByEmail(ctx context.Context, email string) (*models.UserAuth, error)
-	UpdateSession(ctx context.Context, userID int64, token string, when time.Time) error
+	UpdateSession(ctx context.Context, accountType string, accountID int64, token string, when time.Time) error
 }
 
 type AuthService struct {
@@ -35,20 +35,22 @@ func NewAuthService(cfg *config.Config, repo AuthRepo) *AuthService {
 func (s *AuthService) TokenTTL() time.Duration { return s.tokenTTL }
 
 type jwtClaims struct {
-	UserID int64  `json:"uid"`
-	Email  string `json:"email"`
-	RoleID int64  `json:"role_id"`
-	IIN    string `json:"iin"`
+	UserID      int64  `json:"uid"`
+	AccountType string `json:"account_type"`
+	DriverID    int64  `json:"driver_id,omitempty"`
+	Email       string `json:"email"`
+	RoleID      int64  `json:"role_id"`
+	RoleName    string `json:"role_name"`
+	IIN         string `json:"iin"`
 	jwt.RegisteredClaims
 }
 
 var (
 	ErrInvalidEmail    = errors.New("invalid credentials")
 	ErrInvalidPassword = errors.New("invalid credentials")
-	ErrInvalidIIN      = errors.New("invalid credentials")
 )
 
-func (s *AuthService) Login(ctx context.Context, email, password, iin string) (*models.AuthResponse, error) {
+func (s *AuthService) Login(ctx context.Context, email, password string) (*models.AuthResponse, error) {
 	ua, err := s.repo.GetAuthByEmail(ctx, email)
 	if err != nil {
 		return nil, ErrInvalidEmail
@@ -56,22 +58,30 @@ func (s *AuthService) Login(ctx context.Context, email, password, iin string) (*
 	if err := bcrypt.CompareHashAndPassword([]byte(ua.PassHash), []byte(password)); err != nil {
 		return nil, ErrInvalidPassword
 	}
-	if ua.IIN != iin {
-		return nil, ErrInvalidIIN
-	}
 
 	now := time.Now()
 	expires := now.Add(s.tokenTTL)
+	accountType := ua.AccountType
+	if accountType == "" {
+		accountType = "user"
+	}
+	var driverID int64
+	if ua.DriverID != nil {
+		driverID = *ua.DriverID
+	}
 
 	claims := jwtClaims{
-		UserID: ua.ID,
-		Email:  ua.Email,
-		RoleID: ua.RoleID,
-		IIN:    ua.IIN,
+		UserID:      ua.ID,
+		AccountType: accountType,
+		DriverID:    driverID,
+		Email:       ua.Email,
+		RoleID:      ua.RoleID,
+		RoleName:    ua.RoleName,
+		IIN:         ua.IIN,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(expires),
-			Subject:   strconv.FormatInt(ua.ID, 10),
+			Subject:   accountType + ":" + strconv.FormatInt(ua.ID, 10),
 		},
 	}
 
@@ -81,16 +91,19 @@ func (s *AuthService) Login(ctx context.Context, email, password, iin string) (*
 		return nil, err
 	}
 
-	if err := s.repo.UpdateSession(ctx, ua.ID, jwtString, now); err != nil {
+	if err := s.repo.UpdateSession(ctx, accountType, ua.ID, jwtString, now); err != nil {
 		return nil, err
 	}
 
 	return &models.AuthResponse{
-		Token:     jwtString,
-		UserID:    ua.ID,
-		Email:     ua.Email,
-		RoleID:    ua.RoleID,
-		LastSeen:  now.UTC(),
-		ExpiresAt: expires.Unix(),
+		Token:       jwtString,
+		UserID:      ua.ID,
+		AccountType: accountType,
+		DriverID:    ua.DriverID,
+		Email:       ua.Email,
+		RoleID:      ua.RoleID,
+		RoleName:    ua.RoleName,
+		LastSeen:    now.UTC(),
+		ExpiresAt:   expires.Unix(),
 	}, nil
 }

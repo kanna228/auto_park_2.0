@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"auto_park/middleware"
 	"auto_park/modules/vehicle_module/dto"
 	"net/http"
 	"path"
@@ -65,6 +66,16 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 		})
 		return
 	}
+	if middleware.CurrentAccountType(c) == "driver" {
+		driverID := middleware.CurrentDriverID(c)
+		if driverID <= 0 || !vehicleAssignedToDriver(v.DriversIDs, driverID) {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"error":   "insufficient permissions",
+			})
+			return
+		}
+	}
 
 	v.PhotoURL = vehiclePhotoURL(c, v.PhotoPath)
 
@@ -119,7 +130,6 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 		SortBy:      c.Query("sort_by"),
 		Order:       c.Query("order"),
 	}
-
 	if s := strings.TrimSpace(c.Query("status_id")); s != "" {
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
 			q.StatusID = &n
@@ -177,6 +187,15 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 		q.Offset = 0
 	}
 
+	if middleware.CurrentAccountType(c) == "driver" {
+		driverID := middleware.CurrentDriverID(c)
+		if driverID <= 0 {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "driver account is not linked"})
+			return
+		}
+		q.DriverID = &driverID
+	}
+
 	resp, err := h.svc.List(c.Request.Context(), q)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -202,4 +221,13 @@ func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 		"success": true,
 		"data":    resp,
 	})
+}
+
+func vehicleAssignedToDriver(driverIDs []int64, driverID int64) bool {
+	for _, id := range driverIDs {
+		if id == driverID {
+			return true
+		}
+	}
+	return false
 }

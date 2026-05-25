@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"auto_park/middleware"
 	"auto_park/modules/tripsheet_module/dto"
 	"database/sql"
 	"net/http"
@@ -46,6 +47,14 @@ func (h *TripsheetHandler) GetAll(c *gin.Context) {
 			"error":   err.Error(),
 		})
 		return
+	}
+	if middleware.CurrentAccountType(c) == "driver" {
+		driverID := middleware.CurrentDriverID(c)
+		if driverID <= 0 {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "driver account is not linked"})
+			return
+		}
+		filter.DriverID = &driverID
 	}
 
 	data, total, err := h.svc.GetAll(c.Request.Context(), filter)
@@ -112,6 +121,16 @@ func (h *TripsheetHandler) GetByID(c *gin.Context) {
 			"error":   err.Error(),
 		})
 		return
+	}
+	if middleware.CurrentAccountType(c) == "driver" {
+		driverID := middleware.CurrentDriverID(c)
+		if driverID <= 0 || data.DriverID == nil || *data.DriverID != driverID {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"error":   "insufficient permissions",
+			})
+			return
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
