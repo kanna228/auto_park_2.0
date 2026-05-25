@@ -16,6 +16,8 @@ const (
 	NotificationTypePartRequestCreated  = "part_request_created"
 	NotificationTypePartRequestApproved = "part_request_approved"
 	NotificationTypePartRequestRejected = "part_request_rejected"
+	NotificationTypePartRequestShortage = "part_request_stock_shortage"
+	NotificationTypeIncidentCreated     = "incident_created"
 
 	NotificationTypeVehiclePartReplacement7Days = "vehicle_part_replacement_7_days"
 	NotificationTypeVehiclePartReplacementToday = "vehicle_part_replacement_today"

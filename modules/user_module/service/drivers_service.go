@@ -10,17 +10,21 @@ import (
 	"auto_park/modules/user_module/dto"
 	"auto_park/modules/user_module/models"
 	"auto_park/modules/user_module/repository"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type DriversService struct {
 	repo    *repository.DriverRepo
 	storage *DriverPhotoStorage
+	mailer  Mailer
 }
 
-func NewDriversService(repo *repository.DriverRepo, storage *DriverPhotoStorage) *DriversService {
+func NewDriversService(repo *repository.DriverRepo, storage *DriverPhotoStorage, mailer Mailer) *DriversService {
 	return &DriversService{
 		repo:    repo,
 		storage: storage,
+		mailer:  mailer,
 	}
 }
 
@@ -32,6 +36,21 @@ func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest
 	if err := validateExperienceYears(req.ExperienceYears); err != nil {
 		return nil, err
 	}
+	mail := strings.TrimSpace(req.Mail)
+	if mail == "" {
+		return nil, fmt.Errorf("mail is required for driver account")
+	}
+	if err := validateEmail(mail); err != nil {
+		return nil, err
+	}
+	emailExists, err := s.repo.AuthEmailInUse(ctx, mail, nil)
+	if err != nil {
+		return nil, err
+	}
+	if emailExists {
+		return nil, fmt.Errorf("email already exists")
+	}
+
 	statusID := req.StatusID
 	statusCode := strings.TrimSpace(req.Status)
 	if statusCode != "" {
@@ -49,21 +68,46 @@ func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest
 	if err != nil {
 		return nil, err
 	}
+	roleID, err := s.repo.GetDriverRoleID(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("driver role not found")
+	}
+	rawPass, err := generatePassword(14)
+	if err != nil {
+		return nil, fmt.Errorf("cannot generate password")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(rawPass), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("cannot hash password")
+	}
 
-	return s.repo.Create(ctx, &models.Driver{
+	driver, err := s.repo.Create(ctx, &models.Driver{
 		IIN:             req.IIN,
 		Name:            req.Name,
 		Surname:         req.Surname,
 		Middlename:      req.Middlename,
 		Phone:           req.Phone,
-		Mail:            req.Mail,
+		Mail:            mail,
 		BirthDate:       birthDate,
 		LicenseNumber:   strings.TrimSpace(req.LicenseNumber),
 		LicenseCategory: strings.TrimSpace(req.LicenseCategory),
 		ExperienceYears: req.ExperienceYears,
 		StatusID:        statusID,
+		RoleID:          roleID,
+		PasswordHash:    string(hash),
 		Status:          *status,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	if s.mailer != nil {
+		to := driver.Mail
+		pass := rawPass
+		go func() { _ = s.mailer.SendWelcome(context.Background(), to, pass, "driver") }()
+	}
+
+	return driver, nil
 }
 
 func (s *DriversService) GetByID(ctx context.Context, id int64) (*models.Driver, error) {
@@ -129,7 +173,20 @@ func (s *DriversService) Update(ctx context.Context, id int64, req dto.UpdateDri
 		upd["phone"] = nullText(strings.TrimSpace(*req.Phone))
 	}
 	if req.Mail != nil {
-		upd["mail"] = nullText(strings.TrimSpace(*req.Mail))
+		mail := strings.TrimSpace(*req.Mail)
+		if mail != "" {
+			if err := validateEmail(mail); err != nil {
+				return nil, err
+			}
+			exists, err := s.repo.AuthEmailInUse(ctx, mail, &id)
+			if err != nil {
+				return nil, err
+			}
+			if exists {
+				return nil, fmt.Errorf("email already exists")
+			}
+		}
+		upd["mail"] = nullText(mail)
 	}
 	if req.BirthDate != nil {
 		birthDate, err := parseOptionalDriverDate(*req.BirthDate, "birth_date")

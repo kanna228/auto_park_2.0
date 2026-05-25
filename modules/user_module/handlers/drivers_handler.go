@@ -42,6 +42,7 @@ type DriverDTO struct {
 	LicenseCategory  string                     `json:"license_category,omitempty" example:"B, C"`
 	ExperienceYears  *int                       `json:"experience_years,omitempty" example:"5"`
 	StatusID         int64                      `json:"status_id" example:"1"`
+	RoleID           int64                      `json:"role_id" example:"6"`
 	Status           string                     `json:"status" example:"available"`
 	StatusText       string                     `json:"status_text,omitempty" example:"Доступен"`
 	StatusCode       string                     `json:"status_code" example:"available"`
@@ -596,6 +597,7 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		LicenseCategory:  drv.LicenseCategory,
 		ExperienceYears:  drv.ExperienceYears,
 		StatusID:         drv.StatusID,
+		RoleID:           drv.RoleID,
 		Status:           drv.Status.Code,
 		StatusText:       statusText,
 		StatusCode:       drv.Status.Code,

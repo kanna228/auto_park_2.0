@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"auto_park/middleware"
 	"auto_park/modules/tripsheet_module/dto"
 	"auto_park/modules/tripsheet_module/service"
 
@@ -238,6 +239,14 @@ func (h *TripsheetTripHandler) GetAll(c *gin.Context) {
 		})
 		return
 	}
+	if middleware.CurrentAccountType(c) == "driver" {
+		driverID := middleware.CurrentDriverID(c)
+		if driverID <= 0 {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "driver account is not linked"})
+			return
+		}
+		filter.DriverID = &driverID
+	}
 
 	items, total, err := h.svc.GetAll(c.Request.Context(), filter)
 	if err != nil {
@@ -303,6 +312,14 @@ func (h *TripsheetTripHandler) GetAllByTripsheetID(c *gin.Context) {
 			"error":   err.Error(),
 		})
 		return
+	}
+	if middleware.CurrentAccountType(c) == "driver" {
+		driverID := middleware.CurrentDriverID(c)
+		if driverID <= 0 {
+			c.JSON(http.StatusForbidden, gin.H{"success": false, "error": "driver account is not linked"})
+			return
+		}
+		filter.DriverID = &driverID
 	}
 
 	items, total, err := h.svc.GetAllByTripsheetID(c.Request.Context(), tripsheetID, filter)

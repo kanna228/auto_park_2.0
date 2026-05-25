@@ -58,12 +58,63 @@ type DriverRepo struct {
 	schema string
 }
 
+const driverRoleName = "driver"
+
 func NewDriverRepo(db *sql.DB, schema string) *DriverRepo {
 	return &DriverRepo{db: db, schema: schema}
 }
 
 func (r *DriverRepo) table() string {
 	return "drivers"
+}
+
+func (r *DriverRepo) GetDriverRoleID(ctx context.Context) (int64, error) {
+	const q = `SELECT id FROM roles WHERE name = $1 LIMIT 1;`
+	var id int64
+	if err := r.db.QueryRowContext(ctx, q, driverRoleName).Scan(&id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ErrNotFound
+		}
+		return 0, fmt.Errorf("get driver role id: %w", err)
+	}
+	return id, nil
+}
+
+func (r *DriverRepo) AuthEmailInUse(ctx context.Context, email string, excludeDriverID *int64) (bool, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return false, nil
+	}
+
+	const userQ = `SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1));`
+	var userExists bool
+	if err := r.db.QueryRowContext(ctx, userQ, email).Scan(&userExists); err != nil {
+		return false, fmt.Errorf("check user email: %w", err)
+	}
+	if userExists {
+		return true, nil
+	}
+
+	args := []any{email}
+	driverQ := `
+		SELECT EXISTS(
+			SELECT 1
+			FROM drivers
+			WHERE mail IS NOT NULL
+			  AND BTRIM(mail) <> ''
+			  AND LOWER(mail) = LOWER($1)
+	`
+	if excludeDriverID != nil && *excludeDriverID > 0 {
+		driverQ += ` AND id <> $2`
+		args = append(args, *excludeDriverID)
+	}
+	driverQ += `);`
+
+	var driverExists bool
+	if err := r.db.QueryRowContext(ctx, driverQ, args...).Scan(&driverExists); err != nil {
+		return false, fmt.Errorf("check driver email: %w", err)
+	}
+	return driverExists, nil
 }
 
 func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driver, error) {
@@ -95,9 +146,11 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 			license_category,
 			experience_years,
 			status_id,
-			status
+			status,
+			role_id,
+			password
 		)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
 		RETURNING id
 	`, r.table())
 
@@ -116,6 +169,8 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 		nullIntValue(d.ExperienceYears),
 		statusID,
 		statusCode,
+		d.RoleID,
+		nullIfEmpty(d.PasswordHash),
 	).Scan(&id); err != nil {
 		return nil, err
 	}
@@ -139,6 +194,7 @@ func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, err
 			d.license_category,
 			d.experience_years,
 			d.status_id,
+			COALESCE(d.role_id, 0) AS role_id,
 			ds.code AS status_code,
 			ds.name AS status_name,
 			COALESCE(ds.description, '') AS status_description,
@@ -252,6 +308,7 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 			d.license_category,
 			d.experience_years,
 			d.status_id,
+			COALESCE(d.role_id, 0) AS role_id,
 			ds.code AS status_code,
 			ds.name AS status_name,
 			COALESCE(ds.description, '') AS status_description,
@@ -312,6 +369,8 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		"experience_years": true,
 		"status_id":        true,
 		"status":           true,
+		"role_id":          true,
+		"password":         true,
 	}
 
 	setParts := make([]string, 0, len(upd)+1)
@@ -1047,6 +1106,7 @@ func scanDriver(scanner driverScanner) (*models.Driver, error) {
 		&licenseCategory,
 		&experienceYears,
 		&out.StatusID,
+		&out.RoleID,
 		&out.Status.Code,
 		&out.Status.Name,
 		&out.Status.Description,

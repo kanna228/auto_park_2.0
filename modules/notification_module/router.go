@@ -15,6 +15,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, svc notificationservice.N
 
 	api := r.Group("/api/notifications")
 	api.Use(middleware.AuthJWT(cfg))
+	api.Use(middleware.RequireRoles(1, 2, 3, 4, 5))
 	{
 		api.GET("/ws", h.WebSocket)
 		api.GET("", h.List)

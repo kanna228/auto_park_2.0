@@ -18,6 +18,7 @@ const defaultPartRequestStatusID int64 = 1
 const editablePartRequestStatusCode = "new"
 const rejectedPartRequestStatusCode = "rejected"
 const approvedPartRequestStatusCode = "approved"
+const completedPartRequestRepairStatus = "completed"
 const warehouseManagerRoleID int64 = 5
 const AdminRoleID int64 = 1
 const dutyMechanicRoleID int64 = 4
@@ -26,6 +27,7 @@ var ErrPartRequestRejectionCommentRequired = errors.New("rejection comment is re
 var ErrPartRequestRejectForbidden = errors.New("only warehouse manager can reject part request")
 var ErrPartRequestStatusChangeForbidden = errors.New("only warehouse manager can approve or reject part request")
 var ErrPartRequestViewForbidden = errors.New("part request list is not available for this role")
+var ErrPartRequestRepairStatusUnsupported = errors.New("only completed repair status is supported")
 
 type PartRequestService interface {
 	Create(ctx context.Context, authorUserID int64, req dto.PartRequestCreateRequest) (int64, error)
@@ -33,6 +35,7 @@ type PartRequestService interface {
 	List(ctx context.Context, currentUserID int64, roleID int64, q dto.PartRequestListQuery) (*dto.PartRequestListResponse, error)
 	UpdateByID(ctx context.Context, id int64, changedByUserID int64, roleID int64, req dto.PartRequestUpdateRequest) (bool, error)
 	UpdateStatusByID(ctx context.Context, id int64, changedByUserID int64, roleID int64, req dto.PartRequestStatusUpdateRequest) (bool, error)
+	UpdateRepairStatusByID(ctx context.Context, id int64, changedByUserID int64, roleID int64, req dto.PartRequestRepairStatusUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64, changedByUserID int64) (bool, error)
 	ListStatuses(ctx context.Context, limit int, offset int) (*dto.PartRequestStatusListResponse, error)
 	ListHistoryByRequestID(ctx context.Context, id int64, limit int, offset int) (*dto.PartRequestHistoryListResponse, error)
@@ -67,19 +70,34 @@ func (s *partRequestService) Create(ctx context.Context, authorUserID int64, req
 		return 0, err
 	}
 
+	if err := validatePositiveOptionalID(req.VehicleID, "vehicle_id"); err != nil {
+		return 0, err
+	}
+	if err := validatePositiveOptionalID(req.MechanicShiftID, "mechanic_shift_id"); err != nil {
+		return 0, err
+	}
+	plannedReplacementAt, err := normalizePartRequestOptionalDate(req.PlannedReplacementAt, "planned_replacement_at")
+	if err != nil {
+		return 0, err
+	}
+
 	id, err := s.repo.Create(ctx, repository.CreatePartRequestParams{
-		PartID:          req.PartID,
-		Quantity:        req.Quantity,
-		MechanicComment: comment,
-		StatusID:        defaultPartRequestStatusID,
-		AuthorUserID:    authorUserID,
-		HistoryComment:  "Заявка создана",
+		PartID:               req.PartID,
+		Quantity:             req.Quantity,
+		MechanicComment:      comment,
+		VehicleID:            req.VehicleID,
+		MechanicShiftID:      req.MechanicShiftID,
+		PlannedReplacementAt: plannedReplacementAt,
+		StatusID:             defaultPartRequestStatusID,
+		AuthorUserID:         authorUserID,
+		HistoryComment:       "Заявка создана",
 	})
 	if err != nil {
 		return 0, err
 	}
 
 	s.notifyPartRequestCreated(ctx, id)
+	s.notifyPartRequestStockShortage(ctx, id)
 	return id, nil
 }
 
@@ -211,6 +229,16 @@ func (s *partRequestService) UpdateByID(ctx context.Context, id int64, changedBy
 	if err != nil {
 		return false, err
 	}
+	if err := validatePositiveOptionalID(req.VehicleID, "vehicle_id"); err != nil {
+		return false, err
+	}
+	if err := validatePositiveOptionalID(req.MechanicShiftID, "mechanic_shift_id"); err != nil {
+		return false, err
+	}
+	plannedReplacementAt, err := normalizePartRequestOptionalDate(req.PlannedReplacementAt, "planned_replacement_at")
+	if err != nil {
+		return false, err
+	}
 
 	status, err := s.getStatusByID(ctx, req.StatusID)
 	if err != nil {
@@ -240,15 +268,25 @@ func (s *partRequestService) UpdateByID(ctx context.Context, id int64, changedBy
 	}
 
 	updated, err := s.repo.UpdateByID(ctx, id, repository.UpdatePartRequestParams{
-		PartID:           req.PartID,
-		Quantity:         req.Quantity,
-		MechanicComment:  comment,
-		StatusID:         req.StatusID,
-		RejectionComment: rejectionComment,
-		ChangedByUserID:  changedByUserID,
-		HistoryComment:   historyComment,
+		PartID:               req.PartID,
+		Quantity:             req.Quantity,
+		MechanicComment:      comment,
+		VehicleID:            req.VehicleID,
+		MechanicShiftID:      req.MechanicShiftID,
+		PlannedReplacementAt: plannedReplacementAt,
+		StatusID:             req.StatusID,
+		TargetStatusCode:     status.Code,
+		RejectionComment:     rejectionComment,
+		ChangedByUserID:      changedByUserID,
+		HistoryComment:       historyComment,
 	})
-	if err != nil || !updated {
+	if err != nil {
+		if errors.Is(err, repository.ErrPartRequestInsufficientStock) {
+			s.notifyPartRequestStockShortage(ctx, id)
+		}
+		return false, err
+	}
+	if !updated {
 		return updated, err
 	}
 
@@ -304,11 +342,18 @@ func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, cha
 
 	updated, err := s.repo.UpdateStatusByID(ctx, id, repository.UpdatePartRequestStatusParams{
 		StatusID:         req.StatusID,
+		TargetStatusCode: status.Code,
 		RejectionComment: rejectionComment,
 		ChangedByUserID:  changedByUserID,
 		HistoryComment:   historyComment,
 	})
-	if err != nil || !updated {
+	if err != nil {
+		if errors.Is(err, repository.ErrPartRequestInsufficientStock) {
+			s.notifyPartRequestStockShortage(ctx, id)
+		}
+		return false, err
+	}
+	if !updated {
 		return updated, err
 	}
 
@@ -317,6 +362,63 @@ func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, cha
 	}
 
 	return true, nil
+}
+
+func (s *partRequestService) UpdateRepairStatusByID(ctx context.Context, id int64, changedByUserID int64, roleID int64, req dto.PartRequestRepairStatusUpdateRequest) (bool, error) {
+	if id <= 0 {
+		return false, fmt.Errorf("invalid id")
+	}
+	if changedByUserID <= 0 {
+		return false, fmt.Errorf("invalid changed_by_user_id")
+	}
+	if roleID != dutyMechanicRoleID && roleID != AdminRoleID {
+		return false, ErrPartRequestStatusChangeForbidden
+	}
+	current, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	if current == nil {
+		return false, nil
+	}
+	if roleID == dutyMechanicRoleID && current.AuthorUserID != changedByUserID {
+		return false, ErrPartRequestViewForbidden
+	}
+	if strings.ToLower(strings.TrimSpace(req.Status)) != completedPartRequestRepairStatus {
+		return false, ErrPartRequestRepairStatusUnsupported
+	}
+	if err := validatePositiveOptionalID(req.VehicleID, "vehicle_id"); err != nil {
+		return false, err
+	}
+	if err := validatePositiveOptionalID(req.MechanicShiftID, "mechanic_shift_id"); err != nil {
+		return false, err
+	}
+
+	installedAt, err := normalizePartRequestRepairDate(req.InstalledAt, "installed_at", true)
+	if err != nil {
+		return false, err
+	}
+	plannedReplacementAt, err := normalizePartRequestOptionalDate(req.PlannedReplacementAt, "planned_replacement_at")
+	if err != nil {
+		return false, err
+	}
+	if plannedReplacementAt != "" && plannedReplacementAt < installedAt {
+		return false, fmt.Errorf("planned_replacement_at cannot be earlier than installed_at")
+	}
+
+	historyComment, err := normalizeHistoryComment(req.Comment, "Repair completed, part installed")
+	if err != nil {
+		return false, err
+	}
+
+	return s.repo.CompleteRepairByID(ctx, id, repository.CompletePartRequestRepairParams{
+		VehicleID:            req.VehicleID,
+		MechanicShiftID:      req.MechanicShiftID,
+		InstalledAt:          installedAt,
+		PlannedReplacementAt: plannedReplacementAt,
+		CompletedByUserID:    changedByUserID,
+		HistoryComment:       historyComment,
+	})
 }
 
 func (s *partRequestService) DeleteByID(ctx context.Context, id int64, changedByUserID int64) (bool, error) {
@@ -567,7 +669,7 @@ func (s *partRequestService) notifyPartRequestStatusChanged(ctx context.Context,
 
 	typeCode := notificationservice.NotificationTypePartRequestApproved
 	title := "Заявка утверждена"
-	message := fmt.Sprintf("Ваша заявка №%d на деталь %s утверждена", item.ID, item.PartName)
+	message := fmt.Sprintf("Ваша заявка №%d на деталь %s утверждена: детали списаны со склада, можно приступать к ремонту/обслуживанию", item.ID, item.PartName)
 	if statusCode == rejectedPartRequestStatusCode {
 		typeCode = notificationservice.NotificationTypePartRequestRejected
 		title = "Заявка отклонена"
@@ -588,6 +690,46 @@ func (s *partRequestService) notifyPartRequestStatusChanged(ctx context.Context,
 
 	if _, err := s.notifySvc.CreateForUser(ctx, item.AuthorUserID, typeCode, title, message, contextData); err != nil {
 		log.Printf("[notifications] create mechanic notification failed: %v", err)
+	}
+}
+
+func (s *partRequestService) notifyPartRequestStockShortage(ctx context.Context, partRequestID int64) {
+	if s.notifySvc == nil || partRequestID <= 0 {
+		return
+	}
+
+	item, err := s.repo.GetByID(ctx, partRequestID)
+	if err != nil || item == nil {
+		if err != nil {
+			log.Printf("[notifications] get shortage part request failed: %v", err)
+		}
+		return
+	}
+	if item.PartQuantity >= item.Quantity {
+		return
+	}
+
+	title := "Нехватка деталей"
+	message := fmt.Sprintf("Заявку №%d нельзя утвердить: нужно %d ед. детали %s, на складе %d", item.ID, item.Quantity, item.PartName, item.PartQuantity)
+	contextData := map[string]any{
+		"part_request_id":    item.ID,
+		"part_id":            item.PartID,
+		"part_name":          item.PartName,
+		"requested_quantity": item.Quantity,
+		"available_quantity": item.PartQuantity,
+		"status_code":        item.StatusCode,
+	}
+
+	if _, err := s.notifySvc.CreateForRole(
+		ctx,
+		notificationservice.WarehouseManagerRoleCode,
+		notificationservice.WarehouseManagerFallbackRoleID,
+		notificationservice.NotificationTypePartRequestShortage,
+		title,
+		message,
+		contextData,
+	); err != nil {
+		log.Printf("[notifications] create warehouse shortage notification failed: %v", err)
 	}
 }
 
@@ -637,6 +779,24 @@ func normalizePartRequestOptionalDate(value string, field string) (string, error
 	return trimmed, nil
 }
 
+func normalizePartRequestRepairDate(value string, field string, defaultToday bool) (string, error) {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" && defaultToday {
+		trimmed = time.Now().Format("2006-01-02")
+	}
+	if trimmed == "" {
+		return "", fmt.Errorf("%s is required", field)
+	}
+	return normalizePartRequestOptionalDate(trimmed, field)
+}
+
+func validatePositiveOptionalID(value *int64, field string) error {
+	if value != nil && *value <= 0 {
+		return fmt.Errorf("%s must be greater than 0", field)
+	}
+	return nil
+}
+
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if trimmed := strings.TrimSpace(value); trimmed != "" {
@@ -651,10 +811,11 @@ func mapPartRequestToDTO(item models.PartRequest) dto.PartRequestResponse {
 		ID:     item.ID,
 		PartID: item.PartID,
 		Part: dto.PartRequestPartBriefResponse{
-			ID:            item.PartID,
-			CatalogPartID: item.PartCatalogCode,
-			Name:          item.PartName,
-			Category:      item.PartCategory,
+			ID:                item.PartID,
+			CatalogPartID:     item.PartCatalogCode,
+			Name:              item.PartName,
+			Category:          item.PartCategory,
+			AvailableQuantity: item.PartQuantity,
 		},
 		Quantity:         item.Quantity,
 		MechanicComment:  item.MechanicComment,
@@ -665,12 +826,19 @@ func mapPartRequestToDTO(item models.PartRequest) dto.PartRequestResponse {
 			Code: item.StatusCode,
 			Name: item.StatusName,
 		},
-		AuthorUserID:   item.AuthorUserID,
-		AuthorEmail:    item.AuthorEmail,
-		AuthorFullName: item.AuthorFullName,
-		History:        []dto.PartRequestHistoryResponse{},
-		CreatedAt:      item.CreatedAt,
-		UpdatedAt:      item.UpdatedAt,
+		VehicleID:                 item.VehicleID,
+		MechanicShiftID:           item.MechanicShiftID,
+		PlannedReplacementAt:      item.PlannedReplacementAt,
+		RepairStatus:              item.RepairStatus,
+		CompletedAt:               item.CompletedAt,
+		CompletedByUserID:         item.CompletedByUserID,
+		VehiclePartInstallationID: item.VehiclePartInstallationID,
+		AuthorUserID:              item.AuthorUserID,
+		AuthorEmail:               item.AuthorEmail,
+		AuthorFullName:            item.AuthorFullName,
+		History:                   []dto.PartRequestHistoryResponse{},
+		CreatedAt:                 item.CreatedAt,
+		UpdatedAt:                 item.UpdatedAt,
 	}
 }
 

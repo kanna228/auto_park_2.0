@@ -66,10 +66,13 @@ type CreateUserResponseWrap struct {
 
 // AuthLoginData — что возвращает login (сделаем универсально)
 type AuthLoginData struct {
-	Token  string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
-	UserID int64  `json:"user_id" example:"1"`
-	RoleID int64  `json:"role_id" example:"1"`
-	Email  string `json:"email" example:"admin@example.com"`
+	Token       string `json:"token" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."`
+	UserID      int64  `json:"user_id" example:"1"`
+	AccountType string `json:"account_type" example:"driver"`
+	DriverID    *int64 `json:"driver_id,omitempty" example:"1"`
+	RoleID      int64  `json:"role_id" example:"6"`
+	RoleName    string `json:"role_name" example:"driver"`
+	Email       string `json:"email" example:"driver@example.com"`
 }
 
 // AuthLoginResponse — обёртка

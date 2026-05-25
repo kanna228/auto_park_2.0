@@ -3,24 +3,39 @@ package dto
 import "time"
 
 type PartRequestCreateRequest struct {
-	PartID          int64  `json:"part_id" binding:"gt=0" example:"1"`
-	Quantity        int64  `json:"quantity" binding:"gt=0" example:"5"`
-	MechanicComment string `json:"mechanic_comment" binding:"required" example:"Need new brake pads for scheduled maintenance"`
+	PartID               int64  `json:"part_id" binding:"gt=0" example:"1"`
+	Quantity             int64  `json:"quantity" binding:"gt=0" example:"5"`
+	MechanicComment      string `json:"mechanic_comment" binding:"required" example:"Need new brake pads for scheduled maintenance"`
+	VehicleID            *int64 `json:"vehicle_id,omitempty" example:"12"`
+	MechanicShiftID      *int64 `json:"mechanic_shift_id,omitempty" example:"3"`
+	PlannedReplacementAt string `json:"planned_replacement_at,omitempty" example:"2026-11-25"`
 }
 
 type PartRequestUpdateRequest struct {
-	PartID           int64  `json:"part_id" binding:"gt=0" example:"1"`
-	Quantity         int64  `json:"quantity" binding:"gt=0" example:"7"`
-	MechanicComment  string `json:"mechanic_comment" binding:"required" example:"Updated quantity after inspection"`
-	StatusID         int64  `json:"status_id" binding:"gt=0" example:"1"`
-	RejectionComment string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
-	HistoryComment   string `json:"history_comment,omitempty" example:"Updated request after additional vehicle inspection"`
+	PartID               int64  `json:"part_id" binding:"gt=0" example:"1"`
+	Quantity             int64  `json:"quantity" binding:"gt=0" example:"7"`
+	MechanicComment      string `json:"mechanic_comment" binding:"required" example:"Updated quantity after inspection"`
+	StatusID             int64  `json:"status_id" binding:"gt=0" example:"1"`
+	RejectionComment     string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
+	HistoryComment       string `json:"history_comment,omitempty" example:"Updated request after additional vehicle inspection"`
+	VehicleID            *int64 `json:"vehicle_id,omitempty" example:"12"`
+	MechanicShiftID      *int64 `json:"mechanic_shift_id,omitempty" example:"3"`
+	PlannedReplacementAt string `json:"planned_replacement_at,omitempty" example:"2026-11-25"`
 }
 
 type PartRequestStatusUpdateRequest struct {
 	StatusID         int64  `json:"status_id" binding:"gt=0" example:"3"`
 	Comment          string `json:"comment,omitempty" example:"Approved by warehouse manager"`
 	RejectionComment string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
+}
+
+type PartRequestRepairStatusUpdateRequest struct {
+	Status               string `json:"status" binding:"required" example:"completed"`
+	VehicleID            *int64 `json:"vehicle_id,omitempty" example:"12"`
+	MechanicShiftID      *int64 `json:"mechanic_shift_id,omitempty" example:"3"`
+	InstalledAt          string `json:"installed_at,omitempty" example:"2026-05-25"`
+	PlannedReplacementAt string `json:"planned_replacement_at,omitempty" example:"2026-11-25"`
+	Comment              string `json:"comment,omitempty" example:"Repair completed and part installed"`
 }
 
 type PartRequestListQuery struct {
@@ -63,10 +78,11 @@ type PartRequestStatusListResponse struct {
 }
 
 type PartRequestPartBriefResponse struct {
-	ID            int64  `json:"id" example:"1"`
-	CatalogPartID string `json:"catalog_part_id" example:"BRK-PAD-001"`
-	Name          string `json:"name" example:"Brake Pad Front"`
-	Category      string `json:"category" example:"brake_system"`
+	ID                int64  `json:"id" example:"1"`
+	CatalogPartID     string `json:"catalog_part_id" example:"BRK-PAD-001"`
+	Name              string `json:"name" example:"Brake Pad Front"`
+	Category          string `json:"category" example:"brake_system"`
+	AvailableQuantity int64  `json:"available_quantity" example:"12"`
 }
 
 type PartRequestHistoryResponse struct {
@@ -82,20 +98,27 @@ type PartRequestHistoryResponse struct {
 }
 
 type PartRequestResponse struct {
-	ID               int64                        `json:"id" example:"1"`
-	PartID           int64                        `json:"part_id" example:"1"`
-	Part             PartRequestPartBriefResponse `json:"part"`
-	Quantity         int64                        `json:"quantity" example:"5"`
-	MechanicComment  string                       `json:"mechanic_comment" example:"Need new brake pads for scheduled maintenance"`
-	RejectionComment *string                      `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
-	StatusID         int64                        `json:"status_id" example:"1"`
-	Status           PartRequestStatusResponse    `json:"status"`
-	AuthorUserID     int64                        `json:"author_user_id" example:"10"`
-	AuthorEmail      *string                      `json:"author_email,omitempty" example:"mechanic@example.com"`
-	AuthorFullName   *string                      `json:"author_full_name,omitempty" example:"Ivan Ivanov"`
-	History          []PartRequestHistoryResponse `json:"history"`
-	CreatedAt        time.Time                    `json:"created_at"`
-	UpdatedAt        time.Time                    `json:"updated_at"`
+	ID                        int64                        `json:"id" example:"1"`
+	PartID                    int64                        `json:"part_id" example:"1"`
+	Part                      PartRequestPartBriefResponse `json:"part"`
+	Quantity                  int64                        `json:"quantity" example:"5"`
+	MechanicComment           string                       `json:"mechanic_comment" example:"Need new brake pads for scheduled maintenance"`
+	RejectionComment          *string                      `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
+	VehicleID                 *int64                       `json:"vehicle_id,omitempty" example:"12"`
+	MechanicShiftID           *int64                       `json:"mechanic_shift_id,omitempty" example:"3"`
+	PlannedReplacementAt      *time.Time                   `json:"planned_replacement_at,omitempty"`
+	RepairStatus              string                       `json:"repair_status" example:"in_progress"`
+	CompletedAt               *time.Time                   `json:"completed_at,omitempty"`
+	CompletedByUserID         *int64                       `json:"completed_by_user_id,omitempty" example:"5"`
+	VehiclePartInstallationID *int64                       `json:"vehicle_part_installation_id,omitempty" example:"30"`
+	StatusID                  int64                        `json:"status_id" example:"1"`
+	Status                    PartRequestStatusResponse    `json:"status"`
+	AuthorUserID              int64                        `json:"author_user_id" example:"10"`
+	AuthorEmail               *string                      `json:"author_email,omitempty" example:"mechanic@example.com"`
+	AuthorFullName            *string                      `json:"author_full_name,omitempty" example:"Ivan Ivanov"`
+	History                   []PartRequestHistoryResponse `json:"history"`
+	CreatedAt                 time.Time                    `json:"created_at"`
+	UpdatedAt                 time.Time                    `json:"updated_at"`
 }
 
 type PartRequestListResponse struct {

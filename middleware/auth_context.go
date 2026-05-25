@@ -8,17 +8,21 @@ import (
 )
 
 const (
-	ContextUserIDKey = "user_id"
-	ContextRoleIDKey = "role_id"
-	ContextEmailKey  = "email"
-	ContextIINKey    = "iin"
+	ContextUserIDKey      = "user_id"
+	ContextRoleIDKey      = "role_id"
+	ContextEmailKey       = "email"
+	ContextIINKey         = "iin"
+	ContextAccountTypeKey = "account_type"
+	ContextDriverIDKey    = "driver_id"
 )
 
 type AuthContext struct {
-	UserID int64
-	RoleID int64
-	Email  string
-	IIN    string
+	UserID      int64
+	RoleID      int64
+	Email       string
+	IIN         string
+	AccountType string
+	DriverID    int64
 }
 
 func CurrentUserID(c *gin.Context) (int64, error) {
@@ -41,6 +45,21 @@ func CurrentIIN(c *gin.Context) string {
 	return iin
 }
 
+func CurrentAccountType(c *gin.Context) string {
+	value, _ := c.Get(ContextAccountTypeKey)
+	accountType, _ := value.(string)
+	if accountType == "" {
+		return "user"
+	}
+	return accountType
+}
+
+func CurrentDriverID(c *gin.Context) int64 {
+	value, _ := c.Get(ContextDriverIDKey)
+	driverID, _ := value.(int64)
+	return driverID
+}
+
 func CurrentAuth(c *gin.Context) (AuthContext, error) {
 	userID, err := CurrentUserID(c)
 	if err != nil {
@@ -53,10 +72,12 @@ func CurrentAuth(c *gin.Context) (AuthContext, error) {
 	}
 
 	return AuthContext{
-		UserID: userID,
-		RoleID: roleID,
-		Email:  CurrentEmail(c),
-		IIN:    CurrentIIN(c),
+		UserID:      userID,
+		RoleID:      roleID,
+		Email:       CurrentEmail(c),
+		IIN:         CurrentIIN(c),
+		AccountType: CurrentAccountType(c),
+		DriverID:    CurrentDriverID(c),
 	}, nil
 }
 

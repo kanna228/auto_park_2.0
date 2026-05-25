@@ -50,7 +50,6 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	protected := api.Group("")
 	protected.Use(middleware.AuthJWT(cfg))
 	{
-		protected.POST("", vehicleHandler.CreateVehicle)
 		protected.GET("", vehicleHandler.ListVehicles)
 
 		// Static routes must stay before /:id routes.
@@ -59,48 +58,61 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		protected.GET("/status-history/:id", vehicleHandler.GetVehicleStatusHistoryByID)
 
 		protected.GET("/:id/tires", tireHandler.ListVehicleTires)
-		protected.POST("/:id/tires", tireHandler.CreateVehicleTire)
-		protected.PUT("/:id/tires/:tid", tireHandler.UpdateVehicleTire)
-		protected.DELETE("/:id/tires/:tid", tireHandler.DeleteVehicleTire)
 		protected.GET("/:id/documents", vehicleDocumentHandler.List)
-		protected.POST("/:id/documents", vehicleDocumentHandler.Create)
-		protected.DELETE("/:id/documents/:doc_id", vehicleDocumentHandler.Delete)
 
 		protected.GET("/:id", vehicleHandler.GetVehicleByID)
-		protected.PUT("/:id", vehicleHandler.UpdateVehicle)
-		protected.DELETE("/:id", vehicleHandler.DeleteVehicle)
 
-		protected.POST("/:id/photo", vehicleHandler.UploadVehiclePhoto)
-		protected.PUT("/:id/photo", vehicleHandler.UpdateVehiclePhoto)
-		protected.DELETE("/:id/photo", vehicleHandler.DeleteVehiclePhoto)
-
-		protected.POST("/tires", tireHandler.CreateTire)
 		protected.GET("/tires", tireHandler.ListTires)
 		protected.GET("/tires/:id", tireHandler.GetTireByID)
-		protected.PUT("/tires/:id", tireHandler.UpdateTire)
-		protected.DELETE("/tires/:id", tireHandler.DeleteTire)
 
-		protected.POST("/tire-places", tirePlaceHandler.CreateTirePlace)
 		protected.GET("/tire-places", tirePlaceHandler.ListTirePlaces)
 		protected.GET("/tire-places/:id", tirePlaceHandler.GetTirePlaceByID)
-		protected.PUT("/tire-places/:id", tirePlaceHandler.UpdateTirePlace)
-		protected.DELETE("/tire-places/:id", tirePlaceHandler.DeleteTirePlace)
 		protected.GET("/vehicle-tires/:vehicle_id", tireHandler.GetTiresByVehicleID)
 
-		protected.POST("/insurance", insuranceHandler.CreateInsurance)
 		protected.GET("/insurance", insuranceHandler.ListInsurance)
 		protected.GET("/insurance/:id", insuranceHandler.GetInsuranceByID)
-		protected.PUT("/insurance/:id", insuranceHandler.UpdateInsurance)
-		protected.DELETE("/insurance/:id", insuranceHandler.DeleteInsurance)
-		protected.POST("/insurance/:id/file", insuranceHandler.UploadInsuranceFile)
-		protected.DELETE("/insurance/:id/file", insuranceHandler.DeleteInsuranceFile)
 
-		protected.POST("/technical-inspections", technicalInspectionHandler.CreateTechnicalInspection)
 		protected.GET("/technical-inspections", technicalInspectionHandler.ListTechnicalInspections)
 		protected.GET("/technical-inspections/:id", technicalInspectionHandler.GetTechnicalInspectionByID)
-		protected.PUT("/technical-inspections/:id", technicalInspectionHandler.UpdateTechnicalInspection)
-		protected.DELETE("/technical-inspections/:id", technicalInspectionHandler.DeleteTechnicalInspection)
-		protected.POST("/technical-inspections/:id/file", technicalInspectionHandler.UploadTechnicalInspectionFile)
-		protected.DELETE("/technical-inspections/:id/file", technicalInspectionHandler.DeleteTechnicalInspectionFile)
+
+		writeGroup := protected.Group("")
+		writeGroup.Use(middleware.RequireRoles(1, 2, 3))
+		{
+			writeGroup.POST("", vehicleHandler.CreateVehicle)
+
+			writeGroup.POST("/tires", tireHandler.CreateTire)
+			writeGroup.PUT("/tires/:id", tireHandler.UpdateTire)
+			writeGroup.DELETE("/tires/:id", tireHandler.DeleteTire)
+
+			writeGroup.POST("/tire-places", tirePlaceHandler.CreateTirePlace)
+			writeGroup.PUT("/tire-places/:id", tirePlaceHandler.UpdateTirePlace)
+			writeGroup.DELETE("/tire-places/:id", tirePlaceHandler.DeleteTirePlace)
+
+			writeGroup.POST("/insurance", insuranceHandler.CreateInsurance)
+			writeGroup.PUT("/insurance/:id", insuranceHandler.UpdateInsurance)
+			writeGroup.DELETE("/insurance/:id", insuranceHandler.DeleteInsurance)
+			writeGroup.POST("/insurance/:id/file", insuranceHandler.UploadInsuranceFile)
+			writeGroup.DELETE("/insurance/:id/file", insuranceHandler.DeleteInsuranceFile)
+
+			writeGroup.POST("/technical-inspections", technicalInspectionHandler.CreateTechnicalInspection)
+			writeGroup.PUT("/technical-inspections/:id", technicalInspectionHandler.UpdateTechnicalInspection)
+			writeGroup.DELETE("/technical-inspections/:id", technicalInspectionHandler.DeleteTechnicalInspection)
+			writeGroup.POST("/technical-inspections/:id/file", technicalInspectionHandler.UploadTechnicalInspectionFile)
+			writeGroup.DELETE("/technical-inspections/:id/file", technicalInspectionHandler.DeleteTechnicalInspectionFile)
+
+			writeGroup.PUT("/:id", vehicleHandler.UpdateVehicle)
+			writeGroup.DELETE("/:id", vehicleHandler.DeleteVehicle)
+
+			writeGroup.POST("/:id/photo", vehicleHandler.UploadVehiclePhoto)
+			writeGroup.PUT("/:id/photo", vehicleHandler.UpdateVehiclePhoto)
+			writeGroup.DELETE("/:id/photo", vehicleHandler.DeleteVehiclePhoto)
+
+			writeGroup.POST("/:id/tires", tireHandler.CreateVehicleTire)
+			writeGroup.PUT("/:id/tires/:tid", tireHandler.UpdateVehicleTire)
+			writeGroup.DELETE("/:id/tires/:tid", tireHandler.DeleteVehicleTire)
+
+			writeGroup.POST("/:id/documents", vehicleDocumentHandler.Create)
+			writeGroup.DELETE("/:id/documents/:doc_id", vehicleDocumentHandler.Delete)
+		}
 	}
 }

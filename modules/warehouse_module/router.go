@@ -30,6 +30,10 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 	partRequestSvc := service.NewPartRequestService(partRequestRepo, notifySvc)
 	partRequestHandler := handlers.NewPartRequestHandler(partRequestSvc, auditLogSvc, invoiceSvc)
 
+	purchaseRequestRepo := repository.NewPurchaseRequestRepository(db)
+	purchaseRequestSvc := service.NewPurchaseRequestService(purchaseRequestRepo)
+	purchaseRequestHandler := handlers.NewPurchaseRequestHandler(purchaseRequestSvc)
+
 	vehiclePartInstallationRepo := repository.NewVehiclePartInstallationRepository(db)
 	vehiclePartInstallationSvc := service.NewVehiclePartInstallationService(vehiclePartInstallationRepo)
 	vehiclePartInstallationHandler := handlers.NewVehiclePartInstallationHandler(vehiclePartInstallationSvc)
@@ -101,6 +105,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		partRequestUpdateGroup.Use(middleware.RequireRoles(roleAdmin, roleDutyMechanic, roleWarehouseManager))
 		{
 			partRequestUpdateGroup.PUT("/:id", partRequestHandler.UpdatePartRequest)
+			partRequestUpdateGroup.PATCH("/:id/repair-status", partRequestHandler.UpdatePartRequestRepairStatus)
 			partRequestUpdateGroup.DELETE("/:id", partRequestHandler.DeletePartRequest)
 		}
 
@@ -108,6 +113,16 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc not
 		partRequestStatusGroup.Use(middleware.RequireRoles(roleAdmin, roleWarehouseManager))
 		{
 			partRequestStatusGroup.PATCH("/:id/status", partRequestHandler.UpdatePartRequestStatus)
+		}
+
+		purchaseRequestGroup := protected.Group("/purchase-requests")
+		purchaseRequestGroup.Use(middleware.RequireRoles(roleAdmin, roleWarehouseManager))
+		{
+			purchaseRequestGroup.GET("", purchaseRequestHandler.ListPurchaseRequests)
+			purchaseRequestGroup.GET("/:id", purchaseRequestHandler.GetPurchaseRequestByID)
+			purchaseRequestGroup.POST("", purchaseRequestHandler.CreatePurchaseRequest)
+			purchaseRequestGroup.PATCH("/:id/confirm", purchaseRequestHandler.ConfirmPurchaseRequest)
+			purchaseRequestGroup.PATCH("/:id/cancel", purchaseRequestHandler.CancelPurchaseRequest)
 		}
 
 		vehiclePartInstallationReadGroup := protected.Group("/vehicle-part-installations")
