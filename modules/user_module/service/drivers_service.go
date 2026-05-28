@@ -125,11 +125,14 @@ func (s *DriversService) GetPassport(ctx context.Context, id int64, q dto.Driver
 
 func (s *DriversService) List(ctx context.Context, q dto.DriverListQuery) ([]models.Driver, int64, error) {
 	return s.repo.List(ctx, repository.DriverListParams{
-		Search:      strings.TrimSpace(q.Search),
-		Status:      strings.TrimSpace(q.Status),
-		BoardNumber: strings.TrimSpace(q.BoardNumber),
-		Limit:       q.Limit,
-		Offset:      q.Offset,
+		Search:          strings.TrimSpace(q.Search),
+		Status:          strings.TrimSpace(q.Status),
+		BoardNumber:     strings.TrimSpace(q.BoardNumber),
+		SortBy:          strings.TrimSpace(q.SortBy),
+		Order:           strings.TrimSpace(q.Order),
+		IncludeArchived: q.IncludeArchived,
+		Limit:           q.Limit,
+		Offset:          q.Offset,
 	})
 }
 
@@ -267,20 +270,7 @@ func (s *DriversService) DeletePhoto(ctx context.Context, id int64) (*models.Dri
 }
 
 func (s *DriversService) Delete(ctx context.Context, id int64) error {
-	driver, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	if err := s.repo.Delete(ctx, id); err != nil {
-		return err
-	}
-
-	if driver.PhotoPath != "" {
-		_ = s.storage.Delete(driver.PhotoPath)
-	}
-
-	return nil
+	return s.repo.Delete(ctx, id)
 }
 
 func (s *DriversService) AssignVehicle(ctx context.Context, driverID int64, vehicleID int64) error {

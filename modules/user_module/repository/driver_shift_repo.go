@@ -359,7 +359,7 @@ func (r *DriverShiftRepo) SoftDeleteByID(ctx context.Context, id int64, deletedB
 }
 
 func (r *DriverShiftRepo) DriverExists(ctx context.Context, driverID int64) (bool, error) {
-	const q = `SELECT EXISTS(SELECT 1 FROM drivers WHERE id = $1);`
+	const q = `SELECT EXISTS(SELECT 1 FROM drivers WHERE id = $1 AND is_archived = FALSE);`
 	var exists bool
 	if err := r.db.QueryRowContext(ctx, q, driverID).Scan(&exists); err != nil {
 		return false, fmt.Errorf("check driver exists: %w", err)

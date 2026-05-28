@@ -78,6 +78,7 @@ LEFT JOIN roles ON roles.id = d.role_id
 WHERE d.mail IS NOT NULL
   AND BTRIM(d.mail) <> ''
   AND d.password IS NOT NULL
+  AND d.is_archived = FALSE
   AND LOWER(d.mail) = LOWER($1)
 ORDER BY d.id ASC
 LIMIT 1;
