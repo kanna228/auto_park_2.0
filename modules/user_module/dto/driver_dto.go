@@ -40,11 +40,14 @@ type UpdateDriverStatusRequest struct {
 }
 
 type DriverListQuery struct {
-	Search      string
-	Status      string
-	BoardNumber string
-	Limit       int
-	Offset      int
+	Search          string
+	Status          string
+	BoardNumber     string
+	SortBy          string
+	Order           string
+	IncludeArchived bool
+	Limit           int
+	Offset          int
 }
 
 type DriverPassportQuery struct {

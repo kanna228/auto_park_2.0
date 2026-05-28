@@ -240,6 +240,9 @@ func (h *DriversHandler) Create(c *gin.Context) {
 // @Param        search query string false "Search by full name, IIN, phone or email"
 // @Param        status query string false "Filter by status code or name"
 // @Param        board_number query string false "Filter by assigned vehicle board number"
+// @Param        sort_by query string false "Sort by: id, surname, name, iin, board_number, status, created_at, updated_at"
+// @Param        order   query string false "Sort order: asc or desc"
+// @Param        include_archived query bool false "Include archived drivers" default(false)
 // @Param        page query int false "Page number" default(1)
 // @Param        page_size query int false "Page size" default(50)
 // @Success      200 {object} DriversListResponse
@@ -251,11 +254,14 @@ func (h *DriversHandler) List(c *gin.Context) {
 	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
 
 	q := dto.DriverListQuery{
-		Search:      c.Query("search"),
-		Status:      c.Query("status"),
-		BoardNumber: c.Query("board_number"),
-		Limit:       limit,
-		Offset:      offset,
+		Search:          c.Query("search"),
+		Status:          c.Query("status"),
+		BoardNumber:     c.Query("board_number"),
+		SortBy:          c.Query("sort_by"),
+		Order:           c.Query("order"),
+		IncludeArchived: parseArchivedQuery(c),
+		Limit:           limit,
+		Offset:          offset,
 	}
 
 	list, total, err := h.svc.List(c.Request.Context(), q)
@@ -513,8 +519,8 @@ func (h *DriversHandler) DeletePhoto(c *gin.Context) {
 }
 
 // Delete godoc
-// @Summary      Delete driver
-// @Description  Deletes driver by id (roles: 1,2,3 only). JWT required.
+// @Summary      Archive driver
+// @Description  Archives driver by id without physical deletion (roles: 1,2,3 only). JWT required.
 // @Tags         Drivers
 // @Produce      json
 // @Security     BearerAuth
@@ -693,6 +699,18 @@ func parseOptionalInt(c *gin.Context, key string) int {
 		return 0
 	}
 	return n
+}
+
+func parseArchivedQuery(c *gin.Context) bool {
+	for _, key := range []string{"include_archived", "archived", "archive"} {
+		value := strings.TrimSpace(c.Query(key))
+		if value == "" {
+			continue
+		}
+		parsed, err := strconv.ParseBool(value)
+		return err == nil && parsed
+	}
+	return false
 }
 
 func writeDriverVehicleAssignmentError(c *gin.Context, err error) {

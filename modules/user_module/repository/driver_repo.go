@@ -17,11 +17,14 @@ var ErrNotFound = errors.New("not found")
 var ErrVehicleNotFound = errors.New("vehicle not found")
 
 type DriverListParams struct {
-	Search      string
-	Status      string
-	BoardNumber string
-	Limit       int
-	Offset      int
+	Search          string
+	Status          string
+	BoardNumber     string
+	SortBy          string
+	Order           string
+	IncludeArchived bool
+	Limit           int
+	Offset          int
 }
 
 func normalizeDriverStatusCode(code string) string {
@@ -205,6 +208,7 @@ func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, err
 		FROM %s d
 		INNER JOIN driver_statuses ds ON ds.id = d.status_id
 		WHERE d.id=$1
+		  AND d.is_archived = FALSE
 	`, r.table())
 
 	out, err := scanDriver(r.db.QueryRowContext(ctx, q, id))
@@ -227,9 +231,12 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 		offset = 0
 	}
 
-	conds := make([]string, 0, 4)
+	conds := make([]string, 0, 5)
 	args := make([]any, 0, 8)
 	argPos := 1
+	if !p.IncludeArchived {
+		conds = append(conds, "d.is_archived = FALSE")
+	}
 	if v := strings.TrimSpace(p.Search); v != "" {
 		conds = append(conds, fmt.Sprintf(`(
 			d.iin ILIKE $%[1]d OR
@@ -293,6 +300,13 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 		return nil, 0, err
 	}
 
+	sortBy := normalizeDriverSortBy(p.SortBy)
+	order := normalizeDriverListOrder(p.Order)
+	secondaryOrder := "d.id ASC"
+	if sortBy == "d.surname" && order == "ASC" {
+		secondaryOrder = "d.name ASC, d.id ASC"
+	}
+
 	q := fmt.Sprintf(`
 		SELECT
 			d.id,
@@ -319,9 +333,9 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 		FROM %s d
 		INNER JOIN driver_statuses ds ON ds.id = d.status_id
 		%s
-		ORDER BY d.surname ASC, d.name ASC, d.id ASC
+		ORDER BY %s %s, %s
 		LIMIT $%d OFFSET $%d
-	`, r.table(), whereSQL, argPos, argPos+1)
+	`, r.table(), whereSQL, sortBy, order, secondaryOrder, argPos, argPos+1)
 	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, q, args...)
@@ -400,6 +414,7 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		UPDATE %s
 		SET %s
 		WHERE id=$%d
+		  AND is_archived = FALSE
 	`, r.table(), strings.Join(setParts, ", "), i)
 
 	res, err := r.db.ExecContext(ctx, q, args...)
@@ -424,7 +439,14 @@ func (r *DriverRepo) UpdatePhotoPath(ctx context.Context, id int64, photoPath st
 }
 
 func (r *DriverRepo) Delete(ctx context.Context, id int64) error {
-	q := fmt.Sprintf(`DELETE FROM %s WHERE id=$1`, r.table())
+	q := fmt.Sprintf(`
+		UPDATE %s
+		SET is_archived = TRUE,
+			deleted_at = NOW(),
+			updated_at = NOW()
+		WHERE id=$1
+		  AND is_archived = FALSE
+	`, r.table())
 	res, err := r.db.ExecContext(ctx, q, id)
 	if err != nil {
 		return err
@@ -1171,6 +1193,38 @@ func nullableInt64Ptr(v sql.NullInt64) *int64 {
 	return &v.Int64
 }
 
+func normalizeDriverSortBy(v string) string {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "id":
+		return "d.id"
+	case "surname":
+		return "d.surname"
+	case "name":
+		return "d.name"
+	case "iin":
+		return "d.iin"
+	case "board_number":
+		return "COALESCE((SELECT MIN(v_sort.board_number) FROM vehicles v_sort WHERE d.id = ANY(v_sort.drivers_ids)), '')"
+	case "status":
+		return "ds.code"
+	case "created_at":
+		return "d.created_at"
+	case "updated_at":
+		return "d.updated_at"
+	default:
+		return "d.surname"
+	}
+}
+
+func normalizeDriverListOrder(v string) string {
+	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "desc":
+		return normalizeOrder("desc")
+	default:
+		return normalizeOrder("asc")
+	}
+}
+
 func normalizeDriverPassportParams(p DriverPassportParams) DriverPassportParams {
 	if p.TripsLimit <= 0 || p.TripsLimit > 200 {
 		p.TripsLimit = 8
@@ -1212,7 +1266,7 @@ func (r *DriverRepo) driverHasOpenTripsheetOrActiveShift(ctx context.Context, dr
 }
 
 func ensureDriverExistsTx(ctx context.Context, tx *sql.Tx, driverID int64) error {
-	const q = `SELECT EXISTS(SELECT 1 FROM drivers WHERE id = $1);`
+	const q = `SELECT EXISTS(SELECT 1 FROM drivers WHERE id = $1 AND is_archived = FALSE);`
 	var exists bool
 	if err := tx.QueryRowContext(ctx, q, driverID).Scan(&exists); err != nil {
 		return fmt.Errorf("check driver exists: %w", err)
