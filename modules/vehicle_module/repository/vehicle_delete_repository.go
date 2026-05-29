@@ -48,18 +48,22 @@ func (r *vehicleRepo) DeleteByID(ctx context.Context, id int64) (bool, error) {
 	}
 
 	const deleteVehicleQ = `
-		DELETE FROM vehicles
-		WHERE id = $1;
+		UPDATE vehicles
+		SET is_archived = TRUE,
+			deleted_at = NOW(),
+			updated_at = NOW()
+		WHERE id = $1
+		  AND is_archived = FALSE;
 	`
 
 	res, err := tx.ExecContext(ctx, deleteVehicleQ, id)
 	if err != nil {
-		return false, fmt.Errorf("delete vehicle by id: %w", err)
+		return false, fmt.Errorf("archive vehicle by id: %w", err)
 	}
 
 	aff, err := res.RowsAffected()
 	if err != nil {
-		return false, fmt.Errorf("delete vehicle by id rows affected: %w", err)
+		return false, fmt.Errorf("archive vehicle by id rows affected: %w", err)
 	}
 
 	if aff == 0 {
@@ -67,7 +71,7 @@ func (r *vehicleRepo) DeleteByID(ctx context.Context, id int64) (bool, error) {
 	}
 
 	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("commit delete vehicle: %w", err)
+		return false, fmt.Errorf("commit archive vehicle: %w", err)
 	}
 
 	return true, nil

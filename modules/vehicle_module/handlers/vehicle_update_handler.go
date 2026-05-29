@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/vehicle_module/dto"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +47,10 @@ func (h *VehicleHandler) UpdateVehicle(c *gin.Context) {
 
 	ok, err := h.svc.UpdateByID(c.Request.Context(), id, req)
 	if err != nil {
+		if errors.Is(err, apierrors.ErrEntityArchived) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя изменить архивный объект"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}

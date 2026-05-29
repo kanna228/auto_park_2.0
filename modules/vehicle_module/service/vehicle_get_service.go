@@ -8,8 +8,8 @@ import (
 	"auto_park/modules/vehicle_module/repository"
 )
 
-func (s *vehicleService) GetByID(ctx context.Context, id int64) (*dto.VehicleResponse, error) {
-	v, err := s.repo.GetByID(ctx, id)
+func (s *vehicleService) GetByID(ctx context.Context, id int64, includeArchived ...bool) (*dto.VehicleResponse, error) {
+	v, err := s.repo.GetByID(ctx, id, includeArchived...)
 	if err != nil {
 		return nil, err
 	}
@@ -46,6 +46,8 @@ func (s *vehicleService) List(ctx context.Context, q dto.VehicleListQuery) (*dto
 
 		SortBy: q.SortBy,
 		Order:  q.Order,
+
+		IncludeArchived: q.IncludeArchived,
 	}
 
 	items, total, err := s.repo.List(ctx, params)
@@ -434,6 +436,9 @@ func mapVehicleToDTO(v models.Vehicle) dto.VehicleResponse {
 
 		PhotoPath: v.PhotoPath,
 		PhotoURL:  "",
+
+		IsArchived: v.IsArchived,
+		DeletedAt:  v.DeletedAt,
 
 		Insurances:           []dto.VehicleInsuranceHistoryItem{},
 		TechnicalInspections: []dto.VehicleTechnicalInspectionHistoryItem{},

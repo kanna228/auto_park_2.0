@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"auto_park/internal/apierrors"
 	"auto_park/modules/incident_module/dto"
 	"auto_park/modules/incident_module/models"
 	"context"
@@ -72,6 +73,43 @@ func (r *incidentRepo) ensureMechanicShiftExistsTx(ctx context.Context, tx *sql.
 	return nil
 }
 
+func (r *incidentRepo) ensureIncidentActiveRefsTx(ctx context.Context, tx *sql.Tx, vehicleID, driverID, mechanicID int64) error {
+	if err := ensureActiveFlagTx(ctx, tx, "vehicles", vehicleID); err != nil {
+		return err
+	}
+	if err := ensureActiveFlagTx(ctx, tx, "drivers", driverID); err != nil {
+		return err
+	}
+	if err := ensureActiveUserTx(ctx, tx, mechanicID); err != nil {
+		return err
+	}
+	return nil
+}
+
+func ensureActiveFlagTx(ctx context.Context, tx *sql.Tx, table string, id int64) error {
+	q := fmt.Sprintf(`SELECT is_archived FROM %s WHERE id = $1;`, table)
+	var archived bool
+	if err := tx.QueryRowContext(ctx, q, id).Scan(&archived); err != nil {
+		return err
+	}
+	if archived {
+		return apierrors.ErrEntityArchived
+	}
+	return nil
+}
+
+func ensureActiveUserTx(ctx context.Context, tx *sql.Tx, id int64) error {
+	const q = `SELECT is_archived OR NOT is_active FROM users WHERE id = $1;`
+	var archived bool
+	if err := tx.QueryRowContext(ctx, q, id).Scan(&archived); err != nil {
+		return err
+	}
+	if archived {
+		return apierrors.ErrEntityArchived
+	}
+	return nil
+}
+
 func (r *incidentRepo) Create(ctx context.Context, input models.CreateIncidentInput) (*models.Incident, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -79,6 +117,9 @@ func (r *incidentRepo) Create(ctx context.Context, input models.CreateIncidentIn
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if err := r.ensureIncidentActiveRefsTx(ctx, tx, input.VehicleID, input.DriverID, input.MechanicID); err != nil {
+		return nil, err
+	}
 	if err := r.ensureMechanicShiftExistsTx(ctx, tx, input.MechanicShiftID, input.MechanicID); err != nil {
 		return nil, err
 	}
@@ -490,6 +531,10 @@ func normalizeIncidentSortBy(value string) string {
 	switch strings.TrimSpace(strings.ToLower(value)) {
 	case "id":
 		return "i.id"
+	case "incident_date":
+		return "i.incident_date"
+	case "incident_time":
+		return "i.incident_time"
 	case "incident_type_id":
 		return "i.incident_type_id"
 	case "vehicle_id":
@@ -498,14 +543,8 @@ func normalizeIncidentSortBy(value string) string {
 		return "i.driver_id"
 	case "mechanic_id":
 		return "i.mechanic_id"
-	case "mechanic_shift_id":
-		return "i.mechanic_shift_id"
-	case "tripsheet_id":
-		return "i.tripsheet_id"
 	case "created_at":
 		return "i.created_at"
-	case "updated_at":
-		return "i.updated_at"
 	default:
 		return "i.incident_date"
 	}
@@ -525,6 +564,9 @@ func (r *incidentRepo) Update(ctx context.Context, input models.UpdateIncidentIn
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if err := r.ensureIncidentActiveRefsTx(ctx, tx, input.VehicleID, input.DriverID, input.MechanicID); err != nil {
+		return nil, err
+	}
 	if err := r.ensureMechanicShiftExistsTx(ctx, tx, input.MechanicShiftID, input.MechanicID); err != nil {
 		return nil, err
 	}

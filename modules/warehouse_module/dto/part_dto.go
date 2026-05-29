@@ -28,30 +28,33 @@ type PartUpdateRequest struct {
 }
 
 type PartResponse struct {
-	ID               int64     `json:"id" example:"1"`
-	PartID           string    `json:"part_id" example:"BRK-PAD-001"`
-	Name             string    `json:"name" example:"Brake Pad Front"`
-	Quantity         int64     `json:"quantity" example:"50"`
-	MinStockQuantity int64     `json:"min_stock_quantity" example:"5"`
-	Unit             string    `json:"unit" example:"шт"`
-	Price            float64   `json:"price" example:"25000"`
-	TotalValue       float64   `json:"total_value" example:"1250000"`
-	Category         string    `json:"category" example:"brake_system"`
-	Dimensions       *string   `json:"dimensions,omitempty" example:"120x45x18 mm"`
-	Manufacturer     *string   `json:"manufacturer,omitempty" example:"Bosch"`
-	IsConsumable     bool      `json:"is_consumable" example:"false"`
-	CreatedAt        time.Time `json:"created_at"`
-	UpdatedAt        time.Time `json:"updated_at"`
+	ID               int64      `json:"id" example:"1"`
+	PartID           string     `json:"part_id" example:"BRK-PAD-001"`
+	Name             string     `json:"name" example:"Brake Pad Front"`
+	Quantity         int64      `json:"quantity" example:"50"`
+	MinStockQuantity int64      `json:"min_stock_quantity" example:"5"`
+	Unit             string     `json:"unit" example:"шт"`
+	Price            float64    `json:"price" example:"25000"`
+	TotalValue       float64    `json:"total_value" example:"1250000"`
+	Category         string     `json:"category" example:"brake_system"`
+	Dimensions       *string    `json:"dimensions,omitempty" example:"120x45x18 mm"`
+	Manufacturer     *string    `json:"manufacturer,omitempty" example:"Bosch"`
+	IsConsumable     bool       `json:"is_consumable" example:"false"`
+	IsArchived       bool       `json:"is_archived"`
+	DeletedAt        *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type PartListQuery struct {
-	PartID   string
-	Name     string
-	Category string
-	Limit    int
-	Offset   int
-	SortBy   string
-	Order    string
+	PartID          string
+	Name            string
+	Category        string
+	Limit           int
+	Offset          int
+	SortBy          string
+	Order           string
+	IncludeArchived bool
 }
 
 type PartStockItemResponse struct {

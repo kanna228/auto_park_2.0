@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/warehouse_module/models"
 
 	"github.com/lib/pq"
@@ -42,13 +43,14 @@ type UpdatePartParams struct {
 }
 
 type ListPartsParams struct {
-	PartID   string
-	Name     string
-	Category string
-	Limit    int
-	Offset   int
-	SortBy   string
-	Order    string
+	PartID          string
+	Name            string
+	Category        string
+	Limit           int
+	Offset          int
+	SortBy          string
+	Order           string
+	IncludeArchived bool
 }
 
 type ListPartMovementsParams struct {
@@ -129,7 +131,7 @@ type PartArrivalSummaryRow struct {
 
 type PartRepository interface {
 	Create(ctx context.Context, p CreatePartParams) (int64, error)
-	GetByID(ctx context.Context, id int64) (*models.Part, error)
+	GetByID(ctx context.Context, id int64, includeArchived ...bool) (*models.Part, error)
 	List(ctx context.Context, p ListPartsParams) ([]models.Part, int64, error)
 	UpdateByID(ctx context.Context, id int64, p UpdatePartParams) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
@@ -163,14 +165,20 @@ func (r *partRepo) Create(ctx context.Context, p CreatePartParams) (int64, error
 	return id, nil
 }
 
-func (r *partRepo) GetByID(ctx context.Context, id int64) (*models.Part, error) {
-	const q = `
-		SELECT id, part_id, name, quantity, min_stock_quantity, unit, price, category, dimensions, manufacturer, is_consumable, created_at, updated_at
+func (r *partRepo) GetByID(ctx context.Context, id int64, includeArchived ...bool) (*models.Part, error) {
+	archiveCond := "AND is_archived = FALSE"
+	if len(includeArchived) > 0 && includeArchived[0] {
+		archiveCond = ""
+	}
+	q := fmt.Sprintf(`
+		SELECT id, part_id, name, quantity, min_stock_quantity, unit, price, category, dimensions, manufacturer, is_consumable, is_archived, deleted_at, created_at, updated_at
 		FROM parts_catalog
-		WHERE id = $1;
-	`
+		WHERE id = $1
+		  %s;
+	`, archiveCond)
 
 	var item models.Part
+	var deletedAt sql.NullTime
 	if err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&item.ID,
 		&item.PartID,
@@ -183,6 +191,8 @@ func (r *partRepo) GetByID(ctx context.Context, id int64) (*models.Part, error) 
 		&item.Dimensions,
 		&item.Manufacturer,
 		&item.IsConsumable,
+		&item.IsArchived,
+		&deletedAt,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
@@ -190,6 +200,9 @@ func (r *partRepo) GetByID(ctx context.Context, id int64) (*models.Part, error) 
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get part by id: %w", err)
+	}
+	if deletedAt.Valid {
+		item.DeletedAt = &deletedAt.Time
 	}
 	return &item, nil
 }
@@ -204,7 +217,7 @@ func (r *partRepo) List(ctx context.Context, p ListPartsParams) ([]models.Part, 
 		offset = 0
 	}
 
-	sortBy := normalizeSortBy(p.SortBy)
+	sortBy := normalizeWarehousePartSortBy(p.SortBy)
 	order := normalizeOrder(p.Order)
 
 	conds := make([]string, 0, 3)
@@ -226,6 +239,9 @@ func (r *partRepo) List(ctx context.Context, p ListPartsParams) ([]models.Part, 
 		args = append(args, "%"+v+"%")
 		argPos++
 	}
+	if !p.IncludeArchived {
+		conds = append(conds, "is_archived = FALSE")
+	}
 
 	whereSQL := ""
 	if len(conds) > 0 {
@@ -239,7 +255,7 @@ func (r *partRepo) List(ctx context.Context, p ListPartsParams) ([]models.Part, 
 	}
 
 	listQ := fmt.Sprintf(`
-		SELECT id, part_id, name, quantity, min_stock_quantity, unit, price, category, dimensions, manufacturer, is_consumable, created_at, updated_at
+		SELECT id, part_id, name, quantity, min_stock_quantity, unit, price, category, dimensions, manufacturer, is_consumable, is_archived, deleted_at, created_at, updated_at
 		FROM parts_catalog
 		%s
 		ORDER BY %s %s, id ASC
@@ -256,6 +272,7 @@ func (r *partRepo) List(ctx context.Context, p ListPartsParams) ([]models.Part, 
 	items := make([]models.Part, 0)
 	for rows.Next() {
 		var item models.Part
+		var deletedAt sql.NullTime
 		if err := rows.Scan(
 			&item.ID,
 			&item.PartID,
@@ -268,10 +285,15 @@ func (r *partRepo) List(ctx context.Context, p ListPartsParams) ([]models.Part, 
 			&item.Dimensions,
 			&item.Manufacturer,
 			&item.IsConsumable,
+			&item.IsArchived,
+			&deletedAt,
 			&item.CreatedAt,
 			&item.UpdatedAt,
 		); err != nil {
 			return nil, 0, fmt.Errorf("list parts scan: %w", err)
+		}
+		if deletedAt.Valid {
+			item.DeletedAt = &deletedAt.Time
 		}
 		items = append(items, item)
 	}
@@ -290,7 +312,7 @@ func (r *partRepo) UpdateByID(ctx context.Context, id int64, p UpdatePartParams)
 	defer rollbackPartTx(tx)
 
 	var currentQuantity int64
-	const currentQ = `SELECT quantity FROM parts_catalog WHERE id = $1 FOR UPDATE;`
+	const currentQ = `SELECT quantity FROM parts_catalog WHERE id = $1 AND is_archived = FALSE FOR UPDATE;`
 	if err := tx.QueryRowContext(ctx, currentQ, id).Scan(&currentQuantity); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -310,7 +332,8 @@ func (r *partRepo) UpdateByID(ctx context.Context, id int64, p UpdatePartParams)
 			manufacturer = $8,
 			is_consumable = $9,
 			updated_at = NOW()
-		WHERE id = $10;
+		WHERE id = $10
+		  AND is_archived = FALSE;
 	`
 	res, err := tx.ExecContext(ctx, q, p.Name, p.Quantity, p.MinStockQuantity, p.Unit, p.Price, p.Category, p.Dimensions, p.Manufacturer, p.IsConsumable, id)
 	if err != nil {
@@ -343,7 +366,14 @@ func (r *partRepo) UpdateByID(ctx context.Context, id int64, p UpdatePartParams)
 }
 
 func (r *partRepo) DeleteByID(ctx context.Context, id int64) (bool, error) {
-	const q = `DELETE FROM parts_catalog WHERE id = $1;`
+	const q = `
+		UPDATE parts_catalog
+		SET is_archived = TRUE,
+			deleted_at = NOW(),
+			updated_at = NOW()
+		WHERE id = $1
+		  AND is_archived = FALSE;
+	`
 	res, err := r.db.ExecContext(ctx, q, id)
 	if err != nil {
 		return false, fmt.Errorf("delete part by id: %w", err)
@@ -367,7 +397,8 @@ func (r *partRepo) Summary(ctx context.Context) (PartSummaryRow, error) {
 				WHERE type = 'issue'
 				  AND created_at >= NOW() - INTERVAL '1 month'
 			), 0) AS issued_last_month
-		FROM parts_catalog;
+		FROM parts_catalog
+		WHERE is_archived = FALSE;
 	`
 	var row PartSummaryRow
 	if err := r.db.QueryRowContext(ctx, q).Scan(&row.Total, &row.LowCount, &row.CriticalCount, &row.IssuedLastMonth); err != nil {
@@ -704,34 +735,48 @@ func (r *partRepo) listArrivalItems(ctx context.Context, ids []int64) (map[int64
 	return out, nil
 }
 
-func normalizeSortBy(v string) string {
+func normalizeWarehousePartSortBy(v string) string {
 	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "id":
+		return "id"
 	case "part_id":
 		return "part_id"
 	case "name":
 		return "name"
-	case "quantity":
-		return "quantity"
-	case "price":
-		return "price"
-	case "total_value":
-		return "quantity * price"
 	case "category":
 		return "category"
-	case "updated_at":
-		return "updated_at"
+	case "quantity":
+		return "quantity"
+	case "min_stock_quantity":
+		return "min_stock_quantity"
+	case "price":
+		return "price"
+	case "created_at":
+		return "created_at"
 	default:
 		return "created_at"
 	}
 }
 
+func normalizeSortBy(v string) string {
+	return normalizeWarehousePartSortBy(v)
+}
+
 func ensurePartExistsTx(ctx context.Context, tx *sql.Tx, partID int64) error {
-	const q = `SELECT EXISTS(SELECT 1 FROM parts_catalog WHERE id = $1);`
+	const q = `SELECT EXISTS(SELECT 1 FROM parts_catalog WHERE id = $1 AND is_archived = FALSE);`
 	var exists bool
 	if err := tx.QueryRowContext(ctx, q, partID).Scan(&exists); err != nil {
 		return fmt.Errorf("check part exists: %w", err)
 	}
 	if !exists {
+		const archivedQ = `SELECT EXISTS(SELECT 1 FROM parts_catalog WHERE id = $1 AND is_archived = TRUE);`
+		var archived bool
+		if err := tx.QueryRowContext(ctx, archivedQ, partID).Scan(&archived); err != nil {
+			return fmt.Errorf("check part archived: %w", err)
+		}
+		if archived {
+			return apierrors.ErrEntityArchived
+		}
 		return ErrPartRequestPartNotFound
 	}
 	return nil
@@ -742,7 +787,8 @@ func increasePartQuantityPartTx(ctx context.Context, tx *sql.Tx, partID, qty int
 		UPDATE parts_catalog
 		SET quantity = quantity + $1,
 			updated_at = NOW()
-		WHERE id = $2;
+		WHERE id = $2
+		  AND is_archived = FALSE;
 	`
 	_, err := tx.ExecContext(ctx, q, qty, partID)
 	if err != nil {

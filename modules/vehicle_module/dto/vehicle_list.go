@@ -18,8 +18,9 @@ type VehicleListQuery struct {
 	Limit  int
 	Offset int
 
-	SortBy string
-	Order  string
+	SortBy          string
+	Order           string
+	IncludeArchived bool
 }
 
 type VehicleListResponse struct {

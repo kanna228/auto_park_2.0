@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"auto_park/internal/apierrors"
 	"auto_park/modules/incident_module/dto"
 	"auto_park/modules/incident_module/service"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -39,6 +41,10 @@ func (h *IncidentHandler) Create(c *gin.Context) {
 
 	resp, err := h.svc.Create(c.Request.Context(), req)
 	if err != nil {
+		if errors.Is(err, apierrors.ErrEntityArchived) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя использовать архивный объект"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}

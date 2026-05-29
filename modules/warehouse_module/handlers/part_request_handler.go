@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"auto_park/internal/apierrors"
 	"auto_park/middleware"
 	auditlogservice "auto_park/modules/audit_log_module/service"
 	invoiceservice "auto_park/modules/invoice_module/service"
@@ -590,11 +591,13 @@ func writePartRequestError(c *gin.Context, err error) {
 	case errors.Is(err, repository.ErrPartRequestLocked):
 		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "part request cannot be changed after approval or rejection"})
 	case errors.Is(err, repository.ErrPartRequestInsufficientStock):
-		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "not enough part quantity in stock"})
+		c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeStockInsufficient, "error": "Недостаточно остатка на складе"})
 	case errors.Is(err, repository.ErrPartRequestRepairContextRequired):
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle_id, mechanic_shift_id and planned_replacement_at are required to complete repair"})
 	case errors.Is(err, repository.ErrPartRequestRepairCompletionForbidden):
-		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "part request must be approved before repair can be completed"})
+		c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodePartRequestNotApproved, "error": "part request must be approved before repair can be completed"})
+	case errors.Is(err, apierrors.ErrEntityArchived):
+		c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя изменить архивный объект"})
 	case errors.Is(err, repository.ErrVehiclePartInstallationVehicleNotFound):
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "vehicle not found"})
 	case errors.Is(err, repository.ErrVehiclePartInstallationMechanicShiftNotFound):

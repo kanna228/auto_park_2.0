@@ -54,7 +54,8 @@ func (r *vehicleRepo) UpdateByID(ctx context.Context, id int64, p UpdateVehicleP
 			status_id = $15,
 			drivers_ids = $16,
 			updated_at = NOW()
-		WHERE id = $17;
+		WHERE id = $17
+		  AND is_archived = FALSE;
 	`
 
 	res, err := r.db.ExecContext(

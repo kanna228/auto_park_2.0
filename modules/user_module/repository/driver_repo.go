@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/user_module/models"
 
 	"github.com/lib/pq"
@@ -54,6 +55,7 @@ type DriverPassportParams struct {
 	TripsOffset     int
 	IncidentsLimit  int
 	IncidentsOffset int
+	IncludeArchived bool
 }
 
 type DriverRepo struct {
@@ -181,7 +183,11 @@ func (r *DriverRepo) Create(ctx context.Context, d *models.Driver) (*models.Driv
 	return r.GetByID(ctx, id)
 }
 
-func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, error) {
+func (r *DriverRepo) GetByID(ctx context.Context, id int64, includeArchived ...bool) (*models.Driver, error) {
+	archiveCond := "AND d.is_archived = FALSE"
+	if len(includeArchived) > 0 && includeArchived[0] {
+		archiveCond = ""
+	}
 	q := fmt.Sprintf(`
 		SELECT
 			d.id,
@@ -203,13 +209,15 @@ func (r *DriverRepo) GetByID(ctx context.Context, id int64) (*models.Driver, err
 			COALESCE(ds.description, '') AS status_description,
 			ds.created_at AS status_created_at,
 			ds.updated_at AS status_updated_at,
+			d.is_archived,
+			d.deleted_at,
 			d.created_at,
 			d.updated_at
 		FROM %s d
 		INNER JOIN driver_statuses ds ON ds.id = d.status_id
 		WHERE d.id=$1
-		  AND d.is_archived = FALSE
-	`, r.table())
+		  %s
+	`, r.table(), archiveCond)
 
 	out, err := scanDriver(r.db.QueryRowContext(ctx, q, id))
 	if err != nil {
@@ -328,6 +336,8 @@ func (r *DriverRepo) List(ctx context.Context, p DriverListParams) ([]models.Dri
 			COALESCE(ds.description, '') AS status_description,
 			ds.created_at AS status_created_at,
 			ds.updated_at AS status_updated_at,
+			d.is_archived,
+			d.deleted_at,
 			d.created_at,
 			d.updated_at
 		FROM %s d
@@ -426,6 +436,11 @@ func (r *DriverRepo) Update(ctx context.Context, id int64, upd map[string]any) (
 		return nil, err
 	}
 	if rowsAffected == 0 {
+		var archived bool
+		archivedQ := fmt.Sprintf(`SELECT is_archived FROM %s WHERE id=$1`, r.table())
+		if checkErr := r.db.QueryRowContext(ctx, archivedQ, id).Scan(&archived); checkErr == nil && archived {
+			return nil, apierrors.ErrEntityArchived
+		}
 		return nil, ErrNotFound
 	}
 
@@ -716,7 +731,7 @@ func (r *DriverRepo) ListStatuses(ctx context.Context, limit, offset int) ([]mod
 func (r *DriverRepo) GetPassport(ctx context.Context, id int64, params DriverPassportParams) (*models.DriverPassport, error) {
 	params = normalizeDriverPassportParams(params)
 
-	driver, err := r.GetByID(ctx, id)
+	driver, err := r.GetByID(ctx, id, params.IncludeArchived)
 	if err != nil {
 		return nil, err
 	}
@@ -727,6 +742,11 @@ func (r *DriverRepo) GetPassport(ctx context.Context, id int64, params DriverPas
 	}
 
 	totalWorkedHours, err := r.getDriverTotalWorkedHours(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	totalMileage, totalFuelUsed, err := r.getDriverTotals(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -758,6 +778,8 @@ func (r *DriverRepo) GetPassport(ctx context.Context, id int64, params DriverPas
 		Status:           status,
 		AssignedVehicles: assignedVehicles,
 		TotalWorkedHours: totalWorkedHours,
+		TotalMileage:     totalMileage,
+		TotalFuelUsed:    totalFuelUsed,
 		IncidentsCount:   incidentsCount,
 		TripsheetsTotal:  tripsheetsTotal,
 		IncidentsTotal:   incidentsTotal,
@@ -850,6 +872,48 @@ func (r *DriverRepo) getDriverTotalWorkedHours(ctx context.Context, driverID int
 		return 0, fmt.Errorf("get driver total worked hours: %w", err)
 	}
 	return hours, nil
+}
+
+func (r *DriverRepo) getDriverTotals(ctx context.Context, driverID int64) (int64, float64, error) {
+	const q = `
+		WITH driver_info AS (
+			SELECT id, surname, name, middlename
+			FROM drivers
+			WHERE id = $1
+		),
+		driver_tripsheets AS (
+			SELECT DISTINCT t.id, t.mileage_start, t.mileage_end, t.fuel_consumption_actual
+			FROM tripsheets t
+			CROSS JOIN driver_info d
+			LEFT JOIN driver_shifts ds ON ds.id = t.driver_shift_id
+			WHERE (t.status_id IN (4, 5) OR LOWER(COALESCE((SELECT name FROM tripsheet_statuses ts WHERE ts.id = t.status_id), '')) LIKE '%закры%')
+			  AND (
+				t.driver_id = d.id
+				OR ds.driver_id = d.id
+				OR (
+					t.driver_id IS NULL
+					AND t.driver_shift_id IS NULL
+					AND LOWER(TRIM(COALESCE(t.driver_last_name, ''))) = LOWER(TRIM(d.surname))
+					AND LOWER(TRIM(COALESCE(t.driver_first_name, ''))) = LOWER(TRIM(d.name))
+					AND (
+						TRIM(COALESCE(t.driver_middle_name, '')) = ''
+						OR TRIM(COALESCE(d.middlename, '')) = ''
+						OR LOWER(TRIM(COALESCE(t.driver_middle_name, ''))) = LOWER(TRIM(COALESCE(d.middlename, '')))
+					)
+				)
+			  )
+		)
+		SELECT
+			COALESCE(SUM(GREATEST(mileage_end - mileage_start, 0)), 0),
+			COALESCE(SUM(GREATEST(fuel_consumption_actual, 0)), 0)
+		FROM driver_tripsheets;
+	`
+	var mileage int64
+	var fuelUsed float64
+	if err := r.db.QueryRowContext(ctx, q, driverID).Scan(&mileage, &fuelUsed); err != nil {
+		return 0, 0, fmt.Errorf("get driver totals: %w", err)
+	}
+	return mileage, fuelUsed, nil
 }
 
 func (r *DriverRepo) getDriverAccidentsCount(ctx context.Context, driverID int64) (int64, error) {
@@ -1113,6 +1177,7 @@ func scanDriver(scanner driverScanner) (*models.Driver, error) {
 	var birthDate sql.NullTime
 	var licenseNumber, licenseCategory sql.NullString
 	var experienceYears sql.NullInt64
+	var deletedAt sql.NullTime
 
 	if err := scanner.Scan(
 		&out.ID,
@@ -1134,6 +1199,8 @@ func scanDriver(scanner driverScanner) (*models.Driver, error) {
 		&out.Status.Description,
 		&out.Status.CreatedAt,
 		&out.Status.UpdatedAt,
+		&out.IsArchived,
+		&deletedAt,
 		&out.CreatedAt,
 		&out.UpdatedAt,
 	); err != nil {
@@ -1153,6 +1220,9 @@ func scanDriver(scanner driverScanner) (*models.Driver, error) {
 	if experienceYears.Valid {
 		v := int(experienceYears.Int64)
 		out.ExperienceYears = &v
+	}
+	if deletedAt.Valid {
+		out.DeletedAt = &deletedAt.Time
 	}
 
 	return out, nil
@@ -1278,7 +1348,7 @@ func ensureDriverExistsTx(ctx context.Context, tx *sql.Tx, driverID int64) error
 }
 
 func ensureVehicleExistsTx(ctx context.Context, tx *sql.Tx, vehicleID int64) error {
-	const q = `SELECT EXISTS(SELECT 1 FROM vehicles WHERE id = $1);`
+	const q = `SELECT EXISTS(SELECT 1 FROM vehicles WHERE id = $1 AND is_archived = FALSE);`
 	var exists bool
 	if err := tx.QueryRowContext(ctx, q, vehicleID).Scan(&exists); err != nil {
 		return fmt.Errorf("check vehicle exists: %w", err)

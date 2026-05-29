@@ -33,6 +33,7 @@ func vehiclePhotoURL(c *gin.Context, rel string) string {
 // @Produce      json
 // @Security     BearerAuth
 // @Param        id path int true "Vehicle ID"
+// @Param        include_archived query bool false "Include archived vehicle" default(false)
 // @Success      200 {object} VehicleResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -51,7 +52,7 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 		return
 	}
 
-	v, err := h.svc.GetByID(c.Request.Context(), id)
+	v, err := h.svc.GetByID(c.Request.Context(), id, parseVehicleBoolQuery(c.Query("include_archived")))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -111,8 +112,9 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 // @Param        driver_id    query int    false "Filter by driver id"
 // @Param        limit        query int    false "Limit"  default(50)
 // @Param        offset       query int    false "Offset" default(0)
-// @Param        sort_by      query string false "Sort by: id, board_number, state_number, manufacture_year, mileage, created_at, status_id, status_name"
+// @Param        sort_by      query string false "Sort by: id, state_number, board_number, brand, model, year, status, created_at, updated_at"
 // @Param        order        query string false "Order: asc or desc"
+// @Param        include_archived query bool false "Include archived vehicles" default(false)
 // @Success      200 {object} VehicleListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -121,14 +123,15 @@ func (h *VehicleHandler) GetVehicleByID(c *gin.Context) {
 // @Router       /api/vehicles [get]
 func (h *VehicleHandler) ListVehicles(c *gin.Context) {
 	q := dto.VehicleListQuery{
-		Search:      c.Query("search"),
-		BoardNumber: c.Query("board_number"),
-		StateNumber: c.Query("state_number"),
-		VIN:         c.Query("vin"),
-		BrandModel:  c.Query("brand_model"),
-		StatusName:  c.Query("status_name"),
-		SortBy:      c.Query("sort_by"),
-		Order:       c.Query("order"),
+		Search:          c.Query("search"),
+		BoardNumber:     c.Query("board_number"),
+		StateNumber:     c.Query("state_number"),
+		VIN:             c.Query("vin"),
+		BrandModel:      c.Query("brand_model"),
+		StatusName:      c.Query("status_name"),
+		SortBy:          c.Query("sort_by"),
+		Order:           c.Query("order"),
+		IncludeArchived: parseVehicleBoolQuery(c.Query("include_archived")),
 	}
 	if s := strings.TrimSpace(c.Query("status_id")); s != "" {
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
@@ -230,4 +233,9 @@ func vehicleAssignedToDriver(driverIDs []int64, driverID int64) bool {
 		}
 	}
 	return false
+}
+
+func parseVehicleBoolQuery(value string) bool {
+	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+	return err == nil && parsed
 }

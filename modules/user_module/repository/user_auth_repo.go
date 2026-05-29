@@ -29,6 +29,8 @@ SELECT
 FROM %s u
 LEFT JOIN roles ON roles.id = u.role_id
 WHERE LOWER(u.email) = LOWER($1)
+  AND u.is_active = TRUE
+  AND u.is_archived = FALSE
 LIMIT 1;
 `, r.usersTable())
 

@@ -36,6 +36,7 @@ type NotificationRepository interface {
 	CountUnread(ctx context.Context, userID int64) (int64, error)
 	MarkAsRead(ctx context.Context, userID int64, notificationID int64) (bool, error)
 	MarkAllAsRead(ctx context.Context, userID int64) (int64, error)
+	MarkAllAsReadByType(ctx context.Context, userID int64, typeCode string) (int64, error)
 	GetUserIDsByRole(ctx context.Context, roleCode string, fallbackRoleID int64) ([]int64, error)
 }
 
@@ -241,6 +242,29 @@ func (r *notificationRepo) MarkAllAsRead(ctx context.Context, userID int64) (int
 	return affected, nil
 }
 
+func (r *notificationRepo) MarkAllAsReadByType(ctx context.Context, userID int64, typeCode string) (int64, error) {
+	const q = `
+		UPDATE notifications n
+		SET is_readed = TRUE,
+			read_at = COALESCE(read_at, NOW()),
+			updated_at = NOW()
+		FROM notification_types nt
+		WHERE n.notification_type_id = nt.id
+		  AND n.user_id = $1
+		  AND nt.code = $2
+		  AND n.is_readed = FALSE;
+	`
+	res, err := r.db.ExecContext(ctx, q, userID, strings.TrimSpace(typeCode))
+	if err != nil {
+		return 0, fmt.Errorf("mark notifications as read by type: %w", err)
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("mark notifications as read by type rows affected: %w", err)
+	}
+	return affected, nil
+}
+
 func (r *notificationRepo) GetUserIDsByRole(ctx context.Context, roleCode string, fallbackRoleID int64) ([]int64, error) {
 	roleCode = strings.TrimSpace(roleCode)
 	const q = `
@@ -251,6 +275,8 @@ func (r *notificationRepo) GetUserIDsByRole(ctx context.Context, roleCode string
 			($1 <> '' AND r.name = $1)
 			OR ($2 > 0 AND u.role_id = $2)
 		)
+		  AND u.is_active = TRUE
+		  AND u.is_archived = FALSE
 		ORDER BY u.id ASC;
 	`
 	rows, err := r.db.QueryContext(ctx, q, roleCode, fallbackRoleID)

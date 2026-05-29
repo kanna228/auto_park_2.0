@@ -10,7 +10,7 @@ func (s *vehicleService) DeleteByID(ctx context.Context, id int64) (bool, error)
 		return false, fmt.Errorf("invalid id")
 	}
 
-	vehicle, err := s.repo.GetByID(ctx, id)
+	vehicle, err := s.repo.GetByID(ctx, id, true)
 	if err != nil {
 		return false, err
 	}
@@ -24,10 +24,6 @@ func (s *vehicleService) DeleteByID(ctx context.Context, id int64) (bool, error)
 	}
 	if !ok {
 		return false, nil
-	}
-
-	if vehicle.PhotoPath != "" {
-		_ = s.storage.Delete(vehicle.PhotoPath)
 	}
 
 	return true, nil

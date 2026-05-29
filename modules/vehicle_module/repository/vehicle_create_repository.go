@@ -11,7 +11,7 @@ import (
 
 type VehicleRepository interface {
 	Create(ctx context.Context, v CreateVehicleParams) (int64, error)
-	GetByID(ctx context.Context, id int64) (*models.Vehicle, error)
+	GetByID(ctx context.Context, id int64, includeArchived ...bool) (*models.Vehicle, error)
 	List(ctx context.Context, q ListVehiclesParams) ([]models.Vehicle, int64, error)
 	UpdateByID(ctx context.Context, id int64, p UpdateVehicleParams) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)

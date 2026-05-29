@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/user_module/dto"
 	"auto_park/modules/user_module/models"
 	"auto_park/modules/user_module/repository"
@@ -48,6 +50,8 @@ type DriverDTO struct {
 	StatusCode       string                     `json:"status_code" example:"available"`
 	StatusInfo       DriverStatusDTO            `json:"status_info"`
 	AssignedVehicles []DriverAssignedVehicleDTO `json:"assigned_vehicles"`
+	IsArchived       bool                       `json:"is_archived"`
+	DeletedAt        *string                    `json:"deleted_at,omitempty"`
 	CreatedAt        string                     `json:"created_at" example:"2026-02-18T12:34:56Z"`
 	UpdatedAt        string                     `json:"updated_at" example:"2026-02-18T12:34:56Z"`
 }
@@ -98,6 +102,8 @@ type DriverPassportDTO struct {
 	Status           string                       `json:"status" example:"Доступен"`
 	AssignedVehicles []DriverAssignedVehicleDTO   `json:"assigned_vehicles"`
 	TotalWorkedHours float64                      `json:"total_worked_hours" example:"40"`
+	TotalMileage     int64                        `json:"total_mileage" example:"12450"`
+	TotalFuelUsed    float64                      `json:"total_fuel_used" example:"1820.5"`
 	IncidentsCount   int64                        `json:"incidents_count" example:"5"`
 	TripsheetsTotal  int64                        `json:"tripsheets_total" example:"120"`
 	IncidentsTotal   int64                        `json:"incidents_total" example:"5"`
@@ -343,10 +349,15 @@ func (h *DriversHandler) GetByID(c *gin.Context) {
 		TripsOffset:     parseOptionalInt(c, "trips_offset"),
 		IncidentsLimit:  parseOptionalInt(c, "incidents_limit"),
 		IncidentsOffset: parseOptionalInt(c, "incidents_offset"),
+		IncludeArchived: parseArchivedQuery(c),
 	}
 
 	passport, err := h.svc.GetPassport(c.Request.Context(), id, passportQuery)
 	if err != nil {
+		if errors.Is(err, apierrors.ErrEntityArchived) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя изменить архивный объект"})
+			return
+		}
 		if err == repository.ErrNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "driver not found"})
 			return
@@ -570,6 +581,11 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		v := drv.BirthDate.Format("2006-01-02")
 		birthDate = &v
 	}
+	var deletedAt *string
+	if drv.DeletedAt != nil {
+		v := drv.DeletedAt.Format("2006-01-02T15:04:05Z")
+		deletedAt = &v
+	}
 
 	assignedVehicles := make([]DriverAssignedVehicleDTO, 0, len(drv.AssignedVehicles))
 	for _, vehicle := range drv.AssignedVehicles {
@@ -609,6 +625,8 @@ func driverToDTO(c *gin.Context, drv models.Driver) DriverDTO {
 		StatusCode:       drv.Status.Code,
 		StatusInfo:       driverStatusToDTO(drv.Status),
 		AssignedVehicles: assignedVehicles,
+		IsArchived:       drv.IsArchived,
+		DeletedAt:        deletedAt,
 		CreatedAt:        drv.CreatedAt.Format("2006-01-02T15:04:05Z"),
 		UpdatedAt:        drv.UpdatedAt.Format("2006-01-02T15:04:05Z"),
 	}
@@ -681,6 +699,8 @@ func driverPassportToDTO(c *gin.Context, passport models.DriverPassport) DriverP
 		Status:           passport.Status,
 		AssignedVehicles: assignedVehicles,
 		TotalWorkedHours: passport.TotalWorkedHours,
+		TotalMileage:     passport.TotalMileage,
+		TotalFuelUsed:    passport.TotalFuelUsed,
 		IncidentsCount:   passport.IncidentsCount,
 		TripsheetsTotal:  passport.TripsheetsTotal,
 		IncidentsTotal:   passport.IncidentsTotal,

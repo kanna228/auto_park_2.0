@@ -11,8 +11,12 @@ import (
 	"github.com/lib/pq"
 )
 
-func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, error) {
-	const q = `
+func (r *vehicleRepo) GetByID(ctx context.Context, id int64, includeArchived ...bool) (*models.Vehicle, error) {
+	archiveCond := "AND v.is_archived = FALSE"
+	if len(includeArchived) > 0 && includeArchived[0] {
+		archiveCond = ""
+	}
+	q := fmt.Sprintf(`
 		SELECT
 			v.id,
 			v.board_number,
@@ -33,16 +37,20 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 			vs.name AS status_name,
 			v.drivers_ids,
 			v.photo_path,
+			v.is_archived,
+			v.deleted_at,
 			v.created_at,
 			v.updated_at
 		FROM vehicles v
 		JOIN vehicle_status vs ON vs.id = v.status_id
-		WHERE v.id = $1;
-	`
+		WHERE v.id = $1
+		  %s;
+	`, archiveCond)
 
 	var v models.Vehicle
 	var drivers pq.Int64Array
 	var photoPath sql.NullString
+	var deletedAt sql.NullTime
 
 	err := r.db.QueryRowContext(ctx, q, id).Scan(
 		&v.ID,
@@ -64,6 +72,8 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 		&v.StatusName,
 		&drivers,
 		&photoPath,
+		&v.IsArchived,
+		&deletedAt,
 		&v.CreatedAt,
 		&v.UpdatedAt,
 	)
@@ -77,6 +87,9 @@ func (r *vehicleRepo) GetByID(ctx context.Context, id int64) (*models.Vehicle, e
 
 	v.DriversIDs = []int64(drivers)
 	v.PhotoPath = photoPath.String
+	if deletedAt.Valid {
+		v.DeletedAt = &deletedAt.Time
+	}
 	return &v, nil
 }
 
@@ -100,6 +113,8 @@ type ListVehiclesParams struct {
 
 	SortBy string
 	Order  string
+
+	IncludeArchived bool
 }
 
 func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.Vehicle, int64, error) {
@@ -144,6 +159,9 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 	if q.DriverID != nil {
 		add("$%d = ANY(v.drivers_ids)", *q.DriverID)
 	}
+	if !q.IncludeArchived {
+		where = append(where, "v.is_archived = FALSE")
+	}
 
 	whereSQL := "TRUE"
 	if len(where) > 0 {
@@ -151,23 +169,23 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 	}
 
 	sortCol := "v.id"
-	switch q.SortBy {
+	switch strings.TrimSpace(strings.ToLower(q.SortBy)) {
 	case "id":
 		sortCol = "v.id"
-	case "board_number":
-		sortCol = "v.board_number"
 	case "state_number":
 		sortCol = "v.state_number"
-	case "manufacture_year":
+	case "board_number":
+		sortCol = "v.board_number"
+	case "brand", "model":
+		sortCol = "v.brand_model"
+	case "year":
 		sortCol = "v.manufacture_year"
-	case "mileage":
-		sortCol = "v.mileage"
+	case "status":
+		sortCol = "vs.name"
 	case "created_at":
 		sortCol = "v.created_at"
-	case "status_id":
-		sortCol = "v.status_id"
-	case "status_name":
-		sortCol = "vs.name"
+	case "updated_at":
+		sortCol = "v.updated_at"
 	}
 
 	order := "DESC"
@@ -219,6 +237,8 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 			vs.name AS status_name,
 			v.drivers_ids,
 			v.photo_path,
+			v.is_archived,
+			v.deleted_at,
 			v.created_at,
 			v.updated_at
 		FROM vehicles v
@@ -239,6 +259,7 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 		var v models.Vehicle
 		var drivers pq.Int64Array
 		var photoPath sql.NullString
+		var deletedAt sql.NullTime
 
 		if err := rows.Scan(
 			&v.ID,
@@ -260,6 +281,8 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 			&v.StatusName,
 			&drivers,
 			&photoPath,
+			&v.IsArchived,
+			&deletedAt,
 			&v.CreatedAt,
 			&v.UpdatedAt,
 		); err != nil {
@@ -268,6 +291,9 @@ func (r *vehicleRepo) List(ctx context.Context, q ListVehiclesParams) ([]models.
 
 		v.DriversIDs = []int64(drivers)
 		v.PhotoPath = photoPath.String
+		if deletedAt.Valid {
+			v.DeletedAt = &deletedAt.Time
+		}
 		items = append(items, v)
 	}
 

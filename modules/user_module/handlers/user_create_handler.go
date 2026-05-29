@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 
+	"auto_park/internal/apierrors"
 	"auto_park/internal/config"
 	dto "auto_park/modules/user_module/dto"
 	"auto_park/modules/user_module/service"
@@ -57,7 +58,7 @@ func (h *UsersHandler) CreateUser(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "email already exists"})
 			return
 		case service.ErrRoleNotFound:
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "role not found"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "code": apierrors.CodeUnknownRole, "error": "role not found"})
 			return
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})

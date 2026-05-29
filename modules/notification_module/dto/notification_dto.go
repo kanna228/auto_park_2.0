@@ -34,7 +34,13 @@ type NotificationMarkAllReadResponse struct {
 	Updated int64 `json:"updated" example:"3"`
 }
 
+type NotificationReadByTypeRequest struct {
+	TypeCode string `json:"type_code" binding:"required" example:"incident_created"`
+}
+
 type WebSocketMessage struct {
-	Event string `json:"event" example:"notification.created"`
-	Data  any    `json:"data"`
+	Event    string   `json:"event" example:"notification.created"`
+	Type     string   `json:"type,omitempty" example:"notification"`
+	Data     any      `json:"data"`
+	Entities []string `json:"entities,omitempty" example:"part-requests,parts"`
 }

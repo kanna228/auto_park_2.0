@@ -134,7 +134,7 @@ func (h *NotificationHandler) ListUnread(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": resp})
+	c.JSON(http.StatusOK, gin.H{"success": true, "unread_count": resp.UnreadCount, "data": resp})
 }
 
 // CountUnread godoc
@@ -231,6 +231,40 @@ func (h *NotificationHandler) MarkAllAsRead(c *gin.Context) {
 	}
 
 	updated, err := h.svc.MarkAllAsRead(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": dto.NotificationMarkAllReadResponse{Updated: updated}})
+}
+
+// MarkAllAsReadByType godoc
+// @Summary      Mark notifications as read by type
+// @Description  Marks all current user's unread notifications with requested type_code as read.
+// @Tags         Notifications
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Param        payload body dto.NotificationReadByTypeRequest true "Notification type"
+// @Success      200 {object} NotificationMarkAllReadResponseWrap
+// @Failure      400 {object} ErrorResponse
+// @Failure      401 {object} ErrorResponse
+// @Failure      500 {object} ErrorResponse
+// @Router       /api/notifications/read-by-type [patch]
+func (h *NotificationHandler) MarkAllAsReadByType(c *gin.Context) {
+	userID, ok := middleware.CurrentUserIDOrAbort(c)
+	if !ok {
+		return
+	}
+
+	var req dto.NotificationReadByTypeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	updated, err := h.svc.MarkAllAsReadByType(c.Request.Context(), userID, req.TypeCode)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return

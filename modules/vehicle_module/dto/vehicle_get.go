@@ -180,6 +180,9 @@ type VehicleResponse struct {
 	PhotoPath string `json:"photo_path,omitempty"`
 	PhotoURL  string `json:"photo_url,omitempty"`
 
+	IsArchived bool       `json:"is_archived"`
+	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
+
 	Insurances           []VehicleInsuranceHistoryItem           `json:"insurances"`
 	TechnicalInspections []VehicleTechnicalInspectionHistoryItem `json:"technical_inspections"`
 	Incidents            []VehicleIncidentHistoryItem            `json:"incidents"`

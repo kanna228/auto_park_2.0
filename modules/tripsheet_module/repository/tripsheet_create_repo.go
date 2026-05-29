@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/tripsheet_module/dto"
 	"auto_park/modules/tripsheet_module/models"
 )
@@ -57,6 +58,9 @@ func (r *tripsheetRepo) GetStatusIDByName(ctx context.Context, name string) (int
 }
 
 func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheetInput) (*models.Tripsheet, error) {
+	if err := r.ensureTripsheetActiveRefs(ctx, input.VehicleID, input.DriverID); err != nil {
+		return nil, err
+	}
 	query := fmt.Sprintf(`
 		INSERT INTO %s (
 			tripsheet_number,
@@ -163,6 +167,30 @@ func (r *tripsheetRepo) Create(ctx context.Context, input models.CreateTripsheet
 	}
 
 	return &item, nil
+}
+
+func (r *tripsheetRepo) ensureTripsheetActiveRefs(ctx context.Context, vehicleID *int64, driverID *int64) error {
+	if vehicleID != nil && *vehicleID > 0 {
+		const q = `SELECT is_archived FROM vehicles WHERE id = $1;`
+		var archived bool
+		if err := r.db.QueryRowContext(ctx, q, *vehicleID).Scan(&archived); err != nil {
+			return fmt.Errorf("vehicle_id not found")
+		}
+		if archived {
+			return apierrors.ErrEntityArchived
+		}
+	}
+	if driverID != nil && *driverID > 0 {
+		const q = `SELECT is_archived FROM drivers WHERE id = $1;`
+		var archived bool
+		if err := r.db.QueryRowContext(ctx, q, *driverID).Scan(&archived); err != nil {
+			return fmt.Errorf("driver_id not found")
+		}
+		if archived {
+			return apierrors.ErrEntityArchived
+		}
+	}
+	return nil
 }
 
 func (r *tripsheetRepo) ValidateDriverShiftForTripsheet(ctx context.Context, driverShiftID int64, driverID *int64, tripsheetDate time.Time) error {

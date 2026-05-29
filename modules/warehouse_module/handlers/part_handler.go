@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"auto_park/internal/apierrors"
 	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/repository"
@@ -80,7 +81,7 @@ func (h *PartHandler) GetPartByID(c *gin.Context) {
 		return
 	}
 
-	item, err := h.svc.GetByID(c.Request.Context(), id)
+	item, err := h.svc.GetByID(c.Request.Context(), id, parseWarehouseBoolQuery(c.Query("include_archived")))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
@@ -136,6 +137,7 @@ func (h *PartHandler) ListPartMovements(c *gin.Context) {
 // @Param        offset query int false "Offset" default(0)
 // @Param        sort_by query string false "Sort by field: created_at, updated_at, part_id, name, quantity, category"
 // @Param        order query string false "Sort order: asc or desc"
+// @Param        include_archived query bool false "Include archived parts" default(false)
 // @Success      200 {object} PartListResponseWrap
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse
@@ -144,11 +146,12 @@ func (h *PartHandler) ListPartMovements(c *gin.Context) {
 // @Router       /api/warehouse/parts [get]
 func (h *PartHandler) ListParts(c *gin.Context) {
 	q := dto.PartListQuery{
-		PartID:   c.Query("part_id"),
-		Name:     c.Query("name"),
-		Category: c.Query("category"),
-		SortBy:   c.Query("sort_by"),
-		Order:    c.Query("order"),
+		PartID:          c.Query("part_id"),
+		Name:            c.Query("name"),
+		Category:        c.Query("category"),
+		SortBy:          c.Query("sort_by"),
+		Order:           c.Query("order"),
+		IncludeArchived: parseWarehouseBoolQuery(c.Query("include_archived")),
 	}
 	if s := strings.TrimSpace(c.Query("limit")); s != "" {
 		n, err := strconv.Atoi(s)
@@ -224,6 +227,8 @@ func (h *PartHandler) UpdatePart(c *gin.Context) {
 	updated, err := h.svc.UpdateByID(c.Request.Context(), id, req)
 	if err != nil {
 		switch {
+		case errors.Is(err, apierrors.ErrEntityArchived):
+			c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя изменить архивный объект"})
 		case errors.Is(err, repository.ErrPartNameExists):
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "part name already exists"})
 		default:
@@ -350,4 +355,9 @@ func parseID(c *gin.Context) (int64, bool) {
 		return 0, false
 	}
 	return id, true
+}
+
+func parseWarehouseBoolQuery(value string) bool {
+	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+	return err == nil && parsed
 }

@@ -75,6 +75,7 @@ func AuthJWT(cfg *config.Config) gin.HandlerFunc {
 
 		c.Set(ContextUserIDKey, claims.UserID)
 		c.Set(ContextRoleIDKey, claims.RoleID)
+		c.Set(ContextRoleNameKey, claims.RoleName)
 		c.Set(ContextEmailKey, claims.Email)
 		c.Set(ContextIINKey, claims.IIN)
 		if strings.TrimSpace(claims.AccountType) == "" {
@@ -82,6 +83,9 @@ func AuthJWT(cfg *config.Config) gin.HandlerFunc {
 		}
 		c.Set(ContextAccountTypeKey, claims.AccountType)
 		c.Set(ContextDriverIDKey, claims.DriverID)
+		if claims.ExpiresAt != nil {
+			c.Set(ContextExpiresAtKey, claims.ExpiresAt.Unix())
+		}
 
 		c.Next()
 	}

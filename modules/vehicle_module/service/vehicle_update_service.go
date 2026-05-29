@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/vehicle_module/dto"
 	"auto_park/modules/vehicle_module/repository"
 )
@@ -12,6 +13,16 @@ import (
 func (s *vehicleService) UpdateByID(ctx context.Context, id int64, req dto.VehicleUpdateRequest) (bool, error) {
 	if id <= 0 {
 		return false, fmt.Errorf("invalid id")
+	}
+	current, err := s.repo.GetByID(ctx, id, true)
+	if err != nil {
+		return false, err
+	}
+	if current == nil {
+		return false, nil
+	}
+	if current.IsArchived {
+		return false, apierrors.ErrEntityArchived
 	}
 
 	req.BoardNumber = strings.TrimSpace(req.BoardNumber)

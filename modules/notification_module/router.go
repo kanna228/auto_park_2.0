@@ -24,6 +24,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, svc notificationservice.N
 		api.GET("/unread-count", h.CountUnreadPlain)
 		api.PATCH("/:id/read", h.MarkAsRead)
 		api.PATCH("/read-all", h.MarkAllAsRead)
+		api.PATCH("/read-by-type", h.MarkAllAsReadByType)
 		api.PUT("/:id/read", h.MarkAsRead)
 		api.PUT("/read-all", h.MarkAllAsRead)
 	}

@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"auto_park/internal/apierrors"
 	"auto_park/modules/tripsheet_module/dto"
 	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -45,6 +47,10 @@ func (h *TripsheetHandler) Update(c *gin.Context) {
 
 	resp, err := h.svc.Update(c.Request.Context(), id, req)
 	if err != nil {
+		if errors.Is(err, apierrors.ErrEntityArchived) {
+			c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя использовать архивный объект"})
+			return
+		}
 		if err == sql.ErrNoRows {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,

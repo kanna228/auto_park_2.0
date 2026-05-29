@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/user_module/models"
 	"auto_park/modules/user_module/repository"
 
@@ -138,6 +139,8 @@ func (s *UsersUpdateService) UpdateUserAdmin(ctx context.Context, targetID int64
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, apierrors.ErrEntityArchived):
+			return nil, apierrors.ErrEntityArchived
 		case errors.Is(err, repository.ErrUserNotFound):
 			return nil, ErrUserNotFound
 		case errors.Is(err, repository.ErrEmailExists):

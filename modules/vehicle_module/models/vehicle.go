@@ -31,8 +31,10 @@ type Vehicle struct {
 
 	PhotoPath string `json:"photo_path,omitempty"`
 
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	IsArchived bool       `json:"is_archived"`
+	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 type VehicleStatus struct {

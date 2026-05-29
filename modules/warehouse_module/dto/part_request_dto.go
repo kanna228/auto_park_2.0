@@ -24,7 +24,8 @@ type PartRequestUpdateRequest struct {
 }
 
 type PartRequestStatusUpdateRequest struct {
-	StatusID         int64  `json:"status_id" binding:"gt=0" example:"3"`
+	StatusID         int64  `json:"status_id" binding:"omitempty,gt=0" example:"3"`
+	StatusCode       string `json:"status_code,omitempty" example:"approved"`
 	Comment          string `json:"comment,omitempty" example:"Approved by warehouse manager"`
 	RejectionComment string `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
 }
@@ -85,6 +86,17 @@ type PartRequestPartBriefResponse struct {
 	AvailableQuantity int64  `json:"available_quantity" example:"12"`
 }
 
+type PartRequestVehicleBriefResponse struct {
+	ID          int64  `json:"id" example:"12"`
+	StateNumber string `json:"state_number" example:"777ABC01"`
+	BoardNumber string `json:"board_number" example:"55"`
+}
+
+type PartRequestSourcePurchaseRequestResponse struct {
+	ID     int64  `json:"id" example:"77"`
+	Status string `json:"status" example:"new"`
+}
+
 type PartRequestHistoryResponse struct {
 	ID                int64                     `json:"id" example:"1"`
 	PartRequestID     int64                     `json:"part_request_id" example:"15"`
@@ -98,27 +110,33 @@ type PartRequestHistoryResponse struct {
 }
 
 type PartRequestResponse struct {
-	ID                        int64                        `json:"id" example:"1"`
-	PartID                    int64                        `json:"part_id" example:"1"`
-	Part                      PartRequestPartBriefResponse `json:"part"`
-	Quantity                  int64                        `json:"quantity" example:"5"`
-	MechanicComment           string                       `json:"mechanic_comment" example:"Need new brake pads for scheduled maintenance"`
-	RejectionComment          *string                      `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
-	VehicleID                 *int64                       `json:"vehicle_id,omitempty" example:"12"`
-	MechanicShiftID           *int64                       `json:"mechanic_shift_id,omitempty" example:"3"`
-	PlannedReplacementAt      *time.Time                   `json:"planned_replacement_at,omitempty"`
-	RepairStatus              string                       `json:"repair_status" example:"in_progress"`
-	CompletedAt               *time.Time                   `json:"completed_at,omitempty"`
-	CompletedByUserID         *int64                       `json:"completed_by_user_id,omitempty" example:"5"`
-	VehiclePartInstallationID *int64                       `json:"vehicle_part_installation_id,omitempty" example:"30"`
-	StatusID                  int64                        `json:"status_id" example:"1"`
-	Status                    PartRequestStatusResponse    `json:"status"`
-	AuthorUserID              int64                        `json:"author_user_id" example:"10"`
-	AuthorEmail               *string                      `json:"author_email,omitempty" example:"mechanic@example.com"`
-	AuthorFullName            *string                      `json:"author_full_name,omitempty" example:"Ivan Ivanov"`
-	History                   []PartRequestHistoryResponse `json:"history"`
-	CreatedAt                 time.Time                    `json:"created_at"`
-	UpdatedAt                 time.Time                    `json:"updated_at"`
+	ID                        int64                                     `json:"id" example:"1"`
+	PartID                    int64                                     `json:"part_id" example:"1"`
+	Part                      PartRequestPartBriefResponse              `json:"part"`
+	Quantity                  int64                                     `json:"quantity" example:"5"`
+	MechanicComment           string                                    `json:"mechanic_comment" example:"Need new brake pads for scheduled maintenance"`
+	RejectionComment          *string                                   `json:"rejection_comment,omitempty" example:"Недостаточно данных для заказа детали"`
+	VehicleID                 *int64                                    `json:"vehicle_id,omitempty" example:"12"`
+	Vehicle                   *PartRequestVehicleBriefResponse          `json:"vehicle"`
+	MechanicShiftID           *int64                                    `json:"mechanic_shift_id,omitempty" example:"3"`
+	PlannedReplacementAt      *time.Time                                `json:"planned_replacement_at,omitempty"`
+	RepairStatus              string                                    `json:"repair_status" example:"in_progress"`
+	CompletedAt               *time.Time                                `json:"completed_at,omitempty"`
+	CompletedByUserID         *int64                                    `json:"completed_by_user_id,omitempty" example:"5"`
+	VehiclePartInstallationID *int64                                    `json:"vehicle_part_installation_id,omitempty" example:"30"`
+	StatusID                  int64                                     `json:"status_id" example:"1"`
+	Status                    PartRequestStatusResponse                 `json:"status"`
+	AuthorUserID              int64                                     `json:"author_user_id" example:"10"`
+	AuthorEmail               *string                                   `json:"author_email,omitempty" example:"mechanic@example.com"`
+	AuthorFullName            *string                                   `json:"author_full_name,omitempty" example:"Ivan Ivanov"`
+	ReviewedByUserID          *int64                                    `json:"reviewed_by_user_id"`
+	ReviewedByFullName        *string                                   `json:"reviewed_by_full_name"`
+	ReviewedByEmail           *string                                   `json:"reviewed_by_email"`
+	ReviewedAt                *time.Time                                `json:"reviewed_at"`
+	SourcePurchaseRequest     *PartRequestSourcePurchaseRequestResponse `json:"source_purchase_request"`
+	History                   []PartRequestHistoryResponse              `json:"history"`
+	CreatedAt                 time.Time                                 `json:"created_at"`
+	UpdatedAt                 time.Time                                 `json:"updated_at"`
 }
 
 type PartRequestListResponse struct {

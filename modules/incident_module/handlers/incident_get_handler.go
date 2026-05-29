@@ -28,7 +28,7 @@ import (
 // @Param        offset query int false "Offset" default(0)
 // @Param        page query int false "Page number" default(1)
 // @Param        page_size query int false "Page size" default(50)
-// @Param        sort_by query string false "Sort by: incident_date, created_at, vehicle_id, driver_id, mechanic_id, tripsheet_id"
+// @Param        sort_by query string false "Sort by: id, incident_date, incident_time, incident_type_id, vehicle_id, driver_id, mechanic_id, created_at"
 // @Param        order query string false "Sort order: asc or desc"
 // @Success      200 {object} IncidentListResponseWrap
 // @Failure      400 {object} ErrorResponse

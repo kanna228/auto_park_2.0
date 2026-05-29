@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/repository"
 	"auto_park/modules/warehouse_module/service"
@@ -147,10 +148,14 @@ func writePurchaseRequestError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, repository.ErrPartRequestPartNotFound):
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "part not found"})
+	case errors.Is(err, apierrors.ErrEntityArchived):
+		c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя изменить архивный объект"})
 	case errors.Is(err, repository.ErrPartRequestUserNotFound):
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "user not found"})
 	case errors.Is(err, repository.ErrPurchaseRequestLocked):
 		c.JSON(http.StatusConflict, gin.H{"success": false, "error": "purchase request cannot be changed after confirmation or cancellation"})
+	case errors.Is(err, repository.ErrPurchaseRequestAlreadyConfirmed):
+		c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodePurchaseAlreadyConfirmed, "error": "purchase request already confirmed"})
 	case errors.Is(err, repository.ErrPurchaseRequestSourcePartRequestNotFound):
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "source part request not found"})
 	default:

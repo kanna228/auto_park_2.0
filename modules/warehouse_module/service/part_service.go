@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/models"
 	"auto_park/modules/warehouse_module/repository"
@@ -19,7 +20,7 @@ var allowedTextRe = regexp.MustCompile(`^[A-Za-zА-Яа-яЁё0-9\s\-_/().,xX№
 
 type PartService interface {
 	Create(ctx context.Context, req dto.PartCreateRequest) (int64, error)
-	GetByID(ctx context.Context, id int64) (*dto.PartResponse, error)
+	GetByID(ctx context.Context, id int64, includeArchived ...bool) (*dto.PartResponse, error)
 	List(ctx context.Context, q dto.PartListQuery) (*dto.PartListResponse, error)
 	UpdateByID(ctx context.Context, id int64, req dto.PartUpdateRequest) (bool, error)
 	DeleteByID(ctx context.Context, id int64) (bool, error)
@@ -89,11 +90,11 @@ func (s *partService) Create(ctx context.Context, req dto.PartCreateRequest) (in
 	})
 }
 
-func (s *partService) GetByID(ctx context.Context, id int64) (*dto.PartResponse, error) {
+func (s *partService) GetByID(ctx context.Context, id int64, includeArchived ...bool) (*dto.PartResponse, error) {
 	if id <= 0 {
 		return nil, fmt.Errorf("invalid id")
 	}
-	item, err := s.repo.GetByID(ctx, id)
+	item, err := s.repo.GetByID(ctx, id, includeArchived...)
 	if err != nil {
 		return nil, err
 	}
@@ -106,13 +107,14 @@ func (s *partService) GetByID(ctx context.Context, id int64) (*dto.PartResponse,
 
 func (s *partService) List(ctx context.Context, q dto.PartListQuery) (*dto.PartListResponse, error) {
 	items, total, err := s.repo.List(ctx, repository.ListPartsParams{
-		PartID:   strings.TrimSpace(q.PartID),
-		Name:     strings.TrimSpace(q.Name),
-		Category: strings.TrimSpace(q.Category),
-		Limit:    q.Limit,
-		Offset:   q.Offset,
-		SortBy:   q.SortBy,
-		Order:    q.Order,
+		PartID:          strings.TrimSpace(q.PartID),
+		Name:            strings.TrimSpace(q.Name),
+		Category:        strings.TrimSpace(q.Category),
+		Limit:           q.Limit,
+		Offset:          q.Offset,
+		SortBy:          q.SortBy,
+		Order:           q.Order,
+		IncludeArchived: q.IncludeArchived,
 	})
 	if err != nil {
 		return nil, err
@@ -138,6 +140,16 @@ func (s *partService) List(ctx context.Context, q dto.PartListQuery) (*dto.PartL
 func (s *partService) UpdateByID(ctx context.Context, id int64, req dto.PartUpdateRequest) (bool, error) {
 	if id <= 0 {
 		return false, fmt.Errorf("invalid id")
+	}
+	current, err := s.repo.GetByID(ctx, id, true)
+	if err != nil {
+		return false, err
+	}
+	if current == nil {
+		return false, nil
+	}
+	if current.IsArchived {
+		return false, apierrors.ErrEntityArchived
 	}
 	name, err := normalizeRequiredField("name", req.Name)
 	if err != nil {
@@ -410,6 +422,8 @@ func mapPartToDTO(item models.Part) dto.PartResponse {
 		Dimensions:       item.Dimensions,
 		Manufacturer:     item.Manufacturer,
 		IsConsumable:     item.IsConsumable,
+		IsArchived:       item.IsArchived,
+		DeletedAt:        item.DeletedAt,
 		CreatedAt:        item.CreatedAt,
 		UpdatedAt:        item.UpdatedAt,
 	}

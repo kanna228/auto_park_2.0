@@ -20,15 +20,16 @@ func NewUsersReadService(repo repository.UsersReadRepo) *UsersReadService {
 	return &UsersReadService{repo: repo}
 }
 
-func (s *UsersReadService) ListUsers(ctx context.Context, requesterRoleID int64, requesterUserID int64, limit int, offset int) ([]models.UserPublic, int64, error) {
-	return s.repo.ListUsersForRole(ctx, requesterRoleID, requesterUserID, limit, offset)
+func (s *UsersReadService) ListUsers(ctx context.Context, requesterRoleID int64, requesterUserID int64, params repository.ListUsersParams) ([]models.UserPublic, int64, error) {
+	return s.repo.ListUsersForRole(ctx, requesterRoleID, requesterUserID, params)
 }
 
 // role=1 → может смотреть любого
 // role=2 → может смотреть только пользователей с ролью 2 или 3
 // role=3 → может смотреть только самого себя
-func (s *UsersReadService) GetUserByID(ctx context.Context, requesterRoleID int64, requesterUserID int64, targetID int64) (*models.UserPublic, error) {
-	target, err := s.repo.GetUserPublicByID(ctx, targetID)
+func (s *UsersReadService) GetUserByID(ctx context.Context, requesterRoleID int64, requesterUserID int64, targetID int64, includeArchived ...bool) (*models.UserPublic, error) {
+	include := len(includeArchived) > 0 && includeArchived[0]
+	target, err := s.repo.GetUserPublicByID(ctx, targetID, include)
 	if err != nil {
 		return nil, err
 	}
@@ -48,4 +49,8 @@ func (s *UsersReadService) GetUserByID(ctx context.Context, requesterRoleID int6
 	}
 
 	return target, nil
+}
+
+func (s *UsersReadService) GetDriverByID(ctx context.Context, driverID int64) (*models.UserPublic, error) {
+	return s.repo.GetDriverPublicByID(ctx, driverID)
 }
