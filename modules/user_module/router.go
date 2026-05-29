@@ -45,6 +45,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	protected := api.Group("")
 	protected.Use(middleware.AuthJWT(cfg))
 	{
+		protected.GET("/me", usersReadH.Me)
 		protected.GET("", usersReadH.ListUsers)
 
 		adminUsersCreate := protected.Group("")

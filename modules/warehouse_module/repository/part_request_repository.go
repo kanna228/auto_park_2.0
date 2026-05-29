@@ -103,6 +103,7 @@ type PartRequestRepository interface {
 	PartExists(ctx context.Context, partID int64) (bool, error)
 	StatusExists(ctx context.Context, statusID int64) (bool, error)
 	GetStatusByID(ctx context.Context, statusID int64) (*models.PartRequestStatus, error)
+	GetStatusByCode(ctx context.Context, statusCode string) (*models.PartRequestStatus, error)
 	ListStatuses(ctx context.Context) ([]models.PartRequestStatus, error)
 	ListHistoryByRequestID(ctx context.Context, partRequestID int64, limit int, offset int) ([]models.PartRequestHistory, int64, error)
 	ListHistory(ctx context.Context, p ListPartRequestHistoryParams) ([]models.PartRequestHistory, int64, error)
@@ -127,6 +128,20 @@ func (r *partRequestRepo) Create(ctx context.Context, p CreatePartRequestParams)
 		return 0, fmt.Errorf("begin create part request tx: %w", err)
 	}
 	defer rollbackPartRequestTx(tx)
+
+	if err := ensurePartExistsTx(ctx, tx, p.PartID); err != nil {
+		return 0, err
+	}
+	if p.VehicleID != nil && *p.VehicleID > 0 {
+		if err := ensureVehicleExistsTx(ctx, tx, *p.VehicleID); err != nil {
+			return 0, err
+		}
+	}
+	if p.MechanicShiftID != nil && *p.MechanicShiftID > 0 {
+		if err := ensureMechanicShiftExistsTx(ctx, tx, *p.MechanicShiftID); err != nil {
+			return 0, err
+		}
+	}
 
 	const insertRequestQ = `
 		INSERT INTO part_requests (
@@ -185,6 +200,8 @@ func (r *partRequestRepo) GetByID(ctx context.Context, id int64) (*models.PartRe
 			pr.mechanic_comment,
 			pr.rejection_comment,
 			pr.vehicle_id,
+			v.state_number AS vehicle_state_number,
+			v.board_number AS vehicle_board_number,
 			pr.mechanic_shift_id,
 			pr.planned_replacement_at,
 			pr.repair_status,
@@ -197,12 +214,40 @@ func (r *partRequestRepo) GetByID(ctx context.Context, id int64) (*models.PartRe
 			pr.author_user_id,
 			u.email AS author_email,
 			NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS author_full_name,
+			review.changed_by_user_id AS reviewed_by_user_id,
+			review.changed_by_email AS reviewed_by_email,
+			review.changed_by_full_name AS reviewed_by_full_name,
+			review.changed_at AS reviewed_at,
+			spr.id AS source_purchase_request_id,
+			spr.status AS source_purchase_request_status,
 			pr.created_at,
 			pr.updated_at
 		FROM part_requests pr
 		INNER JOIN parts_catalog p ON p.id = pr.part_id
 		INNER JOIN part_request_statuses s ON s.id = pr.status_id
+		LEFT JOIN vehicles v ON v.id = pr.vehicle_id
 		LEFT JOIN users u ON u.id = pr.author_user_id
+		LEFT JOIN LATERAL (
+			SELECT
+				h.changed_by_user_id,
+				ru.email AS changed_by_email,
+				NULLIF(TRIM(CONCAT_WS(' ', ru.last_name, ru.first_name, ru.middle_name)), '') AS changed_by_full_name,
+				h.changed_at
+			FROM part_request_history h
+			INNER JOIN part_request_statuses hs ON hs.id = h.status_id
+			LEFT JOIN users ru ON ru.id = h.changed_by_user_id
+			WHERE h.part_request_id = pr.id
+			  AND hs.code IN ('approved', 'rejected', 'issued')
+			ORDER BY h.changed_at DESC, h.id DESC
+			LIMIT 1
+		) review ON TRUE
+		LEFT JOIN LATERAL (
+			SELECT ppr.id, ppr.status
+			FROM part_purchase_requests ppr
+			WHERE ppr.source_part_request_id = pr.id
+			ORDER BY ppr.created_at DESC, ppr.id DESC
+			LIMIT 1
+		) spr ON TRUE
 		WHERE pr.id = $1
 		  AND pr.is_deleted = FALSE;
 	`
@@ -292,6 +337,8 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 			pr.mechanic_comment,
 			pr.rejection_comment,
 			pr.vehicle_id,
+			v.state_number AS vehicle_state_number,
+			v.board_number AS vehicle_board_number,
 			pr.mechanic_shift_id,
 			pr.planned_replacement_at,
 			pr.repair_status,
@@ -304,12 +351,40 @@ func (r *partRequestRepo) List(ctx context.Context, p ListPartRequestsParams) ([
 			pr.author_user_id,
 			u.email AS author_email,
 			NULLIF(TRIM(CONCAT_WS(' ', u.last_name, u.first_name, u.middle_name)), '') AS author_full_name,
+			review.changed_by_user_id AS reviewed_by_user_id,
+			review.changed_by_email AS reviewed_by_email,
+			review.changed_by_full_name AS reviewed_by_full_name,
+			review.changed_at AS reviewed_at,
+			spr.id AS source_purchase_request_id,
+			spr.status AS source_purchase_request_status,
 			pr.created_at,
 			pr.updated_at
 		FROM part_requests pr
 		INNER JOIN parts_catalog p ON p.id = pr.part_id
 		INNER JOIN part_request_statuses s ON s.id = pr.status_id
+		LEFT JOIN vehicles v ON v.id = pr.vehicle_id
 		LEFT JOIN users u ON u.id = pr.author_user_id
+		LEFT JOIN LATERAL (
+			SELECT
+				h.changed_by_user_id,
+				ru.email AS changed_by_email,
+				NULLIF(TRIM(CONCAT_WS(' ', ru.last_name, ru.first_name, ru.middle_name)), '') AS changed_by_full_name,
+				h.changed_at
+			FROM part_request_history h
+			INNER JOIN part_request_statuses hs ON hs.id = h.status_id
+			LEFT JOIN users ru ON ru.id = h.changed_by_user_id
+			WHERE h.part_request_id = pr.id
+			  AND hs.code IN ('approved', 'rejected', 'issued')
+			ORDER BY h.changed_at DESC, h.id DESC
+			LIMIT 1
+		) review ON TRUE
+		LEFT JOIN LATERAL (
+			SELECT ppr.id, ppr.status
+			FROM part_purchase_requests ppr
+			WHERE ppr.source_part_request_id = pr.id
+			ORDER BY ppr.created_at DESC, ppr.id DESC
+			LIMIT 1
+		) spr ON TRUE
 		%s
 		ORDER BY %s %s, pr.id ASC
 		LIMIT $%d OFFSET $%d;
@@ -691,7 +766,7 @@ func (r *partRequestRepo) DeleteByID(ctx context.Context, id int64, p DeletePart
 }
 
 func (r *partRequestRepo) PartExists(ctx context.Context, partID int64) (bool, error) {
-	const q = `SELECT EXISTS(SELECT 1 FROM parts_catalog WHERE id = $1);`
+	const q = `SELECT EXISTS(SELECT 1 FROM parts_catalog WHERE id = $1 AND is_archived = FALSE);`
 	var exists bool
 	if err := r.db.QueryRowContext(ctx, q, partID).Scan(&exists); err != nil {
 		return false, fmt.Errorf("check part exists: %w", err)
@@ -721,6 +796,24 @@ func (r *partRequestRepo) GetStatusByID(ctx context.Context, statusID int64) (*m
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get part request status by id: %w", err)
+	}
+
+	return &item, nil
+}
+
+func (r *partRequestRepo) GetStatusByCode(ctx context.Context, statusCode string) (*models.PartRequestStatus, error) {
+	const q = `
+		SELECT id, code, name
+		FROM part_request_statuses
+		WHERE code = $1;
+	`
+
+	var item models.PartRequestStatus
+	if err := r.db.QueryRowContext(ctx, q, strings.ToLower(strings.TrimSpace(statusCode))).Scan(&item.ID, &item.Code, &item.Name); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get part request status by code: %w", err)
 	}
 
 	return &item, nil
@@ -928,7 +1021,7 @@ func insertPartRequestHistory(ctx context.Context, tx *sql.Tx, partRequestID int
 func shouldIssuePartRequestStock(currentStatusCode string, targetStatusCode string) bool {
 	targetStatusCode = strings.ToLower(strings.TrimSpace(targetStatusCode))
 	currentStatusCode = strings.ToLower(strings.TrimSpace(currentStatusCode))
-	return targetStatusCode == "approved" && currentStatusCode != "approved"
+	return (targetStatusCode == "approved" || targetStatusCode == "issued") && currentStatusCode != "approved" && currentStatusCode != "issued"
 }
 
 func issuePartRequestStockTx(ctx context.Context, tx *sql.Tx, partID int64, quantity int64, partRequestID int64, actorUserID int64) error {
@@ -945,6 +1038,7 @@ func issuePartRequestStockTx(ctx context.Context, tx *sql.Tx, partID int64, quan
 		SELECT quantity
 		FROM parts_catalog
 		WHERE id = $1
+		  AND is_archived = FALSE
 		FOR UPDATE;
 	`
 	if err := tx.QueryRowContext(ctx, lockPartQ, partID).Scan(&currentQuantity); err != nil {
@@ -961,7 +1055,8 @@ func issuePartRequestStockTx(ctx context.Context, tx *sql.Tx, partID int64, quan
 		UPDATE parts_catalog
 		SET quantity = quantity - $1,
 			updated_at = NOW()
-		WHERE id = $2;
+		WHERE id = $2
+		  AND is_archived = FALSE;
 	`
 	if _, err := tx.ExecContext(ctx, updatePartQ, quantity, partID); err != nil {
 		return fmt.Errorf("decrease part quantity: %w", err)
@@ -1004,6 +1099,8 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 	var item models.PartRequest
 	var rejectionComment sql.NullString
 	var vehicleID sql.NullInt64
+	var vehicleStateNumber sql.NullString
+	var vehicleBoardNumber sql.NullString
 	var mechanicShiftID sql.NullInt64
 	var plannedReplacementAt sql.NullTime
 	var completedAt sql.NullTime
@@ -1011,6 +1108,12 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 	var vehiclePartInstallationID sql.NullInt64
 	var authorEmail sql.NullString
 	var authorFullName sql.NullString
+	var reviewedByUserID sql.NullInt64
+	var reviewedByEmail sql.NullString
+	var reviewedByFullName sql.NullString
+	var reviewedAt sql.NullTime
+	var sourcePurchaseRequestID sql.NullInt64
+	var sourcePurchaseRequestStatus sql.NullString
 
 	if err := scanner.Scan(
 		&item.ID,
@@ -1023,6 +1126,8 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 		&item.MechanicComment,
 		&rejectionComment,
 		&vehicleID,
+		&vehicleStateNumber,
+		&vehicleBoardNumber,
 		&mechanicShiftID,
 		&plannedReplacementAt,
 		&item.RepairStatus,
@@ -1035,6 +1140,12 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 		&item.AuthorUserID,
 		&authorEmail,
 		&authorFullName,
+		&reviewedByUserID,
+		&reviewedByEmail,
+		&reviewedByFullName,
+		&reviewedAt,
+		&sourcePurchaseRequestID,
+		&sourcePurchaseRequestStatus,
 		&item.CreatedAt,
 		&item.UpdatedAt,
 	); err != nil {
@@ -1043,6 +1154,8 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 
 	item.RejectionComment = nullableStringPtr(rejectionComment)
 	item.VehicleID = nullableInt64Ptr(vehicleID)
+	item.VehicleStateNumber = nullableStringPtr(vehicleStateNumber)
+	item.VehicleBoardNumber = nullableStringPtr(vehicleBoardNumber)
 	item.MechanicShiftID = nullableInt64Ptr(mechanicShiftID)
 	item.PlannedReplacementAt = nullableTimePtr(plannedReplacementAt)
 	item.CompletedAt = nullableTimePtr(completedAt)
@@ -1050,6 +1163,12 @@ func scanPartRequest(scanner partRequestScanner) (*models.PartRequest, error) {
 	item.VehiclePartInstallationID = nullableInt64Ptr(vehiclePartInstallationID)
 	item.AuthorEmail = nullableStringPtr(authorEmail)
 	item.AuthorFullName = nullableStringPtr(authorFullName)
+	item.ReviewedByUserID = nullableInt64Ptr(reviewedByUserID)
+	item.ReviewedByEmail = nullableStringPtr(reviewedByEmail)
+	item.ReviewedByFullName = nullableStringPtr(reviewedByFullName)
+	item.ReviewedAt = nullableTimePtr(reviewedAt)
+	item.SourcePurchaseRequestID = nullableInt64Ptr(sourcePurchaseRequestID)
+	item.SourcePurchaseRequestStatus = nullableStringPtr(sourcePurchaseRequestStatus)
 	return &item, nil
 }
 
@@ -1113,18 +1232,18 @@ func nullableTextParam(value string) any {
 
 func normalizePartRequestSortBy(v string) string {
 	switch strings.TrimSpace(strings.ToLower(v)) {
+	case "id":
+		return "pr.id"
 	case "part_id":
 		return "pr.part_id"
 	case "quantity":
 		return "pr.quantity"
 	case "status_id":
 		return "pr.status_id"
-	case "status_code":
-		return "s.code"
 	case "author_user_id":
 		return "pr.author_user_id"
-	case "updated_at":
-		return "pr.updated_at"
+	case "created_at":
+		return "pr.created_at"
 	default:
 		return "pr.created_at"
 	}

@@ -120,6 +120,7 @@ func (s *DriversService) GetPassport(ctx context.Context, id int64, q dto.Driver
 		TripsOffset:     q.TripsOffset,
 		IncidentsLimit:  q.IncidentsLimit,
 		IncidentsOffset: q.IncidentsOffset,
+		IncludeArchived: q.IncludeArchived,
 	})
 }
 

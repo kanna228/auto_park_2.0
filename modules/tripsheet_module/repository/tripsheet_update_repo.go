@@ -8,6 +8,9 @@ import (
 )
 
 func (r *tripsheetRepo) Update(ctx context.Context, input models.UpdateTripsheetInput) (*models.Tripsheet, error) {
+	if err := r.ensureTripsheetActiveRefs(ctx, input.VehicleID, input.DriverID); err != nil {
+		return nil, err
+	}
 	query := fmt.Sprintf(`
 		UPDATE %s
 		SET

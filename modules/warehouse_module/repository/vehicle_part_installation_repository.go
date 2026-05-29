@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/warehouse_module/models"
 )
 
@@ -721,6 +722,7 @@ func getPartForUpdate(ctx context.Context, tx *sql.Tx, partID int64) (*warehouse
 		SELECT id, part_id, name, quantity, price, category, is_consumable
 		FROM parts_catalog
 		WHERE id = $1
+		  AND is_archived = FALSE
 		FOR UPDATE;
 	`
 	var item warehousePartForInstallation
@@ -734,6 +736,11 @@ func getPartForUpdate(ctx context.Context, tx *sql.Tx, partID int64) (*warehouse
 		&item.IsConsumable,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			const archivedQ = `SELECT EXISTS(SELECT 1 FROM parts_catalog WHERE id = $1 AND is_archived = TRUE);`
+			var archived bool
+			if checkErr := tx.QueryRowContext(ctx, archivedQ, partID).Scan(&archived); checkErr == nil && archived {
+				return nil, apierrors.ErrEntityArchived
+			}
 			return nil, ErrVehiclePartInstallationPartNotFound
 		}
 		return nil, fmt.Errorf("get part for update: %w", err)
@@ -793,24 +800,40 @@ func getInstallationForUpdate(ctx context.Context, tx *sql.Tx, id int64) (*vehic
 }
 
 func ensureVehicleExistsTx(ctx context.Context, tx *sql.Tx, vehicleID int64) error {
-	const q = `SELECT EXISTS(SELECT 1 FROM vehicles WHERE id = $1);`
+	const q = `SELECT EXISTS(SELECT 1 FROM vehicles WHERE id = $1 AND is_archived = FALSE);`
 	var exists bool
 	if err := tx.QueryRowContext(ctx, q, vehicleID).Scan(&exists); err != nil {
 		return fmt.Errorf("check vehicle exists: %w", err)
 	}
 	if !exists {
+		const archivedQ = `SELECT EXISTS(SELECT 1 FROM vehicles WHERE id = $1 AND is_archived = TRUE);`
+		var archived bool
+		if err := tx.QueryRowContext(ctx, archivedQ, vehicleID).Scan(&archived); err != nil {
+			return fmt.Errorf("check vehicle archived: %w", err)
+		}
+		if archived {
+			return apierrors.ErrEntityArchived
+		}
 		return ErrVehiclePartInstallationVehicleNotFound
 	}
 	return nil
 }
 
 func ensureInstallerExistsTx(ctx context.Context, tx *sql.Tx, userID int64) error {
-	const q = `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1);`
+	const q = `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND is_archived = FALSE AND is_active = TRUE);`
 	var exists bool
 	if err := tx.QueryRowContext(ctx, q, userID).Scan(&exists); err != nil {
 		return fmt.Errorf("check installer user exists: %w", err)
 	}
 	if !exists {
+		const archivedQ = `SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND (is_archived = TRUE OR is_active = FALSE));`
+		var archived bool
+		if err := tx.QueryRowContext(ctx, archivedQ, userID).Scan(&archived); err != nil {
+			return fmt.Errorf("check installer user archived: %w", err)
+		}
+		if archived {
+			return apierrors.ErrEntityArchived
+		}
 		return ErrVehiclePartInstallationUserNotFound
 	}
 	return nil

@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"auto_park/middleware"
 	"auto_park/modules/user_module/repository"
@@ -31,6 +32,9 @@ func NewUsersReadHandler(svc *service.UsersReadService) *UsersReadHandler {
 // @Param        offset query int false "Offset" default(0)
 // @Param        page query int false "Page number" default(1)
 // @Param        page_size query int false "Page size" default(50)
+// @Param        sort_by query string false "Sort by: id, email, first_name, last_name, role_id, is_active, created_at"
+// @Param        order query string false "Sort order: asc or desc"
+// @Param        include_archived query bool false "Include archived users" default(false)
 // @Success      200 {object} models.UsersListResponse
 // @Failure      401 {object} ErrorResponse
 // @Failure      500 {object} ErrorResponse
@@ -51,7 +55,13 @@ func (h *UsersReadHandler) ListUsers(c *gin.Context) {
 		offset = 0
 	}
 
-	users, total, err := h.svc.ListUsers(c.Request.Context(), roleID, userID, limit, offset)
+	users, total, err := h.svc.ListUsers(c.Request.Context(), roleID, userID, repository.ListUsersParams{
+		Limit:           limit,
+		Offset:          offset,
+		SortBy:          c.Query("sort_by"),
+		Order:           c.Query("order"),
+		IncludeArchived: parseBoolValue(c.Query("include_archived")),
+	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
@@ -89,7 +99,7 @@ func (h *UsersReadHandler) GetUserByID(c *gin.Context) {
 		return
 	}
 
-	u, err := h.svc.GetUserByID(c.Request.Context(), roleID, userID, targetID)
+	u, err := h.svc.GetUserByID(c.Request.Context(), roleID, userID, targetID, parseBoolValue(c.Query("include_archived")))
 	if err != nil {
 		switch err {
 		case repository.ErrUserNotFound:
@@ -105,6 +115,11 @@ func (h *UsersReadHandler) GetUserByID(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": u})
+}
+
+func parseBoolValue(value string) bool {
+	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+	return err == nil && parsed
 }
 
 // helper: достаём role_id и user_id, которые положил AuthJWT middleware

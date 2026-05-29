@@ -140,13 +140,13 @@ func normalizeTripsheetSortBy(value string) string {
 		return "id"
 	case "tripsheet_number":
 		return "tripsheet_number"
+	case "tripsheet_date":
+		return "tripsheet_date"
 	case "vehicle_id":
 		return "vehicle_id"
 	case "driver_id":
 		return "driver_id"
-	case "driver_shift_id":
-		return "driver_shift_id"
-	case "status_id":
+	case "status":
 		return "status_id"
 	case "created_at":
 		return "created_at"

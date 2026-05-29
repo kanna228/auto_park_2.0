@@ -55,6 +55,7 @@ type DriverPassportQuery struct {
 	TripsOffset     int
 	IncidentsLimit  int
 	IncidentsOffset int
+	IncludeArchived bool
 }
 
 type AssignDriverVehicleRequest struct {

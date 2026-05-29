@@ -10,19 +10,23 @@ import (
 const (
 	ContextUserIDKey      = "user_id"
 	ContextRoleIDKey      = "role_id"
+	ContextRoleNameKey    = "role_name"
 	ContextEmailKey       = "email"
 	ContextIINKey         = "iin"
 	ContextAccountTypeKey = "account_type"
 	ContextDriverIDKey    = "driver_id"
+	ContextExpiresAtKey   = "expires_at"
 )
 
 type AuthContext struct {
 	UserID      int64
 	RoleID      int64
+	RoleName    string
 	Email       string
 	IIN         string
 	AccountType string
 	DriverID    int64
+	ExpiresAt   int64
 }
 
 func CurrentUserID(c *gin.Context) (int64, error) {
@@ -37,6 +41,12 @@ func CurrentEmail(c *gin.Context) string {
 	value, _ := c.Get(ContextEmailKey)
 	email, _ := value.(string)
 	return email
+}
+
+func CurrentRoleName(c *gin.Context) string {
+	value, _ := c.Get(ContextRoleNameKey)
+	roleName, _ := value.(string)
+	return roleName
 }
 
 func CurrentIIN(c *gin.Context) string {
@@ -60,6 +70,12 @@ func CurrentDriverID(c *gin.Context) int64 {
 	return driverID
 }
 
+func CurrentExpiresAt(c *gin.Context) int64 {
+	value, _ := c.Get(ContextExpiresAtKey)
+	expiresAt, _ := value.(int64)
+	return expiresAt
+}
+
 func CurrentAuth(c *gin.Context) (AuthContext, error) {
 	userID, err := CurrentUserID(c)
 	if err != nil {
@@ -74,10 +90,12 @@ func CurrentAuth(c *gin.Context) (AuthContext, error) {
 	return AuthContext{
 		UserID:      userID,
 		RoleID:      roleID,
+		RoleName:    CurrentRoleName(c),
 		Email:       CurrentEmail(c),
 		IIN:         CurrentIIN(c),
 		AccountType: CurrentAccountType(c),
 		DriverID:    CurrentDriverID(c),
+		ExpiresAt:   CurrentExpiresAt(c),
 	}, nil
 }
 

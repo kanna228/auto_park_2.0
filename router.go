@@ -47,6 +47,7 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	// Иначе preflight OPTIONS запросы от фронта будут падать на авторизации.
 	r.Use(middleware.CORSMiddleware())
 	r.Use(middleware.PaginationAliasMiddleware())
+	r.Use(middleware.DeleteForeignKeyConflictMiddleware())
 
 	_ = os.MkdirAll(cfg.Uploads.RootDir, 0o755)
 

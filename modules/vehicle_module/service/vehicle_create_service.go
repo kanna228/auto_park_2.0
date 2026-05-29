@@ -12,7 +12,7 @@ import (
 
 type VehicleService interface {
 	Create(ctx context.Context, req dto.VehicleCreateRequest) (int64, error)
-	GetByID(ctx context.Context, id int64) (*dto.VehicleResponse, error)
+	GetByID(ctx context.Context, id int64, includeArchived ...bool) (*dto.VehicleResponse, error)
 	List(ctx context.Context, q dto.VehicleListQuery) (*dto.VehicleListResponse, error)
 	ListVehicleStatuses(ctx context.Context, limit int, offset int) (*dto.VehicleStatusListResponse, error)
 	GetVehicleStatusHistoryByID(ctx context.Context, id int64) (*dto.VehicleStatusHistoryResponse, error)

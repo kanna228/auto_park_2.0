@@ -14,6 +14,8 @@ type Part struct {
 	Dimensions       *string
 	Manufacturer     *string
 	IsConsumable     bool
+	IsArchived       bool
+	DeletedAt        *time.Time
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 }

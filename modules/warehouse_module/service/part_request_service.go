@@ -313,7 +313,7 @@ func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, cha
 		return false, nil
 	}
 
-	status, err := s.getStatusByID(ctx, req.StatusID)
+	status, err := s.getStatus(ctx, req.StatusID, req.StatusCode)
 	if err != nil {
 		return false, err
 	}
@@ -341,7 +341,7 @@ func (s *partRequestService) UpdateStatusByID(ctx context.Context, id int64, cha
 	}
 
 	updated, err := s.repo.UpdateStatusByID(ctx, id, repository.UpdatePartRequestStatusParams{
-		StatusID:         req.StatusID,
+		StatusID:         status.ID,
 		TargetStatusCode: status.Code,
 		RejectionComment: rejectionComment,
 		ChangedByUserID:  changedByUserID,
@@ -590,11 +590,24 @@ func (s *partRequestService) validatePartID(ctx context.Context, partID int64) e
 	return nil
 }
 
+func (s *partRequestService) getStatus(ctx context.Context, statusID int64, statusCode string) (*models.PartRequestStatus, error) {
+	if strings.TrimSpace(statusCode) != "" {
+		status, err := s.repo.GetStatusByCode(ctx, statusCode)
+		if err != nil {
+			return nil, err
+		}
+		if status == nil {
+			return nil, repository.ErrPartRequestStatusNotFound
+		}
+		return status, nil
+	}
+	return s.getStatusByID(ctx, statusID)
+}
+
 func (s *partRequestService) getStatusByID(ctx context.Context, statusID int64) (*models.PartRequestStatus, error) {
 	if statusID <= 0 {
 		return nil, fmt.Errorf("status_id is required")
 	}
-
 	status, err := s.repo.GetStatusByID(ctx, statusID)
 	if err != nil {
 		return nil, err
@@ -806,7 +819,30 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func derefString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
 func mapPartRequestToDTO(item models.PartRequest) dto.PartRequestResponse {
+	var vehicle *dto.PartRequestVehicleBriefResponse
+	if item.VehicleID != nil {
+		vehicle = &dto.PartRequestVehicleBriefResponse{
+			ID:          *item.VehicleID,
+			StateNumber: derefString(item.VehicleStateNumber),
+			BoardNumber: derefString(item.VehicleBoardNumber),
+		}
+	}
+	var sourcePurchaseRequest *dto.PartRequestSourcePurchaseRequestResponse
+	if item.SourcePurchaseRequestID != nil {
+		sourcePurchaseRequest = &dto.PartRequestSourcePurchaseRequestResponse{
+			ID:     *item.SourcePurchaseRequestID,
+			Status: derefString(item.SourcePurchaseRequestStatus),
+		}
+	}
+
 	return dto.PartRequestResponse{
 		ID:     item.ID,
 		PartID: item.PartID,
@@ -827,6 +863,7 @@ func mapPartRequestToDTO(item models.PartRequest) dto.PartRequestResponse {
 			Name: item.StatusName,
 		},
 		VehicleID:                 item.VehicleID,
+		Vehicle:                   vehicle,
 		MechanicShiftID:           item.MechanicShiftID,
 		PlannedReplacementAt:      item.PlannedReplacementAt,
 		RepairStatus:              item.RepairStatus,
@@ -836,6 +873,11 @@ func mapPartRequestToDTO(item models.PartRequest) dto.PartRequestResponse {
 		AuthorUserID:              item.AuthorUserID,
 		AuthorEmail:               item.AuthorEmail,
 		AuthorFullName:            item.AuthorFullName,
+		ReviewedByUserID:          item.ReviewedByUserID,
+		ReviewedByFullName:        item.ReviewedByFullName,
+		ReviewedByEmail:           item.ReviewedByEmail,
+		ReviewedAt:                item.ReviewedAt,
+		SourcePurchaseRequest:     sourcePurchaseRequest,
 		History:                   []dto.PartRequestHistoryResponse{},
 		CreatedAt:                 item.CreatedAt,
 		UpdatedAt:                 item.UpdatedAt,

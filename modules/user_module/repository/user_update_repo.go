@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/user_module/models"
 )
 
@@ -53,7 +54,10 @@ UPDATE %s SET
 	password    = COALESCE($8, password),
 	updated_at  = $9
 WHERE id = $10
-RETURNING id, email, first_name, last_name, middle_name, iin, phone, role_id, last_seen, created_at, updated_at;
+  AND is_archived = FALSE
+RETURNING id, email, first_name, last_name, middle_name, iin, phone, role_id,
+          COALESCE((SELECT name FROM roles WHERE roles.id = users.role_id), '') AS role_name,
+          is_active, is_archived, deleted_at, last_seen, created_at, updated_at;
 `, r.usersTable())
 
 	var u models.UserPublic
@@ -62,10 +66,16 @@ RETURNING id, email, first_name, last_name, middle_name, iin, phone, role_id, la
 		p.IIN, p.Phone, p.RoleID, p.PassHash, now, p.ID,
 	).Scan(
 		&u.ID, &u.Email, &u.FirstName, &u.LastName, &u.MiddleName,
-		&u.IIN, &u.Phone, &u.RoleID, &u.LastSeen, &u.CreatedAt, &u.UpdatedAt,
+		&u.IIN, &u.Phone, &u.RoleID, &u.RoleName, &u.IsActive, &u.IsArchived,
+		&u.DeletedAt, &u.LastSeen, &u.CreatedAt, &u.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
+			var archived bool
+			checkQ := fmt.Sprintf(`SELECT is_archived FROM %s WHERE id = $1`, r.usersTable())
+			if checkErr := r.DB.QueryRowContext(ctx, checkQ, p.ID).Scan(&archived); checkErr == nil && archived {
+				return nil, apierrors.ErrEntityArchived
+			}
 			return nil, ErrUserNotFound
 		}
 		low := strings.ToLower(err.Error())

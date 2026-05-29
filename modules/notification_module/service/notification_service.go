@@ -18,6 +18,8 @@ const (
 	NotificationTypePartRequestRejected = "part_request_rejected"
 	NotificationTypePartRequestShortage = "part_request_stock_shortage"
 	NotificationTypeIncidentCreated     = "incident_created"
+	NotificationTypePurchaseCreated     = "purchase_request_created"
+	NotificationTypePurchaseConfirmed   = "purchase_request_confirmed"
 
 	NotificationTypeVehiclePartReplacement7Days = "vehicle_part_replacement_7_days"
 	NotificationTypeVehiclePartReplacementToday = "vehicle_part_replacement_today"
@@ -37,6 +39,7 @@ type NotificationService interface {
 	CountUnread(ctx context.Context, userID int64) (int64, error)
 	MarkAsRead(ctx context.Context, userID int64, notificationID int64) (bool, error)
 	MarkAllAsRead(ctx context.Context, userID int64) (int64, error)
+	MarkAllAsReadByType(ctx context.Context, userID int64, typeCode string) (int64, error)
 	PushUnreadSnapshot(ctx context.Context, userID int64) error
 }
 
@@ -238,6 +241,24 @@ func (s *notificationService) MarkAllAsRead(ctx context.Context, userID int64) (
 	return updated, nil
 }
 
+func (s *notificationService) MarkAllAsReadByType(ctx context.Context, userID int64, typeCode string) (int64, error) {
+	if userID <= 0 {
+		return 0, fmt.Errorf("invalid user_id")
+	}
+	typeCode = strings.TrimSpace(typeCode)
+	if typeCode == "" {
+		return 0, fmt.Errorf("type_code is required")
+	}
+	updated, err := s.repo.MarkAllAsReadByType(ctx, userID, typeCode)
+	if err != nil {
+		return 0, err
+	}
+	if count, err := s.repo.CountUnread(ctx, userID); err == nil {
+		s.pushToUser(userID, "notification.unread_count", dto.NotificationUnreadCountResponse{Count: count})
+	}
+	return updated, nil
+}
+
 func (s *notificationService) PushUnreadSnapshot(ctx context.Context, userID int64) error {
 	if userID <= 0 {
 		return fmt.Errorf("invalid user_id")
@@ -259,11 +280,48 @@ func (s *notificationService) pushToUser(userID int64, event string, data any) {
 	if s.hub == nil {
 		return
 	}
-	payload, err := json.Marshal(dto.WebSocketMessage{Event: event, Data: data})
+	payload, err := json.Marshal(dto.WebSocketMessage{Event: event, Type: websocketMessageType(data), Data: data, Entities: websocketEntities(data)})
 	if err != nil {
 		return
 	}
 	s.hub.SendToUser(userID, payload)
+}
+
+func websocketMessageType(data any) string {
+	if _, ok := data.(dto.NotificationResponse); ok {
+		return "notification"
+	}
+	return ""
+}
+
+func websocketEntities(data any) []string {
+	switch v := data.(type) {
+	case dto.NotificationResponse:
+		return notificationEntities(v.TypeCode)
+	default:
+		return nil
+	}
+}
+
+func notificationEntities(typeCode string) []string {
+	switch strings.TrimSpace(typeCode) {
+	case NotificationTypeIncidentCreated:
+		return []string{"incidents", "vehicles"}
+	case NotificationTypePartRequestCreated:
+		return []string{"part-requests"}
+	case NotificationTypePartRequestApproved:
+		return []string{"part-requests", "parts"}
+	case NotificationTypePartRequestRejected:
+		return []string{"part-requests"}
+	case NotificationTypePartRequestShortage:
+		return []string{"part-requests"}
+	case NotificationTypePurchaseCreated:
+		return []string{"purchase-requests"}
+	case NotificationTypePurchaseConfirmed:
+		return []string{"purchase-requests", "parts"}
+	default:
+		return nil
+	}
 }
 
 func mapNotificationToDTO(item models.Notification) dto.NotificationResponse {

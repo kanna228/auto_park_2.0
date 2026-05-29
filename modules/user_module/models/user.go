@@ -32,6 +32,10 @@ type UserPublic struct {
 	IIN        string     `json:"iin"`
 	Phone      *string    `json:"phone,omitempty"`
 	RoleID     int64      `json:"role_id"`
+	RoleName   string     `json:"role_name,omitempty"`
+	IsActive   bool       `json:"is_active"`
+	IsArchived bool       `json:"is_archived"`
+	DeletedAt  *time.Time `json:"deleted_at,omitempty"`
 	LastSeen   *time.Time `json:"last_seen,omitempty"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`

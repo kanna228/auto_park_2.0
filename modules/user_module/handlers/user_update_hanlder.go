@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/user_module/dto"
 	"auto_park/modules/user_module/service"
 
@@ -62,6 +63,9 @@ func (h *UsersUpdateHandler) UpdateUser(c *gin.Context) {
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, apierrors.ErrEntityArchived):
+			c.JSON(http.StatusConflict, gin.H{"success": false, "code": apierrors.CodeEntityArchived, "error": "Нельзя изменить архивный объект"})
+			return
 		case errors.Is(err, service.ErrUserNotFound):
 			c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "user not found"})
 			return
@@ -69,7 +73,7 @@ func (h *UsersUpdateHandler) UpdateUser(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "email already exists"})
 			return
 		case errors.Is(err, service.ErrRoleNotFound):
-			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "role not found"})
+			c.JSON(http.StatusBadRequest, gin.H{"success": false, "code": apierrors.CodeUnknownRole, "error": "role not found"})
 			return
 		default:
 			c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})

@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"strings"
 
+	"auto_park/internal/apierrors"
 	"auto_park/modules/warehouse_module/models"
 )
 
 var ErrPurchaseRequestLocked = errors.New("purchase request cannot be changed after confirmation or cancellation")
 var ErrPurchaseRequestSourcePartRequestNotFound = errors.New("source part request not found")
+var ErrPurchaseRequestAlreadyConfirmed = errors.New("purchase request already confirmed")
 
 type CreatePurchaseRequestParams struct {
 	PartID              int64
@@ -48,6 +50,9 @@ func NewPurchaseRequestRepository(db *sql.DB) PurchaseRequestRepository {
 }
 
 func (r *purchaseRequestRepo) Create(ctx context.Context, p CreatePurchaseRequestParams) (int64, error) {
+	if err := r.ensureActivePart(ctx, p.PartID); err != nil {
+		return 0, err
+	}
 	const q = `
 		INSERT INTO part_purchase_requests (
 			part_id,
@@ -67,6 +72,21 @@ func (r *purchaseRequestRepo) Create(ctx context.Context, p CreatePurchaseReques
 		return 0, mapPurchaseRequestError(err)
 	}
 	return id, nil
+}
+
+func (r *purchaseRequestRepo) ensureActivePart(ctx context.Context, partID int64) error {
+	const q = `SELECT is_archived FROM parts_catalog WHERE id = $1;`
+	var archived bool
+	if err := r.db.QueryRowContext(ctx, q, partID).Scan(&archived); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrPartRequestPartNotFound
+		}
+		return fmt.Errorf("check purchase request part: %w", err)
+	}
+	if archived {
+		return apierrors.ErrEntityArchived
+	}
+	return nil
 }
 
 func (r *purchaseRequestRepo) GetByID(ctx context.Context, id int64) (*models.PurchaseRequest, error) {
@@ -177,7 +197,7 @@ func (r *purchaseRequestRepo) Confirm(ctx context.Context, id int64, actorUserID
 		return false, fmt.Errorf("lock purchase request: %w", err)
 	}
 	if status == "confirmed" {
-		return true, nil
+		return false, ErrPurchaseRequestAlreadyConfirmed
 	}
 	if status != "new" {
 		return false, ErrPurchaseRequestLocked
@@ -319,14 +339,18 @@ func scanPurchaseRequestRows(rows *sql.Rows) (*models.PurchaseRequest, error) {
 
 func normalizePurchaseRequestSortBy(value string) string {
 	switch strings.TrimSpace(strings.ToLower(value)) {
+	case "id":
+		return "pr.id"
 	case "part_id":
 		return "pr.part_id"
 	case "quantity":
 		return "pr.quantity"
 	case "status":
 		return "pr.status"
-	case "updated_at":
-		return "pr.updated_at"
+	case "created_at":
+		return "pr.created_at"
+	case "confirmed_at":
+		return "pr.confirmed_at"
 	default:
 		return "pr.created_at"
 	}
