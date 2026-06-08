@@ -37,5 +37,4 @@ ON CONFLICT (code) DO UPDATE SET
 INSERT INTO part_request_statuses (code, name) VALUES
     ('issued', 'Выдано')
 ON CONFLICT (code) DO UPDATE SET
-    name = EXCLUDED.name,
-    updated_at = NOW();
+    name = EXCLUDED.name;

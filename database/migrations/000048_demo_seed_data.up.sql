@@ -942,7 +942,7 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO audit_logs (level, function, from_status, to_status, actor, message, created_at)
-SELECT *
+SELECT v.level, v.function, v.from_status, v.to_status, v.actor, v.message, v.created_at::timestamptz
 FROM (VALUES
     ('success', 'user', NULL, 'created', 'manager@autopark.demo', 'Создан демонстрационный профиль диспетчера', '2026-05-01 09:10:00+05'),
     ('success', 'vehicle', 'Не используется', 'В использовании', 'dispatcher@autopark.demo', 'B-101 выпущен на линию после проверки документов', '2026-05-06 08:05:00+05'),
