@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"auto_park/internal/excelreport"
 	"auto_park/modules/dashboard_module/dto"
 	"auto_park/modules/dashboard_module/repository"
 
@@ -19,6 +20,7 @@ type DashboardService interface {
 	GetStats(ctx context.Context) (*dto.DashboardStatsResponse, error)
 	GetAnalytics(ctx context.Context, period string) (*dto.AnalyticsDashboardResponse, error)
 	ExportStatsExcel(ctx context.Context) ([]byte, string, error)
+	ExportAnalyticsExcel(ctx context.Context, period string) ([]byte, string, error)
 	ExportStatsPDF(ctx context.Context) ([]byte, string, error)
 }
 
@@ -50,27 +52,12 @@ func (s *dashboardService) ExportStatsExcel(ctx context.Context) ([]byte, string
 	const sheetKPI = "KPI"
 	f.SetSheetName("Sheet1", sheetKPI)
 
-	headerStyle, _ := f.NewStyle(&excelize.Style{
-		Font:      &excelize.Font{Bold: true},
-		Fill:      excelize.Fill{Type: "pattern", Color: []string{"D9EAF7"}, Pattern: 1},
-		Alignment: &excelize.Alignment{Horizontal: "center"},
-	})
-	moneyStyle, _ := f.NewStyle(&excelize.Style{NumFmt: 4})
-	dateStyle, _ := f.NewStyle(&excelize.Style{NumFmt: 14})
-
-	writeKPIExcelSheet(f, sheetKPI, stats, headerStyle, moneyStyle)
-	writeMonthlyExcelSheet(f, stats, headerStyle, moneyStyle)
-	writeFleetExcelSheet(f, stats, headerStyle)
-	writeStockExcelSheet(f, stats, headerStyle, moneyStyle)
-
-	for _, sheet := range []string{sheetKPI, "Monthly expenses", "Fleet status", "Warehouse stock"} {
-		_ = f.SetColWidth(sheet, "A", "A", 24)
-		_ = f.SetColWidth(sheet, "B", "H", 20)
-	}
-	_ = f.SetCellStyle("Warehouse stock", "G2", fmt.Sprintf("G%d", len(stats.WarehouseStock.Items)+1), moneyStyle)
-	_ = f.SetCellStyle("KPI", "B2", "C5", moneyStyle)
-	_ = f.SetCellStyle("KPI", "B7", "C7", moneyStyle)
-	_ = f.SetCellStyle("KPI", "B8", "B8", dateStyle)
+	styles := excelreport.NewStyles(f)
+	writeKPIExcelSheet(f, sheetKPI, stats, styles)
+	writeMonthlyExcelSheet(f, stats, styles)
+	writeFleetExcelSheet(f, stats, styles)
+	writeStockExcelSheet(f, stats, styles)
+	f.SetActiveSheet(0)
 
 	var buf bytes.Buffer
 	if err := f.Write(&buf); err != nil {
@@ -78,6 +65,32 @@ func (s *dashboardService) ExportStatsExcel(ctx context.Context) ([]byte, string
 	}
 
 	return buf.Bytes(), dashboardExportFilename("xlsx"), nil
+}
+
+func (s *dashboardService) ExportAnalyticsExcel(ctx context.Context, period string) ([]byte, string, error) {
+	analytics, err := s.repo.GetAnalytics(ctx, period)
+	if err != nil {
+		return nil, "", err
+	}
+
+	f := excelize.NewFile()
+	defer func() { _ = f.Close() }()
+
+	styles := excelreport.NewStyles(f)
+	const overview = "Analytics overview"
+	f.SetSheetName("Sheet1", overview)
+
+	writeAnalyticsOverviewSheet(f, overview, analytics, styles)
+	writeAnalyticsMonthlySheet(f, analytics, styles)
+	writeAnalyticsCriticalPartsSheet(f, analytics, styles)
+	f.SetActiveSheet(0)
+
+	var buf bytes.Buffer
+	if err := f.Write(&buf); err != nil {
+		return nil, "", fmt.Errorf("write analytics excel: %w", err)
+	}
+
+	return buf.Bytes(), analyticsExportFilename(analytics.Period, "xlsx"), nil
 }
 
 func (s *dashboardService) ExportStatsPDF(ctx context.Context) ([]byte, string, error) {
@@ -130,7 +143,7 @@ func (s *dashboardService) ExportStatsPDF(ctx context.Context) ([]byte, string, 
 	return buf.Bytes(), dashboardExportFilename("pdf"), nil
 }
 
-func writeKPIExcelSheet(f *excelize.File, sheet string, stats *dto.DashboardStatsResponse, headerStyle int, moneyStyle int) {
+func writeKPIExcelSheet(f *excelize.File, sheet string, stats *dto.DashboardStatsResponse, styles excelreport.Styles) {
 	rows := [][]any{
 		{"Metric", "Current", "Previous", "Change %", "Trend"},
 		{"Fuel expenses", stats.Cards.FuelExpenses.Current, stats.Cards.FuelExpenses.Previous, stats.Cards.FuelExpenses.ChangePercent, stats.Cards.FuelExpenses.Trend},
@@ -142,25 +155,32 @@ func writeKPIExcelSheet(f *excelize.File, sheet string, stats *dto.DashboardStat
 		{"Week from", stats.Week.DateFrom, "", "", ""},
 		{"Week to", stats.Week.DateTo, "", "", ""},
 	}
-	writeExcelRows(f, sheet, rows)
-	_ = f.SetCellStyle(sheet, "A1", "E1", headerStyle)
-	_ = f.SetCellStyle(sheet, "B2", "B6", moneyStyle)
-	_ = f.SetCellStyle(sheet, "C2", "C3", moneyStyle)
+	excelreport.WriteRows(f, sheet, 1, rows)
+	excelreport.ApplyTable(f, sheet, 1, len(rows), 5, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{28, 18, 18, 14, 14})
+	_ = f.SetCellStyle(sheet, "B2", "C3", styles.Money)
+	_ = f.SetCellStyle(sheet, "B6", "B6", styles.Money)
+	_ = f.SetCellStyle(sheet, "B7", "B7", styles.Integer)
 }
 
-func writeMonthlyExcelSheet(f *excelize.File, stats *dto.DashboardStatsResponse, headerStyle int, moneyStyle int) {
+func writeMonthlyExcelSheet(f *excelize.File, stats *dto.DashboardStatsResponse, styles excelreport.Styles) {
 	const sheet = "Monthly expenses"
 	_, _ = f.NewSheet(sheet)
 	rows := [][]any{{"Month", "Fuel expenses", "Repair expenses", "Total expenses"}}
 	for _, item := range stats.MonthlyExpenses {
 		rows = append(rows, []any{item.Month, item.FuelExpenses, item.RepairExpenses, item.TotalExpenses})
 	}
-	writeExcelRows(f, sheet, rows)
-	_ = f.SetCellStyle(sheet, "A1", "D1", headerStyle)
-	_ = f.SetCellStyle(sheet, "B2", fmt.Sprintf("D%d", len(rows)), moneyStyle)
+	excelreport.WriteRows(f, sheet, 1, rows)
+	excelreport.ApplyTable(f, sheet, 1, len(rows), 4, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{16, 18, 18, 18})
+	if len(rows) > 1 {
+		_ = f.SetCellStyle(sheet, "B2", fmt.Sprintf("D%d", len(rows)), styles.Money)
+	}
 }
 
-func writeFleetExcelSheet(f *excelize.File, stats *dto.DashboardStatsResponse, headerStyle int) {
+func writeFleetExcelSheet(f *excelize.File, stats *dto.DashboardStatsResponse, styles excelreport.Styles) {
 	const sheet = "Fleet status"
 	_, _ = f.NewSheet(sheet)
 	rows := [][]any{{"Status ID", "Status name", "Count"}}
@@ -168,30 +188,107 @@ func writeFleetExcelSheet(f *excelize.File, stats *dto.DashboardStatsResponse, h
 		rows = append(rows, []any{item.StatusID, item.StatusName, item.Count})
 	}
 	rows = append(rows, []any{"", "Total", stats.FleetStatus.Total})
-	writeExcelRows(f, sheet, rows)
-	_ = f.SetCellStyle(sheet, "A1", "C1", headerStyle)
+	excelreport.WriteRows(f, sheet, 1, rows)
+	excelreport.ApplyTable(f, sheet, 1, len(rows), 3, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{14, 34, 14})
+	if len(rows) > 1 {
+		_ = f.SetCellStyle(sheet, "C2", fmt.Sprintf("C%d", len(rows)), styles.Integer)
+	}
 }
 
-func writeStockExcelSheet(f *excelize.File, stats *dto.DashboardStatsResponse, headerStyle int, moneyStyle int) {
+func writeStockExcelSheet(f *excelize.File, stats *dto.DashboardStatsResponse, styles excelreport.Styles) {
 	const sheet = "Warehouse stock"
 	_, _ = f.NewSheet(sheet)
 	rows := [][]any{{"ID", "Part ID", "Name", "Category", "Quantity", "Price", "Total value", "Is consumable"}}
 	for _, item := range stats.WarehouseStock.Items {
 		rows = append(rows, []any{item.ID, item.PartID, item.Name, item.Category, item.Quantity, item.Price, item.TotalValue, item.IsConsumable})
 	}
-	writeExcelRows(f, sheet, rows)
-	_ = f.SetCellStyle(sheet, "A1", "H1", headerStyle)
+	excelreport.WriteRows(f, sheet, 1, rows)
+	excelreport.ApplyTable(f, sheet, 1, len(rows), 8, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{10, 20, 36, 22, 14, 16, 18, 16})
 	if len(rows) > 1 {
-		_ = f.SetCellStyle(sheet, "F2", fmt.Sprintf("G%d", len(rows)), moneyStyle)
+		_ = f.SetCellStyle(sheet, "E2", fmt.Sprintf("E%d", len(rows)), styles.Integer)
+		_ = f.SetCellStyle(sheet, "F2", fmt.Sprintf("G%d", len(rows)), styles.Money)
 	}
 }
 
-func writeExcelRows(f *excelize.File, sheet string, rows [][]any) {
-	for rowIdx, row := range rows {
-		for colIdx, value := range row {
-			cell, _ := excelize.CoordinatesToCellName(colIdx+1, rowIdx+1)
-			_ = f.SetCellValue(sheet, cell, value)
-		}
+func writeAnalyticsOverviewSheet(f *excelize.File, sheet string, analytics *dto.AnalyticsDashboardResponse, styles excelreport.Styles) {
+	_ = f.SetCellValue(sheet, "A1", "Analytics report")
+	_ = f.SetCellStyle(sheet, "A1", "A1", styles.Title)
+	_ = f.SetCellValue(sheet, "A2", "Period")
+	_ = f.SetCellValue(sheet, "B2", analytics.Period)
+	_ = f.SetCellValue(sheet, "A3", "Generated at")
+	_ = f.SetCellValue(sheet, "B3", time.Now().Format("2006-01-02 15:04:05"))
+
+	kpiRows := [][]any{
+		{"Metric", "Value"},
+		{"Fuel cost", analytics.KPI.FuelCost},
+		{"Repair cost", analytics.KPI.RepairCost},
+		{"Parts issued", analytics.KPI.PartsIssued},
+		{"Warehouse balance", analytics.KPI.WarehouseBalance},
+	}
+	excelreport.WriteRows(f, sheet, 5, kpiRows)
+	excelreport.ApplyTable(f, sheet, 5, len(kpiRows), 2, styles, false)
+	_ = f.SetCellStyle(sheet, "B6", "B7", styles.Money)
+	_ = f.SetCellStyle(sheet, "B8", "B8", styles.Integer)
+	_ = f.SetCellStyle(sheet, "B9", "B9", styles.Money)
+
+	fleetRows := [][]any{
+		{"Fleet metric", "Count"},
+		{"Total", analytics.FleetStatus.Total},
+		{"On trip", analytics.FleetStatus.OnTrip},
+		{"In garage", analytics.FleetStatus.InGarage},
+		{"In repair", analytics.FleetStatus.InRepair},
+		{"In reserve", analytics.FleetStatus.InReserve},
+	}
+	excelreport.WriteRows(f, sheet, 12, fleetRows)
+	excelreport.ApplyTable(f, sheet, 12, len(fleetRows), 2, styles, false)
+	_ = f.SetCellStyle(sheet, "B13", "B17", styles.Integer)
+
+	repairRows := [][]any{
+		{"Repair type", "Percent"},
+		{"Planned TO", analytics.RepairBreakdown.PlannedTOPercent},
+		{"Unplanned repair", analytics.RepairBreakdown.UnplannedPercent},
+		{"Accident", analytics.RepairBreakdown.AccidentPercent},
+	}
+	excelreport.WriteRows(f, sheet, 20, repairRows)
+	excelreport.ApplyTable(f, sheet, 20, len(repairRows), 2, styles, false)
+	_ = f.SetCellStyle(sheet, "B21", "B23", styles.Integer)
+
+	excelreport.SetWidths(f, sheet, []float64{28, 22})
+}
+
+func writeAnalyticsMonthlySheet(f *excelize.File, analytics *dto.AnalyticsDashboardResponse, styles excelreport.Styles) {
+	const sheet = "Monthly expenses"
+	_, _ = f.NewSheet(sheet)
+	rows := [][]any{{"Month", "Fuel", "Repairs", "Parts", "Total"}}
+	for _, item := range analytics.MonthlyExpenses {
+		rows = append(rows, []any{item.Month, item.Fuel, item.Repairs, item.Parts, item.Fuel + item.Repairs + item.Parts})
+	}
+	excelreport.WriteRows(f, sheet, 1, rows)
+	excelreport.ApplyTable(f, sheet, 1, len(rows), 5, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{16, 18, 18, 18, 18})
+	if len(rows) > 1 {
+		_ = f.SetCellStyle(sheet, "B2", fmt.Sprintf("E%d", len(rows)), styles.Money)
+	}
+}
+
+func writeAnalyticsCriticalPartsSheet(f *excelize.File, analytics *dto.AnalyticsDashboardResponse, styles excelreport.Styles) {
+	const sheet = "Critical parts"
+	_, _ = f.NewSheet(sheet)
+	rows := [][]any{{"Name", "Remaining percent", "Status"}}
+	for _, item := range analytics.CriticalParts {
+		rows = append(rows, []any{item.Name, item.RemainingPercent, item.Status})
+	}
+	excelreport.WriteRows(f, sheet, 1, rows)
+	excelreport.ApplyTable(f, sheet, 1, len(rows), 3, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{44, 20, 16})
+	if len(rows) > 1 {
+		_ = f.SetCellStyle(sheet, "B2", fmt.Sprintf("B%d", len(rows)), styles.Integer)
 	}
 }
 
@@ -283,6 +380,10 @@ func stockRows(stats *dto.DashboardStatsResponse) [][]string {
 
 func dashboardExportFilename(ext string) string {
 	return fmt.Sprintf("dashboard_stats_%s.%s", time.Now().Format("20060102_150405"), ext)
+}
+
+func analyticsExportFilename(period string, ext string) string {
+	return fmt.Sprintf("analytics_%s_%s.%s", period, time.Now().Format("20060102_150405"), ext)
 }
 
 func money(v float64) string {

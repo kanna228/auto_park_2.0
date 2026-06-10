@@ -131,7 +131,10 @@ func (r *dashboardRepo) getAnalyticsKPI(ctx context.Context, period string) (*dt
 				date_trunc($1, CURRENT_DATE::timestamp) AS start_at,
 				CASE
 					WHEN $1 = 'day' THEN INTERVAL '1 day'
+					WHEN $1 = 'week' THEN INTERVAL '7 days'
 					WHEN $1 = 'month' THEN INTERVAL '1 month'
+					WHEN $1 = 'quarter' THEN INTERVAL '3 months'
+					WHEN $1 = 'year' THEN INTERVAL '1 year'
 					ELSE INTERVAL '7 days'
 				END AS span
 		)
@@ -243,7 +246,10 @@ func (r *dashboardRepo) getAnalyticsRepairBreakdown(ctx context.Context, period 
 				date_trunc($1, CURRENT_DATE::timestamp) AS start_at,
 				CASE
 					WHEN $1 = 'day' THEN INTERVAL '1 day'
+					WHEN $1 = 'week' THEN INTERVAL '7 days'
 					WHEN $1 = 'month' THEN INTERVAL '1 month'
+					WHEN $1 = 'quarter' THEN INTERVAL '3 months'
+					WHEN $1 = 'year' THEN INTERVAL '1 year'
 					ELSE INTERVAL '7 days'
 				END AS span
 		), counts AS (
@@ -589,7 +595,7 @@ func trend(current float64, previous float64) string {
 
 func normalizeAnalyticsPeriod(period string) string {
 	switch period {
-	case "day", "month":
+	case "day", "week", "month", "quarter", "year":
 		return period
 	default:
 		return "week"

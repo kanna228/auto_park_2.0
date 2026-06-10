@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"auto_park/internal/apierrors"
+	"auto_park/internal/excelreport"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/models"
 	"auto_park/modules/warehouse_module/repository"
@@ -320,7 +321,9 @@ func (s *partService) Export(ctx context.Context, q dto.PartListQuery, format st
 		return nil, "", err
 	}
 	f := excelize.NewFile()
+	defer func() { _ = f.Close() }()
 	sheet := f.GetSheetName(0)
+	styles := excelreport.NewStyles(f)
 	headers := []string{"ID", "Артикул", "Наименование", "Количество", "Мин. остаток", "Ед.", "Цена", "Стоимость", "Категория", "Производитель"}
 	for i, header := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
@@ -332,6 +335,15 @@ func (s *partService) Export(ctx context.Context, q dto.PartListQuery, format st
 			cell, _ := excelize.CoordinatesToCellName(colIdx+1, rowIdx+2)
 			_ = f.SetCellValue(sheet, cell, value)
 		}
+	}
+	rowCount := len(resp.Items) + 1
+	excelreport.ApplyTable(f, sheet, 1, rowCount, 10, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{10, 20, 38, 14, 14, 12, 16, 18, 24, 24})
+	if rowCount > 1 {
+		_ = f.SetCellStyle(sheet, "A2", fmt.Sprintf("A%d", rowCount), styles.Integer)
+		_ = f.SetCellStyle(sheet, "D2", fmt.Sprintf("E%d", rowCount), styles.Integer)
+		_ = f.SetCellStyle(sheet, "G2", fmt.Sprintf("H%d", rowCount), styles.Money)
 	}
 	var buf bytes.Buffer
 	if err := f.Write(&buf); err != nil {

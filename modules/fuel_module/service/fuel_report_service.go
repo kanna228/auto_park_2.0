@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"auto_park/internal/excelreport"
 	"auto_park/modules/fuel_module/dto"
 	"auto_park/modules/fuel_module/models"
 	"auto_park/modules/fuel_module/repository"
@@ -254,6 +255,7 @@ func renderPDFSingleRow(pdf *gofpdf.Fpdf, widths []float64, text string) {
 
 func buildFuelReportExcel(data *models.FuelReportData) ([]byte, error) {
 	f := excelize.NewFile()
+	defer func() { _ = f.Close() }()
 	summarySheet := "Summary"
 	dailySheet := "Daily totals"
 	refillsSheet := "Refills"
@@ -261,9 +263,10 @@ func buildFuelReportExcel(data *models.FuelReportData) ([]byte, error) {
 	_, _ = f.NewSheet(dailySheet)
 	_, _ = f.NewSheet(refillsSheet)
 
-	writeSummarySheet(f, summarySheet, data)
-	writeDailySheet(f, dailySheet, data)
-	writeRefillsSheet(f, refillsSheet, data)
+	styles := excelreport.NewStyles(f)
+	writeSummarySheet(f, summarySheet, data, styles)
+	writeDailySheet(f, dailySheet, data, styles)
+	writeRefillsSheet(f, refillsSheet, data, styles)
 	f.SetActiveSheet(0)
 
 	var buf bytes.Buffer
@@ -273,7 +276,7 @@ func buildFuelReportExcel(data *models.FuelReportData) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func writeSummarySheet(f *excelize.File, sheet string, data *models.FuelReportData) {
+func writeSummarySheet(f *excelize.File, sheet string, data *models.FuelReportData, styles excelreport.Styles) {
 	rows := [][]interface{}{
 		{"Title", data.Meta.Title},
 		{"Subtitle", data.Meta.Subtitle},
@@ -289,11 +292,13 @@ func writeSummarySheet(f *excelize.File, sheet string, data *models.FuelReportDa
 		cell, _ := excelize.CoordinatesToCellName(1, i+1)
 		_ = f.SetSheetRow(sheet, cell, &row)
 	}
-	_ = f.SetColWidth(sheet, "A", "A", 28)
-	_ = f.SetColWidth(sheet, "B", "B", 120)
+	excelreport.ApplyTable(f, sheet, 1, 4, 2, styles, false)
+	excelreport.ApplyTable(f, sheet, 6, 4, 2, styles, false)
+	excelreport.SetWidths(f, sheet, []float64{28, 80})
+	_ = f.SetCellStyle(sheet, "B7", "B9", styles.Integer)
 }
 
-func writeDailySheet(f *excelize.File, sheet string, data *models.FuelReportData) {
+func writeDailySheet(f *excelize.File, sheet string, data *models.FuelReportData, styles excelreport.Styles) {
 	headers := []interface{}{"Date", "Refills", "Total fuel", "Tripsheets"}
 	_ = f.SetSheetRow(sheet, "A1", &headers)
 	for i, item := range data.DailyStats {
@@ -306,10 +311,16 @@ func writeDailySheet(f *excelize.File, sheet string, data *models.FuelReportData
 		cell, _ := excelize.CoordinatesToCellName(1, i+2)
 		_ = f.SetSheetRow(sheet, cell, &row)
 	}
-	_ = f.SetColWidth(sheet, "A", "D", 26)
+	rowCount := len(data.DailyStats) + 1
+	excelreport.ApplyTable(f, sheet, 1, rowCount, 4, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{16, 14, 16, 28})
+	if rowCount > 1 {
+		_ = f.SetCellStyle(sheet, "B2", fmt.Sprintf("C%d", rowCount), styles.Integer)
+	}
 }
 
-func writeRefillsSheet(f *excelize.File, sheet string, data *models.FuelReportData) {
+func writeRefillsSheet(f *excelize.File, sheet string, data *models.FuelReportData, styles excelreport.Styles) {
 	headers := []interface{}{"Refill ID", "Date", "Time", "Tripsheet ID", "Tripsheet number", "Tripsheet date", "Vehicle ID", "Vehicle", "Driver ID", "Driver", "Location", "Fuel amount", "Distance km", "Mileage start", "Mileage end", "Fuel start", "Fuel issued", "Fuel actual", "Fuel theoretical"}
 	_ = f.SetSheetRow(sheet, "A1", &headers)
 	for i, item := range data.Rows {
@@ -341,7 +352,17 @@ func writeRefillsSheet(f *excelize.File, sheet string, data *models.FuelReportDa
 		cell, _ := excelize.CoordinatesToCellName(1, i+2)
 		_ = f.SetSheetRow(sheet, cell, &row)
 	}
-	_ = f.SetColWidth(sheet, "A", "S", 20)
+	rowCount := len(data.Rows) + 1
+	excelreport.ApplyTable(f, sheet, 1, rowCount, 19, styles, true)
+	excelreport.FreezeBelow(f, sheet, 1)
+	excelreport.SetWidths(f, sheet, []float64{12, 14, 12, 14, 22, 14, 12, 30, 12, 30, 32, 14, 14, 14, 14, 14, 14, 14, 16})
+	if rowCount > 1 {
+		_ = f.SetCellStyle(sheet, "A2", fmt.Sprintf("A%d", rowCount), styles.Integer)
+		_ = f.SetCellStyle(sheet, "D2", fmt.Sprintf("D%d", rowCount), styles.Integer)
+		_ = f.SetCellStyle(sheet, "G2", fmt.Sprintf("G%d", rowCount), styles.Integer)
+		_ = f.SetCellStyle(sheet, "I2", fmt.Sprintf("I%d", rowCount), styles.Integer)
+		_ = f.SetCellStyle(sheet, "L2", fmt.Sprintf("S%d", rowCount), styles.Integer)
+	}
 }
 
 func joinInt64(items []int64) string {

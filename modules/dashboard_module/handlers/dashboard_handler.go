@@ -54,8 +54,19 @@ func (h *DashboardHandler) ExportAnalytics(c *gin.Context) {
 	case "pdf":
 		h.ExportStatsPDF(c)
 	default:
-		h.ExportStatsExcel(c)
+		h.ExportAnalyticsExcel(c)
 	}
+}
+
+func (h *DashboardHandler) ExportAnalyticsExcel(c *gin.Context) {
+	data, filename, err := h.svc.ExportAnalyticsExcel(c.Request.Context(), strings.TrimSpace(c.DefaultQuery("period", "week")))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
+		return
+	}
+
+	c.Header("Content-Disposition", `attachment; filename="`+filename+`"`)
+	c.Data(http.StatusOK, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", data)
 }
 
 // ExportStatsExcel godoc
