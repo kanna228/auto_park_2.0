@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"mime/multipart"
 	"strings"
 	"time"
@@ -104,7 +105,15 @@ func (s *DriversService) Create(ctx context.Context, req dto.CreateDriverRequest
 	if s.mailer != nil {
 		to := driver.Mail
 		pass := rawPass
-		go func() { _ = s.mailer.SendWelcome(context.Background(), to, pass, "driver") }()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := s.mailer.SendWelcome(ctx, to, pass, "driver"); err != nil {
+				log.Printf("[MAIL] welcome send failed to=%s role=driver: %v", to, err)
+				return
+			}
+			log.Printf("[MAIL] welcome sent to=%s role=driver", to)
+		}()
 	}
 
 	return driver, nil

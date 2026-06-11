@@ -5,9 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"log"
 	"net/mail"
 	"regexp"
 	"strings"
+	"time"
 
 	"auto_park/internal/config"
 	"auto_park/modules/user_module/models"
@@ -121,7 +123,15 @@ func (s *UserService) CreateUser(ctx context.Context, req CreateUserRequest) (*C
 		to := u.Email
 		pass := rawPass
 		rn := roleName
-		go func() { _ = s.mailer.SendWelcome(context.Background(), to, pass, rn) }()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := s.mailer.SendWelcome(ctx, to, pass, rn); err != nil {
+				log.Printf("[MAIL] welcome send failed to=%s role=%s: %v", to, rn, err)
+				return
+			}
+			log.Printf("[MAIL] welcome sent to=%s role=%s", to, rn)
+		}()
 	}
 
 	return &CreateUserResult{User: u, RawPass: rawPass, RoleName: roleName}, nil

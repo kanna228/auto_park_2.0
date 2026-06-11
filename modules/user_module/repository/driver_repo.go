@@ -91,7 +91,7 @@ func (r *DriverRepo) AuthEmailInUse(ctx context.Context, email string, excludeDr
 		return false, nil
 	}
 
-	const userQ = `SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1));`
+	const userQ = `SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) AND is_archived = FALSE);`
 	var userExists bool
 	if err := r.db.QueryRowContext(ctx, userQ, email).Scan(&userExists); err != nil {
 		return false, fmt.Errorf("check user email: %w", err)
@@ -108,6 +108,7 @@ func (r *DriverRepo) AuthEmailInUse(ctx context.Context, email string, excludeDr
 			WHERE mail IS NOT NULL
 			  AND BTRIM(mail) <> ''
 			  AND LOWER(mail) = LOWER($1)
+			  AND is_archived = FALSE
 	`
 	if excludeDriverID != nil && *excludeDriverID > 0 {
 		driverQ += ` AND id <> $2`
@@ -456,7 +457,12 @@ func (r *DriverRepo) UpdatePhotoPath(ctx context.Context, id int64, photoPath st
 func (r *DriverRepo) Delete(ctx context.Context, id int64) error {
 	q := fmt.Sprintf(`
 		UPDATE %s
-		SET is_archived = TRUE,
+		SET mail = CASE
+				WHEN mail IS NULL OR BTRIM(mail) = '' THEN mail
+				ELSE CONCAT('__archived_driver_', id, '@auto-park.local')
+			END,
+			iin = CONCAT('X', LPAD(id::TEXT, 11, '0')),
+			is_archived = TRUE,
 			deleted_at = NOW(),
 			updated_at = NOW()
 		WHERE id=$1

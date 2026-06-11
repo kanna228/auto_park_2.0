@@ -31,7 +31,7 @@ func (r *UserRepo) EnsureRoleExists(ctx context.Context, roleID int64) error {
 }
 
 func (r *UserRepo) EmailInUse(ctx context.Context, email string) (bool, error) {
-	q := fmt.Sprintf(`SELECT 1 FROM %s WHERE LOWER(email)=LOWER($1) LIMIT 1`, r.usersTable())
+	q := fmt.Sprintf(`SELECT 1 FROM %s WHERE LOWER(email)=LOWER($1) AND is_archived = FALSE LIMIT 1`, r.usersTable())
 	var one int
 	err := r.DB.QueryRowContext(ctx, q, strings.TrimSpace(email)).Scan(&one)
 	if err != nil {

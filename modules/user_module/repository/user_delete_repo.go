@@ -8,7 +8,9 @@ import (
 func (r *UserRepo) DeleteUserByID(ctx context.Context, id int64) error {
 	q := fmt.Sprintf(`
 		UPDATE %s
-		SET is_archived = TRUE,
+		SET email = CONCAT('__archived_user_', id, '@auto-park.local'),
+			iin = CONCAT('ARCH', id),
+			is_archived = TRUE,
 			is_active = FALSE,
 			deleted_at = NOW(),
 			updated_at = NOW()

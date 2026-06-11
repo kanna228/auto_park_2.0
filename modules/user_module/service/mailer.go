@@ -75,11 +75,20 @@ func (m *SMTPMailer) SendWelcome(ctx context.Context, to string, password string
 
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", port))
 
-	c, err := smtp.Dial(addr)
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return fmt.Errorf("smtp dial: %w", err)
 	}
+	c, err := smtp.NewClient(conn, host)
+	if err != nil {
+		_ = conn.Close()
+		return fmt.Errorf("smtp client: %w", err)
+	}
 	defer c.Close()
+
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 
 	tlsCfg := &tls.Config{ServerName: host}
 	if ok, _ := c.Extension("STARTTLS"); ok {
@@ -90,10 +99,18 @@ func (m *SMTPMailer) SendWelcome(ctx context.Context, to string, password string
 		return errors.New("server does not support STARTTLS")
 	}
 
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	if ok, _ := c.Extension("AUTH"); ok {
 		if err := c.Auth(smtp.PlainAuth("", user, pass, host)); err != nil {
 			return fmt.Errorf("auth: %w", err)
 		}
+	}
+
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	if err := c.Mail(fromAddr); err != nil {

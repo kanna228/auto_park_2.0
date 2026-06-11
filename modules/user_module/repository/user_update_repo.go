@@ -26,7 +26,7 @@ type UpdateUserAdminParams struct {
 
 // EmailBelongsToOther checks that email is not used by another user
 func (r *UserRepo) EmailBelongsToOther(ctx context.Context, email string, userID int64) (bool, error) {
-	q := fmt.Sprintf(`SELECT 1 FROM %s WHERE LOWER(email)=LOWER($1) AND id <> $2 LIMIT 1`, r.usersTable())
+	q := fmt.Sprintf(`SELECT 1 FROM %s WHERE LOWER(email)=LOWER($1) AND id <> $2 AND is_archived = FALSE LIMIT 1`, r.usersTable())
 	var one int
 	err := r.DB.QueryRowContext(ctx, q, strings.TrimSpace(email), userID).Scan(&one)
 	if err != nil {
