@@ -5,6 +5,9 @@ import (
 	"net/http"
 
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/tripsheet_module/dto"
 	"auto_park/modules/tripsheet_module/service"
 
@@ -12,12 +15,14 @@ import (
 )
 
 type TripsheetHandler struct {
-	svc service.TripsheetService
+	svc      service.TripsheetService
+	auditSvc *auditlogservice.Service
 }
 
-func NewTripsheetHandler(svc service.TripsheetService) *TripsheetHandler {
+func NewTripsheetHandler(svc service.TripsheetService, auditSvc *auditlogservice.Service) *TripsheetHandler {
 	return &TripsheetHandler{
-		svc: svc,
+		svc:      svc,
+		auditSvc: auditSvc,
 	}
 }
 
@@ -56,6 +61,17 @@ func (h *TripsheetHandler) Create(c *gin.Context) {
 		})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"success",
+		"tripsheet",
+		"",
+		"created",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("id", resp.ID, "number", resp.TripsheetNumber, "vehicle_id", req.VehicleID, "driver_id", req.DriverID),
+	)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,

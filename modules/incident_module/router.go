@@ -5,6 +5,7 @@ import (
 
 	"auto_park/internal/config"
 	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/incident_module/handlers"
 	"auto_park/modules/incident_module/repository"
 	"auto_park/modules/incident_module/service"
@@ -13,10 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc ...notificationservice.NotificationService) {
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, notifySvc notificationservice.NotificationService, auditSvc *auditlogservice.Service) {
 	incidentRepo := repository.NewIncidentRepository(db)
-	incidentSvc := service.NewIncidentService(incidentRepo, notifySvc...)
-	incidentHandler := handlers.NewIncidentHandler(incidentSvc)
+	incidentSvc := service.NewIncidentService(incidentRepo, notifySvc)
+	incidentHandler := handlers.NewIncidentHandler(incidentSvc, auditSvc)
 
 	api := r.Group("/api/incidents")
 	protected := api.Group("")

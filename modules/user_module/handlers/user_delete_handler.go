@@ -4,19 +4,24 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"auto_park/internal/auditlog"
 	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
+	"auto_park/modules/user_module/models"
 	"auto_park/modules/user_module/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UsersDeleteHandler struct {
-	svc *service.UsersDeleteService
+	svc      *service.UsersDeleteService
+	auditSvc *auditlogservice.Service
 }
 
-func NewUsersDeleteHandler(svc *service.UsersDeleteService) *UsersDeleteHandler {
-	return &UsersDeleteHandler{svc: svc}
+func NewUsersDeleteHandler(svc *service.UsersDeleteService, auditSvc *auditlogservice.Service) *UsersDeleteHandler {
+	return &UsersDeleteHandler{svc: svc, auditSvc: auditSvc}
 }
 
 // DELETE /api/users/:id (admin only) <-- роль проверяется в router через middleware.RequireRoles(...)
@@ -48,6 +53,8 @@ func (h *UsersDeleteHandler) DeleteUser(c *gin.Context) {
 		return
 	}
 
+	target, _ := h.svc.GetUserBeforeDelete(c.Request.Context(), targetID)
+
 	err = h.svc.DeleteUserAdmin(c.Request.Context(), requesterID, targetID)
 	if err != nil {
 		switch {
@@ -63,9 +70,53 @@ func (h *UsersDeleteHandler) DeleteUser(c *gin.Context) {
 		}
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"user",
+		"active",
+		"deleted",
+		auditlog.Actor(middleware.CurrentEmail(c), requesterID),
+		auditlog.Message(
+			"id", targetID,
+			"email", userAuditEmail(target),
+			"role_id", userAuditRoleID(target),
+			"name", userAuditFullName(target),
+		),
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "user deleted successfully",
 		"id":      targetID,
 	})
+}
+
+func userAuditEmail(u *models.UserPublic) string {
+	if u == nil {
+		return ""
+	}
+	return u.Email
+}
+
+func userAuditRoleID(u *models.UserPublic) int64 {
+	if u == nil {
+		return 0
+	}
+	return u.RoleID
+}
+
+func userAuditFullName(u *models.UserPublic) string {
+	if u == nil {
+		return ""
+	}
+	return strings.TrimSpace(u.LastName + " " + u.FirstName + " " + auditStringValue(u.MiddleName))
+}
+
+func auditStringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

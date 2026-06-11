@@ -3,6 +3,9 @@ package handlers
 import (
 	"net/http"
 
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/vehicle_module/dto"
 	"auto_park/modules/vehicle_module/service"
 
@@ -10,11 +13,12 @@ import (
 )
 
 type VehicleHandler struct {
-	svc service.VehicleService
+	svc      service.VehicleService
+	auditSvc *auditlogservice.Service
 }
 
-func NewVehicleHandler(svc service.VehicleService) *VehicleHandler {
-	return &VehicleHandler{svc: svc}
+func NewVehicleHandler(svc service.VehicleService, auditSvc *auditlogservice.Service) *VehicleHandler {
+	return &VehicleHandler{svc: svc, auditSvc: auditSvc}
 }
 
 // POST /api/vehicles
@@ -51,6 +55,17 @@ func (h *VehicleHandler) CreateVehicle(c *gin.Context) {
 		})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"success",
+		"vehicle",
+		"",
+		"created",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("id", id, "board", req.BoardNumber, "plate", req.StateNumber, "brand_model", req.BrandModel),
+	)
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
 	"auto_park/middleware"
 	auditlogservice "auto_park/modules/audit_log_module/service"
 	invoiceservice "auto_park/modules/invoice_module/service"
@@ -58,6 +59,17 @@ func (h *PartRequestHandler) CreatePartRequest(c *gin.Context) {
 		writePartRequestError(c, err)
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"success",
+		"request",
+		"",
+		"created",
+		actorFromContext(c, authorUserID),
+		auditlog.Message("request_id", id, "part_id", req.PartID, "quantity", req.Quantity, "vehicle_id", req.VehicleID),
+	)
 
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": id}})
 }
@@ -321,6 +333,17 @@ func (h *PartRequestHandler) UpdatePartRequest(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"success",
+		"request",
+		"in_progress",
+		"completed",
+		actorFromContext(c, changedByUserID),
+		auditlog.Message("request_id", id, "vehicle_id", req.VehicleID, "mechanic_shift_id", req.MechanicShiftID),
+	)
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
@@ -484,6 +507,8 @@ func (h *PartRequestHandler) DeletePartRequest(c *gin.Context) {
 		return
 	}
 
+	request, _ := h.svc.GetByID(c.Request.Context(), id)
+
 	deleted, err := h.svc.DeleteByID(c.Request.Context(), id, changedByUserID)
 	if err != nil {
 		writePartRequestError(c, err)
@@ -493,6 +518,25 @@ func (h *PartRequestHandler) DeletePartRequest(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "part request not found"})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"request",
+		"new",
+		"deleted",
+		actorFromContext(c, changedByUserID),
+		auditlog.Message(
+			"request_id", id,
+			"part_id", partRequestAuditPartID(request),
+			"part", partRequestAuditPartName(request),
+			"quantity", partRequestAuditQuantity(request),
+			"vehicle", partRequestAuditVehicle(request),
+			"author", partRequestAuditAuthor(request),
+			"status", partRequestAuditStatus(request),
+		),
+	)
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
@@ -534,11 +578,7 @@ func getUserIDFromContext(c *gin.Context) (int64, bool) {
 }
 
 func actorFromContext(c *gin.Context, userID int64) string {
-	actor := strings.TrimSpace(middleware.CurrentEmail(c))
-	if actor == "" {
-		actor = strconv.FormatInt(userID, 10)
-	}
-	return actor
+	return auditlog.Actor(strings.TrimSpace(middleware.CurrentEmail(c)), userID)
 }
 
 func statusDisplay(status dto.PartRequestStatusResponse) string {
@@ -552,6 +592,54 @@ func isIssuedPartRequestStatus(status dto.PartRequestStatusResponse) bool {
 	code := strings.ToLower(strings.TrimSpace(status.Code))
 	name := strings.ToLower(strings.TrimSpace(status.Name))
 	return code == "issued" || strings.Contains(name, "\u0432\u044b\u0434\u0430\u043d")
+}
+
+func partRequestAuditPartID(request *dto.PartRequestResponse) int64 {
+	if request == nil {
+		return 0
+	}
+	return request.PartID
+}
+
+func partRequestAuditPartName(request *dto.PartRequestResponse) string {
+	if request == nil {
+		return ""
+	}
+	return request.Part.Name
+}
+
+func partRequestAuditQuantity(request *dto.PartRequestResponse) int64 {
+	if request == nil {
+		return 0
+	}
+	return request.Quantity
+}
+
+func partRequestAuditVehicle(request *dto.PartRequestResponse) string {
+	if request == nil || request.Vehicle == nil {
+		return ""
+	}
+	return strings.TrimSpace(request.Vehicle.BoardNumber + " " + request.Vehicle.StateNumber)
+}
+
+func partRequestAuditAuthor(request *dto.PartRequestResponse) string {
+	if request == nil {
+		return ""
+	}
+	if request.AuthorEmail != nil && strings.TrimSpace(*request.AuthorEmail) != "" {
+		return strings.TrimSpace(*request.AuthorEmail)
+	}
+	if request.AuthorFullName != nil {
+		return strings.TrimSpace(*request.AuthorFullName)
+	}
+	return ""
+}
+
+func partRequestAuditStatus(request *dto.PartRequestResponse) string {
+	if request == nil {
+		return ""
+	}
+	return statusDisplay(request.Status)
 }
 
 func parseInt64Query(c *gin.Context, key string, allowZero bool) (int64, bool) {

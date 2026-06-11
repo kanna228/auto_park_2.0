@@ -6,6 +6,9 @@ import (
 	"strconv"
 	"strings"
 
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/user_module/dto"
 	"auto_park/modules/user_module/repository"
 	"auto_park/modules/user_module/service"
@@ -14,11 +17,12 @@ import (
 )
 
 type MechanicShiftHandler struct {
-	svc *service.MechanicShiftService
+	svc      *service.MechanicShiftService
+	auditSvc *auditlogservice.Service
 }
 
-func NewMechanicShiftHandler(svc *service.MechanicShiftService) *MechanicShiftHandler {
-	return &MechanicShiftHandler{svc: svc}
+func NewMechanicShiftHandler(svc *service.MechanicShiftService, auditSvc *auditlogservice.Service) *MechanicShiftHandler {
+	return &MechanicShiftHandler{svc: svc, auditSvc: auditSvc}
 }
 
 type MechanicShiftCreateResponseWrap struct {
@@ -84,6 +88,17 @@ func (h *MechanicShiftHandler) Create(c *gin.Context) {
 		writeMechanicShiftError(c, err)
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"shift",
+		"",
+		"mechanic_shift_created",
+		auditlog.Actor(middleware.CurrentEmail(c), userID),
+		auditlog.Message("shift_id", id, "mechanic_user_id", req.UserID, "date", req.ShiftDate),
+	)
 
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": id}})
 }
@@ -226,6 +241,17 @@ func (h *MechanicShiftHandler) Update(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"shift",
+		"",
+		"mechanic_shift_updated",
+		auditlog.Actor(middleware.CurrentEmail(c), userID),
+		auditlog.Message("shift_id", id, "mechanic_user_id", req.UserID, "date", req.ShiftDate),
+	)
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
@@ -273,6 +299,17 @@ func (h *MechanicShiftHandler) UpdateActivity(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"shift",
+		"",
+		"mechanic_shift_activity_updated",
+		auditlog.Actor(middleware.CurrentEmail(c), userID),
+		auditlog.Message("shift_id", id, "is_active", req.IsActive),
+	)
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
@@ -311,6 +348,17 @@ func (h *MechanicShiftHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "mechanic shift not found"})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"shift",
+		"active",
+		"mechanic_shift_deleted",
+		auditlog.Actor(middleware.CurrentEmail(c), userID),
+		auditlog.Message("shift_id", id),
+	)
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }

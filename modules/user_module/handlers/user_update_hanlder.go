@@ -6,6 +6,9 @@ import (
 	"strconv"
 
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/user_module/dto"
 	"auto_park/modules/user_module/service"
 
@@ -13,11 +16,12 @@ import (
 )
 
 type UsersUpdateHandler struct {
-	svc *service.UsersUpdateService
+	svc      *service.UsersUpdateService
+	auditSvc *auditlogservice.Service
 }
 
-func NewUsersUpdateHandler(svc *service.UsersUpdateService) *UsersUpdateHandler {
-	return &UsersUpdateHandler{svc: svc}
+func NewUsersUpdateHandler(svc *service.UsersUpdateService, auditSvc *auditlogservice.Service) *UsersUpdateHandler {
+	return &UsersUpdateHandler{svc: svc, auditSvc: auditSvc}
 }
 
 // PUT /api/users/:id (admin only) <-- роль проверяется в router через middleware.RequireRoles(...)
@@ -80,6 +84,17 @@ func (h *UsersUpdateHandler) UpdateUser(c *gin.Context) {
 			return
 		}
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"user",
+		"",
+		"updated",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("id", targetID, "email", updated.Email, "role_id", updated.RoleID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": updated})
 }

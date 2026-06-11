@@ -5,6 +5,7 @@ import (
 
 	"auto_park/internal/config"
 	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/vehicle_module/handlers"
 	"auto_park/modules/vehicle_module/repository"
 	"auto_park/modules/vehicle_module/service"
@@ -12,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, auditSvc *auditlogservice.Service) {
 	vehicleRepo := repository.NewVehicleRepository(db)
 	vehiclePhotoStorage := service.NewVehiclePhotoStorage(cfg.Uploads.RootDir)
 
@@ -26,7 +27,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 		insuranceRepo,
 		technicalInspectionRepo,
 	)
-	vehicleHandler := handlers.NewVehicleHandler(vehicleSvc)
+	vehicleHandler := handlers.NewVehicleHandler(vehicleSvc, auditSvc)
 
 	tireRepo := repository.NewTireRepository(db)
 	tireSvc := service.NewTireService(tireRepo)

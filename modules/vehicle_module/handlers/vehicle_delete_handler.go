@@ -5,6 +5,10 @@ import (
 	"strconv"
 	"strings"
 
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	"auto_park/modules/vehicle_module/dto"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -35,6 +39,8 @@ func (h *VehicleHandler) DeleteVehicle(c *gin.Context) {
 		return
 	}
 
+	vehicle, _ := h.svc.GetByID(c.Request.Context(), id, true)
+
 	ok, err := h.svc.DeleteByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -51,10 +57,55 @@ func (h *VehicleHandler) DeleteVehicle(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"vehicle",
+		"active",
+		"deleted",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message(
+			"id", id,
+			"board", vehicleAuditBoard(vehicle),
+			"plate", vehicleAuditPlate(vehicle),
+			"brand_model", vehicleAuditBrand(vehicle),
+			"vin", vehicleAuditVIN(vehicle),
+		),
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
 			"id": id,
 		},
 	})
+}
+
+func vehicleAuditBoard(v *dto.VehicleResponse) string {
+	if v == nil {
+		return ""
+	}
+	return v.BoardNumber
+}
+
+func vehicleAuditPlate(v *dto.VehicleResponse) string {
+	if v == nil {
+		return ""
+	}
+	return v.StateNumber
+}
+
+func vehicleAuditBrand(v *dto.VehicleResponse) string {
+	if v == nil {
+		return ""
+	}
+	return v.BrandModel
+}
+
+func vehicleAuditVIN(v *dto.VehicleResponse) string {
+	if v == nil {
+		return ""
+	}
+	return v.VIN
 }

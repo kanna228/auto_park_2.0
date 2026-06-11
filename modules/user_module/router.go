@@ -5,6 +5,7 @@ import (
 
 	"auto_park/internal/config"
 	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/user_module/handlers"
 	"auto_park/modules/user_module/repository"
 	"auto_park/modules/user_module/service"
@@ -12,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, auditSvc *auditlogservice.Service) {
 	userRepo := repository.NewUserRepo(db, cfg.Schemas.User)
 	driverRepo := repository.NewDriverRepo(db, cfg.Schemas.User)
 	mechanicShiftRepo := repository.NewMechanicShiftRepo(db)
@@ -31,13 +32,13 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	driverShiftSvc := service.NewDriverShiftService(driverShiftRepo)
 
 	authH := handlers.NewAuthHandler(cfg, authSvc)
-	usersH := handlers.NewUsersHandler(cfg, userSvc)
+	usersH := handlers.NewUsersHandler(cfg, userSvc, auditSvc)
 	usersReadH := handlers.NewUsersReadHandler(usersReadSvc)
-	updH := handlers.NewUsersUpdateHandler(updSvc)
-	delH := handlers.NewUsersDeleteHandler(delSvc)
-	driversH := handlers.NewDriversHandler(driversSvc)
-	mechanicShiftH := handlers.NewMechanicShiftHandler(mechanicShiftSvc)
-	driverShiftH := handlers.NewDriverShiftHandler(driverShiftSvc)
+	updH := handlers.NewUsersUpdateHandler(updSvc, auditSvc)
+	delH := handlers.NewUsersDeleteHandler(delSvc, auditSvc)
+	driversH := handlers.NewDriversHandler(driversSvc, auditSvc)
+	mechanicShiftH := handlers.NewMechanicShiftHandler(mechanicShiftSvc, auditSvc)
+	driverShiftH := handlers.NewDriverShiftHandler(driverShiftSvc, auditSvc)
 
 	api := r.Group("/api/users")
 	api.POST("/login", authH.Login)

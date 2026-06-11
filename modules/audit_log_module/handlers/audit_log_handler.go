@@ -28,7 +28,7 @@ func NewAuditLogHandler(svc *service.Service) *AuditLogHandler {
 // @Param        function query string false "Function: request, arrival, tripsheet, shift, incident, vehicle, user"
 // @Param        level query string false "Level: system, info, success, warning, error"
 // @Param        date query string false "Created date, YYYY-MM-DD"
-// @Param        search query string false "Substring by actor/from_status/to_status"
+// @Param        search query string false "Substring by actor/from_status/to_status/message"
 // @Param        limit query int false "Limit" default(50)
 // @Param        offset query int false "Offset" default(0)
 // @Success      200 {object} AuditLogListResponseWrap
@@ -59,7 +59,7 @@ func (h *AuditLogHandler) ListAuditLogs(c *gin.Context) {
 // @Param        function query string false "Function: request, arrival, tripsheet, shift, incident, vehicle, user"
 // @Param        level query string false "Level: system, info, success, warning, error"
 // @Param        date query string false "Created date, YYYY-MM-DD"
-// @Param        search query string false "Substring by actor/from_status/to_status"
+// @Param        search query string false "Substring by actor/from_status/to_status/message"
 // @Success      200 {file} file
 // @Failure      400 {object} ErrorResponse
 // @Failure      401 {object} ErrorResponse

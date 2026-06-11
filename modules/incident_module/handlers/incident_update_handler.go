@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
 	"auto_park/modules/incident_module/dto"
 	"database/sql"
 	"errors"
@@ -53,6 +55,17 @@ func (h *IncidentHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"incident",
+		"",
+		"updated",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("id", id, "type_id", item.IncidentTypeID, "vehicle_id", item.VehicleID, "driver_id", item.DriverID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": item})
 }

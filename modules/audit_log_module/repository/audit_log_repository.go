@@ -66,7 +66,7 @@ func (r *auditLogRepo) List(ctx context.Context, q dto.AuditLogListQuery) ([]dto
 		argPos++
 	}
 	if v := strings.TrimSpace(q.Search); v != "" {
-		conds = append(conds, fmt.Sprintf("(actor ILIKE $%d OR COALESCE(from_status, '') ILIKE $%d OR COALESCE(to_status, '') ILIKE $%d)", argPos, argPos, argPos))
+		conds = append(conds, fmt.Sprintf("(actor ILIKE $%d OR COALESCE(from_status, '') ILIKE $%d OR COALESCE(to_status, '') ILIKE $%d OR COALESCE(message, '') ILIKE $%d)", argPos, argPos, argPos, argPos))
 		args = append(args, "%"+v+"%")
 		argPos++
 	}

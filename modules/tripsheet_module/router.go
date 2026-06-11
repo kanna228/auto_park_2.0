@@ -6,6 +6,7 @@ import (
 
 	"auto_park/internal/config"
 	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/tripsheet_module/handlers"
 	"auto_park/modules/tripsheet_module/repository"
 	"auto_park/modules/tripsheet_module/service"
@@ -13,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
+func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB, auditSvc *auditlogservice.Service) {
 	r.GET("/api/tripsheet/health", func(c *gin.Context) {
 		if err := db.Ping(); err != nil {
 			c.JSON(http.StatusServiceUnavailable, gin.H{"status": "error", "service": "tripsheet_module", "db": "down", "error": err.Error()})
@@ -28,7 +29,7 @@ func RegisterRoutes(r *gin.Engine, cfg *config.Config, db *sql.DB) {
 	tripsheetSvc := service.NewTripsheetService(tripsheetRepo)
 	tripsheetTripSvc := service.NewTripsheetTripService(tripsheetTripRepo)
 	waybillRoutePointSvc := service.NewWaybillRoutePointService(waybillRoutePointRepo)
-	tripsheetH := handlers.NewTripsheetHandler(tripsheetSvc)
+	tripsheetH := handlers.NewTripsheetHandler(tripsheetSvc, auditSvc)
 	tripsheetTripH := handlers.NewTripsheetTripHandler(tripsheetTripSvc)
 	waybillRoutePointH := handlers.NewWaybillRoutePointHandler(waybillRoutePointSvc)
 

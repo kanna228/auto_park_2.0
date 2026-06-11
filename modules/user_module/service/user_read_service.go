@@ -35,13 +35,16 @@ func (s *UsersReadService) GetUserByID(ctx context.Context, requesterRoleID int6
 	}
 
 	allowed := false
+	if target.ID == requesterUserID {
+		allowed = true
+	}
 	switch requesterRoleID {
 	case 1:
 		allowed = true
 	case 2:
-		allowed = (target.RoleID == 2 || target.RoleID == 3)
+		allowed = allowed || target.RoleID == 2 || target.RoleID == 3
 	case 3:
-		allowed = (target.ID == requesterUserID)
+		allowed = allowed || target.ID == requesterUserID
 	}
 
 	if !allowed {

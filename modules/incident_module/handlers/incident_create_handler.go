@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/incident_module/dto"
 	"auto_park/modules/incident_module/service"
 	"errors"
@@ -11,11 +14,12 @@ import (
 )
 
 type IncidentHandler struct {
-	svc service.IncidentService
+	svc      service.IncidentService
+	auditSvc *auditlogservice.Service
 }
 
-func NewIncidentHandler(svc service.IncidentService) *IncidentHandler {
-	return &IncidentHandler{svc: svc}
+func NewIncidentHandler(svc service.IncidentService, auditSvc *auditlogservice.Service) *IncidentHandler {
+	return &IncidentHandler{svc: svc, auditSvc: auditSvc}
 }
 
 // Create godoc
@@ -48,6 +52,17 @@ func (h *IncidentHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"incident",
+		"",
+		"registered",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("id", resp.ID, "type_id", req.IncidentTypeID, "vehicle_id", req.VehicleID, "driver_id", req.DriverID, "mechanic_id", req.MechanicID),
+	)
 
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": resp})
 }

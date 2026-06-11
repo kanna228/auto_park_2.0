@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+
+	"auto_park/modules/user_module/models"
 )
 
 var (
@@ -11,6 +13,7 @@ var (
 
 type UsersDeleteRepo interface {
 	DeleteUserByID(ctx context.Context, id int64) error
+	GetUserPublicByID(ctx context.Context, id int64, includeArchived bool) (*models.UserPublic, error)
 }
 
 type UsersDeleteService struct {
@@ -19,6 +22,10 @@ type UsersDeleteService struct {
 
 func NewUsersDeleteService(repo UsersDeleteRepo) *UsersDeleteService {
 	return &UsersDeleteService{repo: repo}
+}
+
+func (s *UsersDeleteService) GetUserBeforeDelete(ctx context.Context, targetID int64) (*models.UserPublic, error) {
+	return s.repo.GetUserPublicByID(ctx, targetID, false)
 }
 
 // requesterID нужен только чтобы запретить self-delete

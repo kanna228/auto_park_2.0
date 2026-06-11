@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
 	"auto_park/modules/vehicle_module/dto"
 
 	"github.com/gin-gonic/gin"
@@ -58,6 +60,17 @@ func (h *VehicleHandler) UpdateVehicle(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "vehicle not found"})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"vehicle",
+		"",
+		"updated",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("id", id, "board", req.BoardNumber, "plate", req.StateNumber, "brand_model", req.BrandModel),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

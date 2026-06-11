@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
 	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/warehouse_module/dto"
 	"auto_park/modules/warehouse_module/repository"
@@ -57,6 +58,17 @@ func (h *PartHandler) CreatePart(c *gin.Context) {
 		}
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"success",
+		"arrival",
+		"",
+		"part_created",
+		actorFromContext(c, 0),
+		auditlog.Message("part_id", id, "catalog_part_id", req.PartID, "name", req.Name, "quantity", req.StartQuantity),
+	)
 
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": id}})
 }
@@ -241,6 +253,17 @@ func (h *PartHandler) UpdatePart(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"arrival",
+		"",
+		"part_updated",
+		actorFromContext(c, 0),
+		auditlog.Message("part_id", id, "name", req.Name, "quantity", req.Quantity),
+	)
+
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
@@ -264,6 +287,8 @@ func (h *PartHandler) DeletePart(c *gin.Context) {
 		return
 	}
 
+	part, _ := h.svc.GetByID(c.Request.Context(), id, true)
+
 	deleted, err := h.svc.DeleteByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
@@ -273,6 +298,23 @@ func (h *PartHandler) DeletePart(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"success": false, "error": "part not found"})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"arrival",
+		"active",
+		"part_deleted",
+		actorFromContext(c, 0),
+		auditlog.Message(
+			"part_id", id,
+			"catalog_part_id", partAuditCatalogID(part),
+			"name", partAuditName(part),
+			"category", partAuditCategory(part),
+			"quantity", partAuditQuantity(part),
+		),
+	)
 
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"id": id}})
 }
@@ -292,6 +334,16 @@ func (h *PartHandler) CreatePartArrival(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"success",
+		"arrival",
+		"",
+		"created",
+		actorFromContext(c, userID),
+		auditlog.Message("arrival_id", id, "document_number", req.DocumentNumber, "items", len(req.Items)),
+	)
 	c.JSON(http.StatusCreated, gin.H{"success": true, "data": gin.H{"id": id}})
 }
 
@@ -360,4 +412,32 @@ func parseID(c *gin.Context) (int64, bool) {
 func parseWarehouseBoolQuery(value string) bool {
 	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
 	return err == nil && parsed
+}
+
+func partAuditCatalogID(part *dto.PartResponse) string {
+	if part == nil {
+		return ""
+	}
+	return part.PartID
+}
+
+func partAuditName(part *dto.PartResponse) string {
+	if part == nil {
+		return ""
+	}
+	return part.Name
+}
+
+func partAuditCategory(part *dto.PartResponse) string {
+	if part == nil {
+		return ""
+	}
+	return part.Category
+}
+
+func partAuditQuantity(part *dto.PartResponse) int64 {
+	if part == nil {
+		return 0
+	}
+	return part.Quantity
 }

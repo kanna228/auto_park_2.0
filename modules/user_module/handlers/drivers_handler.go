@@ -2,12 +2,16 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"path"
 	"strconv"
 	"strings"
 
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	auditlogservice "auto_park/modules/audit_log_module/service"
 	"auto_park/modules/user_module/dto"
 	"auto_park/modules/user_module/models"
 	"auto_park/modules/user_module/repository"
@@ -157,11 +161,12 @@ type ErrorResponse struct {
 // =======================
 
 type DriversHandler struct {
-	svc *service.DriversService
+	svc      *service.DriversService
+	auditSvc *auditlogservice.Service
 }
 
-func NewDriversHandler(svc *service.DriversService) *DriversHandler {
-	return &DriversHandler{svc: svc}
+func NewDriversHandler(svc *service.DriversService, auditSvc *auditlogservice.Service) *DriversHandler {
+	return &DriversHandler{svc: svc, auditSvc: auditSvc}
 }
 
 func driverPhotoURL(c *gin.Context, rel string) string {
@@ -232,6 +237,17 @@ func (h *DriversHandler) Create(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"success",
+		"user",
+		"",
+		"driver_created",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("driver_id", drv.ID, "email", drv.Mail, "name", fmt.Sprintf("%s %s", drv.Surname, drv.Name)),
+	)
+
 	c.JSON(http.StatusCreated, DriverResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
 
@@ -299,6 +315,16 @@ func (h *DriversHandler) AssignVehicle(c *gin.Context) {
 		writeDriverVehicleAssignmentError(c, err)
 		return
 	}
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"user",
+		"",
+		"driver_vehicle_assigned",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("driver_id", id, "vehicle_id", req.VehicleID),
+	)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"driver_id": id, "vehicle_id": req.VehicleID}})
 }
 
@@ -317,6 +343,16 @@ func (h *DriversHandler) UnassignVehicle(c *gin.Context) {
 		writeDriverVehicleAssignmentError(c, err)
 		return
 	}
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"user",
+		"driver_vehicle_assigned",
+		"driver_vehicle_unassigned",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("driver_id", id, "vehicle_id", vehicleID),
+	)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": gin.H{"driver_id": id, "vehicle_id": vehicleID}})
 }
 
@@ -408,6 +444,17 @@ func (h *DriversHandler) Update(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"user",
+		"",
+		"driver_updated",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("driver_id", drv.ID, "email", drv.Mail, "name", fmt.Sprintf("%s %s", drv.Surname, drv.Name)),
+	)
+
 	c.JSON(http.StatusOK, DriverResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
 
@@ -449,6 +496,17 @@ func (h *DriversHandler) UpdateStatus(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": err.Error()})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"user",
+		"",
+		"driver_status_updated",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("driver_id", drv.ID, "status", drv.Status.Code),
+	)
 
 	c.JSON(http.StatusOK, DriverStatusUpdateResponse{Success: true, Data: driverToDTO(c, *drv)})
 }
@@ -558,6 +616,17 @@ func (h *DriversHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": err.Error()})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"user",
+		"active",
+		"driver_deleted",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("driver_id", id),
+	)
 
 	resp := DeleteDriverResponse{Success: true}
 	resp.Data.ID = id

@@ -4,6 +4,11 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
+
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
+	"auto_park/modules/tripsheet_module/dto"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,6 +36,8 @@ func (h *TripsheetHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	tripsheet, _ := h.svc.GetByID(c.Request.Context(), id)
+
 	err = h.svc.Delete(c.Request.Context(), id)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -56,8 +63,60 @@ func (h *TripsheetHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"warning",
+		"tripsheet",
+		"active",
+		"deleted",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message(
+			"id", id,
+			"number", tripsheetAuditNumber(tripsheet),
+			"plate", tripsheetAuditPlate(tripsheet),
+			"brand", tripsheetAuditBrand(tripsheet),
+			"driver", tripsheetAuditDriver(tripsheet),
+		),
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "tripsheet and related trips deleted successfully",
 	})
+}
+
+func tripsheetAuditNumber(t *dto.TripsheetResponse) string {
+	if t == nil {
+		return ""
+	}
+	return t.TripsheetNumber
+}
+
+func tripsheetAuditPlate(t *dto.TripsheetResponse) string {
+	if t == nil {
+		return ""
+	}
+	return t.VehiclePlateNumber
+}
+
+func tripsheetAuditBrand(t *dto.TripsheetResponse) string {
+	if t == nil {
+		return ""
+	}
+	return tripsheetAuditString(t.VehicleBrand)
+}
+
+func tripsheetAuditDriver(t *dto.TripsheetResponse) string {
+	if t == nil {
+		return ""
+	}
+	return strings.TrimSpace(tripsheetAuditString(t.DriverLastName) + " " + tripsheetAuditString(t.DriverFirstName) + " " + tripsheetAuditString(t.DriverMiddleName))
+}
+
+func tripsheetAuditString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }

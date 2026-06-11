@@ -71,14 +71,17 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 		})
 	})
 
-	user_module.RegisterRoutes(r, cfg, db)
-	vehicle_module.RegisterRoutes(r, cfg, db)
-	tripsheet_module.RegisterRoutes(r, cfg, db)
+	auditLogRepo := auditlogrepository.NewAuditLogRepository(db)
+	auditLogSvc := auditlogservice.NewAuditLogService(auditLogRepo)
+
+	user_module.RegisterRoutes(r, cfg, db, auditLogSvc)
+	vehicle_module.RegisterRoutes(r, cfg, db, auditLogSvc)
+	tripsheet_module.RegisterRoutes(r, cfg, db, auditLogSvc)
 
 	notificationHub := notificationws.NewHub()
 	notificationRepo := notificationrepository.NewNotificationRepository(db)
 	notificationSvc := notificationservice.NewNotificationService(notificationRepo, notificationHub)
-	incident_module.RegisterRoutes(r, cfg, db, notificationSvc)
+	incident_module.RegisterRoutes(r, cfg, db, notificationSvc, auditLogSvc)
 	notification_module.RegisterRoutes(r, cfg, notificationSvc, notificationHub)
 
 	replacementReminderJob := notificationjobs.NewVehiclePartReplacementReminderJob(db, notificationSvc)
@@ -90,8 +93,6 @@ func NewRouter(cfg *config.Config, db *sql.DB) *gin.Engine {
 	maintenance_schedule_module.RegisterRoutes(r, cfg, db)
 	maintenance_execution_module.RegisterRoutes(r, cfg, db)
 
-	auditLogRepo := auditlogrepository.NewAuditLogRepository(db)
-	auditLogSvc := auditlogservice.NewAuditLogService(auditLogRepo)
 	audit_log_module.RegisterRoutes(r, cfg, auditLogSvc)
 
 	invoiceRepo := invoicerepository.NewInvoiceRepository(db)

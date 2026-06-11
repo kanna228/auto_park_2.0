@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"auto_park/internal/apierrors"
+	"auto_park/internal/auditlog"
+	"auto_park/middleware"
 	"auto_park/modules/tripsheet_module/dto"
 	"database/sql"
 	"errors"
@@ -65,6 +67,17 @@ func (h *TripsheetHandler) Update(c *gin.Context) {
 		})
 		return
 	}
+
+	auditlog.Write(
+		c.Request.Context(),
+		h.auditSvc,
+		"info",
+		"tripsheet",
+		"",
+		"updated",
+		auditlog.Actor(middleware.CurrentEmail(c), 0),
+		auditlog.Message("id", id, "number", resp.TripsheetNumber, "status_id", resp.StatusID),
+	)
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
