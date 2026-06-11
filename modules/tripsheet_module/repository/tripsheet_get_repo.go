@@ -32,6 +32,24 @@ func (r *tripsheetRepo) GetAll(ctx context.Context, f dto.TripsheetFilter) ([]dt
 	if f.StatusID != nil {
 		add("status_id = $%d", *f.StatusID)
 	}
+	if f.Search != nil && strings.TrimSpace(*f.Search) != "" {
+		where = append(where, fmt.Sprintf(`(
+			tripsheet_number ILIKE '%%' || $%[1]d || '%%'
+			OR LOWER(REGEXP_REPLACE(tripsheet_number, '[^[:alnum:]]', '', 'g')) LIKE '%%' || LOWER(REGEXP_REPLACE($%[1]d, '[^[:alnum:]]', '', 'g')) || '%%'
+			OR vehicle_plate_number ILIKE '%%' || $%[1]d || '%%'
+			OR LOWER(REGEXP_REPLACE(vehicle_plate_number, '[^[:alnum:]]', '', 'g')) LIKE '%%' || LOWER(REGEXP_REPLACE($%[1]d, '[^[:alnum:]]', '', 'g')) || '%%'
+			OR vehicle_brand ILIKE '%%' || $%[1]d || '%%'
+			OR CONCAT_WS(' ', driver_last_name, driver_first_name, driver_middle_name) ILIKE '%%' || $%[1]d || '%%'
+			OR vehicle_id IN (
+				SELECT id
+				FROM vehicles
+				WHERE board_number ILIKE '%%' || $%[1]d || '%%'
+				   OR LOWER(REGEXP_REPLACE(board_number, '[^[:alnum:]]', '', 'g')) LIKE '%%' || LOWER(REGEXP_REPLACE($%[1]d, '[^[:alnum:]]', '', 'g')) || '%%'
+			)
+		)`, argPos))
+		args = append(args, strings.TrimSpace(*f.Search))
+		argPos++
+	}
 	if f.DateFrom != nil && strings.TrimSpace(*f.DateFrom) != "" {
 		add("tripsheet_date >= $%d", strings.TrimSpace(*f.DateFrom))
 	}

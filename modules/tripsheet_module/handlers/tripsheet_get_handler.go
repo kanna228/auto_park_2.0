@@ -22,6 +22,7 @@ import (
 // @Param        date_from query string false "Date from (YYYY-MM-DD)"
 // @Param        date_to query string false "Date to (YYYY-MM-DD)"
 // @Param        status_id query int false "Status ID"
+// @Param        search query string false "Search by tripsheet number, plate, brand, board number, or driver name"
 // @Param        tripsheet_number query string false "Tripsheet number"
 // @Param        vehicle_plate_number query string false "Vehicle plate number"
 // @Param        vehicle_brand query string false "Vehicle brand"

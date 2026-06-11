@@ -88,6 +88,7 @@ type TripsheetFilter struct {
 	DateFrom           *string `form:"date_from" example:"2026-03-01"`
 	DateTo             *string `form:"date_to" example:"2026-03-31"`
 	StatusID           *int64  `form:"status_id" example:"1"`
+	Search             *string `form:"search" example:"WL-2026-0014"`
 	TripsheetNumber    *string `form:"tripsheet_number" example:"PL-0002"`
 	VehiclePlateNumber *string `form:"vehicle_plate_number" example:"123ABC01"`
 	VehicleBrand       *string `form:"vehicle_brand" example:"Toyota"`
